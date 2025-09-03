@@ -89,63 +89,57 @@ let gradesPerPage = 10;
             document.getElementById('searchGrade')?.addEventListener('input', filterGrades);
             document.getElementById('gradeYearFilter')?.addEventListener('change', filterGrades);
         });
-
-        // Authentication functions
         
-    // ===== Login flow with guaranteed close =====
-    async function login() {
-      const userType = document.getElementById('userType')?.value || 'admin';
-      let credentials = {};
-      if (userType === 'admin') {
-        credentials.email    = (document.getElementById('adminEmail')?.value || '').trim();
-        credentials.password = (document.getElementById('adminPassword')?.value || '').trim();
-      } else if (userType === 'student') {
-        const raw = (document.getElementById('studentId')?.value || '').trim();
-        credentials.citizenId = raw.replace(/\s|-/g, '');
-      } else if (userType === 'advisor') {
-        credentials.email    = (document.getElementById('advisorEmail')?.value || '').trim();
-        credentials.password = (document.getElementById('advisorPassword')?.value || '').trim();
-      }
-    
-      try {
-        Swal.fire({ title: 'กำลังเข้าสู่ระบบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    
-        const resp = await callAPI('authenticate', { userType, credentials }, { timeoutMs: 15000 });
-        console.log('AUTH RESP:', resp);
-    
-        if (!resp?.success || !resp?.data) {
-          throw new Error(resp?.message || 'ข้อมูลการเข้าสู่ระบบไม่ถูกต้อง');
+  // ===== Login flow with guaranteed close =====
+      async function login() {
+        const userType = document.getElementById('userType')?.value || 'admin';
+        let credentials = {};
+        if (userType === 'admin') {
+          credentials.email    = (document.getElementById('adminEmail')?.value || '').trim();
+          credentials.password = (document.getElementById('adminPassword')?.value || '').trim();
+        } else if (userType === 'student') {
+          const raw = (document.getElementById('studentId')?.value || '').trim();
+          credentials.citizenId = raw.replace(/\s|-/g, '');
+        } else if (userType === 'advisor') {
+          credentials.email    = (document.getElementById('advisorEmail')?.value || '').trim();
+          credentials.password = (document.getElementById('advisorPassword')?.value || '').trim();
         }
-    
-        // set state
-        window.currentUser = resp.data;
-        window.currentUserType = userType;
+      
         try {
-          localStorage.setItem('currentUser', JSON.stringify(resp.data));
-          localStorage.setItem('currentUserType', userType);
-        } catch {}
-    
-        // โหลดข้อมูลหลัก—อย่าค้าง: มี timeout ใน callAPI และ allSettled แล้ว
-        try {
-          await loadAdminData();
-        } catch (e) {
-          console.warn('Initial load error:', e);
-        }
-    
-        // ปิดโหลดแน่นอน แล้วไป Dashboard แม้ข้อมูลบางส่วนพลาด
-        if (Swal.isVisible()) Swal.close();
-        
-        // รอให้ state เซตเสร็จก่อนแล้วค่อยเปิดแดชบอร์ด
-        setTimeout(() => {
+          Swal.fire({ title: 'กำลังเข้าสู่ระบบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      
+          const resp = await callAPI('authenticate', { userType, credentials }, { timeoutMs: 15000 });
+          console.log('AUTH RESP:', resp);
+      
+          if (!resp?.success || !resp?.data) {
+            throw new Error(resp?.message || 'ข้อมูลการเข้าสู่ระบบไม่ถูกต้อง');
+          }
+      
+          // >>> ใช้ตัวแปร global โดยตรง (ไม่ใช้ window.*) <<<
+          currentUser = resp.data;
+          currentUserType = userType;
+      
+          try {
+            localStorage.setItem('currentUser', JSON.stringify(resp.data));
+            localStorage.setItem('currentUserType', userType);
+          } catch {}
+      
+          // โหลดข้อมูลหลัก (ล้มเหลวได้ ไม่บล็อกการเข้า dashboard)
+          try { await loadAdminData(); } catch (e) { console.warn('Initial load error:', e); }
+      
+          if (Swal.isVisible()) Swal.close();
           showDashboard();
-        }, 200);
-    
-      } catch (err) {
-        console.error('Login error:', err);
-        if (Swal.isVisible()) Swal.close();
-        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message || 'ไม่สามารถเข้าสู่ระบบได้' });
+      
+        } catch (err) {
+          console.error('Login error:', err);
+          if (Swal.isVisible()) Swal.close();
+          Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message || 'ไม่สามารถเข้าสู่ระบบได้' });
+        }
       }
-    }
+      
+      // (ถ้าอยากชัวร์ว่าเรียกได้จาก onclick) 
+      window.login = login;
+
 
         function logout() {
             localStorage.removeItem('currentUser');
@@ -1208,6 +1202,7 @@ function filterGrades() {
   currentGradesPage = 1;
   renderGradesPage();
 }
+
 
 
 
