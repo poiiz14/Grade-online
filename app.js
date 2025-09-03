@@ -32,6 +32,9 @@ function callAPI(action, data = {}) {
 // ========================
 let currentUser = null;
 let currentUserType = null;
+// === Chart instances (global) ===
+let _studentsChart = null;
+let _englishChart  = null;
 let studentsData = [];
 let gradesData = [];
 let englishTestData = [];
@@ -80,42 +83,91 @@ let gradesPerPage = 10;
 
         // Authentication functions
         
-async function login() {
-  const userType = document.getElementById('userType').value;
-  let credentials = {};
-
-  try {
-    Swal.fire({ title: 'กำลังเข้าสู่ระบบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-    if (userType === 'admin') {
-      credentials.email = document.getElementById('adminEmail').value.trim();
-      credentials.password = document.getElementById('adminPassword').value;
-    } else if (userType === 'student') {
-      credentials.citizenId = document.getElementById('studentId').value.trim();
-    } else if (userType === 'advisor') {
-      credentials.email = document.getElementById('advisorEmail').value.trim();
-      credentials.password = document.getElementById('advisorPassword').value;
-    }
-
-    const resp = await callAPI('authenticate', { userType, credentials });
-    console.log('AUTH RESP:', resp); // ช่วยดีบัก
+    // ====== แทนที่ฟังก์ชัน login() เดิมทั้งก้อนด้วยโค้ดนี้ ======
+    async function login() {
+      const userType = document.getElementById('userType')?.value || 'admin';
     
-    if (resp && resp.success && resp.data) {
-      currentUser = resp.data;
-      currentUserType = userType;
-      localStorage.setItem('currentUser', JSON.stringify(currentUser));
-      localStorage.setItem('currentUserType', currentUserType);
-      Swal.close();
-      showDashboard();
-    } else {
-      const msg = (resp && resp.message) ? resp.message : 'ข้อมูลการเข้าสู่ระบบไม่ถูกต้อง';
-      Swal.fire({ icon: 'error', title: 'เข้าสู่ระบบไม่สำเร็จ', text: msg });
+      // เตรียม credentials ตามบทบาท
+      let credentials = {};
+      if (userType === 'admin') {
+        credentials.email = (document.getElementById('adminEmail')?.value || '').trim();
+        credentials.password = (document.getElementById('adminPassword')?.value || '').trim();
+      } else if (userType === 'student') {
+        // เข้าด้วยเลขบัตรประชาชน (ตัดช่องว่าง/ขีด เผื่อผู้ใช้พิมพ์มา)
+        const rawCid = (document.getElementById('studentId')?.value || '').trim();
+        credentials.citizenId = rawCid.replace(/\s|-/g, '');
+      } else if (userType === 'advisor') {
+        credentials.email = (document.getElementById('advisorEmail')?.value || '').trim();
+        credentials.password = (document.getElementById('advisorPassword')?.value || '').trim();
+      }
+    
+      try {
+        // Loading UI
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            title: 'กำลังเข้าสู่ระบบ...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+          });
+        }
+    
+        // เรียก API authenticate (รองรับ JSONP ผ่าน callAPI)
+        const resp = await callAPI('authenticate', { userType, credentials });
+        console.log('AUTH RESP:', resp); // ช่วยดีบัก
+    
+        if (resp && resp.success && resp.data) {
+          // เก็บสถานะผู้ใช้
+          window.currentUser = resp.data;
+          window.currentUserType = userType;
+          try {
+            localStorage.setItem('currentUser', JSON.stringify(resp.data));
+            localStorage.setItem('currentUserType', userType);
+          } catch (_) {}
+    
+          // โหลดข้อมูลก้อนแรกให้พร้อมก่อนขึ้น Dashboard
+          try {
+            if (typeof loadAdminData === 'function') {
+              await loadAdminData(); // ภายในควรดึง students/grades/english/advisors
+            } else {
+              // เผื่อโปรเจ็กต์แยกเป็นฟังก์ชันย่อย
+              await Promise.all([
+                typeof loadStudentsFromSheets === 'function' ? loadStudentsFromSheets() : Promise.resolve(),
+                typeof loadGradesFromSheets   === 'function' ? loadGradesFromSheets()   : Promise.resolve(),
+                typeof loadEnglishTestFromSheets === 'function' ? loadEnglishTestFromSheets() : Promise.resolve(),
+                typeof loadAdvisorsFromSheets === 'function' ? loadAdvisorsFromSheets() : Promise.resolve()
+              ]);
+            }
+          } catch (err) {
+            console.error('Initial load error:', err);
+            // ไม่ fail login แต่แจ้งเตือนผู้ใช้
+            if (typeof Swal !== 'undefined') {
+              await Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'เข้าสู่ระบบสำเร็จ แต่โหลดข้อมูลบางส่วนไม่ครบ' });
+            }
+          }
+    
+          if (typeof Swal !== 'undefined') Swal.close();
+    
+          // แสดงหน้า Dashboard ตามบทบาท (ฟังก์ชันเดิมของโปรเจ็กต์)
+          if (typeof showDashboard === 'function') {
+            showDashboard();
+          }
+          return;
+        }
+    
+        // กรณีไม่ผ่าน: แสดงข้อความจาก API ถ้ามี
+        const msg = (resp && resp.message)
+          ? resp.message
+          : 'ข้อมูลการเข้าสู่ระบบไม่ถูกต้อง';
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({ icon: 'error', title: 'เข้าสู่ระบบไม่สำเร็จ', text: msg });
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถเข้าสู่ระบบได้ กรุณาลองใหม่อีกครั้ง' });
+        }
+      }
     }
-  } catch (err) {
-    console.error('Login error:', err);
-    Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถเข้าสู่ระบบได้ กรุณาลองใหม่อีกครั้ง' });
-  }
-}
 
         function logout() {
             localStorage.removeItem('currentUser');
@@ -155,32 +207,60 @@ async function login() {
         }
 
         // Admin functions
-        function showAdminSection(section, el) {
-        // อัปเดตปุ่มนำทาง
-        document.querySelectorAll('.admin-nav-btn').forEach(btn => {
+       // ปุ่มเมนูใน Admin Dashboard → ต้องเรียกแบบ onclick="showAdminSection('overview', this)"
+        async function showAdminSection(section, el) {
+          // 1) อัปเดตสไตล์ปุ่มนำทาง
+          document.querySelectorAll('.admin-nav-btn').forEach(btn => {
             btn.classList.remove('border-blue-500', 'text-blue-600');
             btn.classList.add('border-transparent', 'text-gray-500');
-        });
-        if (el) {
+          });
+          if (el) {
             el.classList.remove('border-transparent', 'text-gray-500');
             el.classList.add('border-blue-500', 'text-blue-600');
+          }
+        
+          // 2) โชว์/ซ่อน section
+          document.querySelectorAll('.admin-section').forEach(sec => sec.classList.add('hidden'));
+          const targetId = `admin${section.charAt(0).toUpperCase() + section.slice(1)}`;
+          document.getElementById(targetId)?.classList.remove('hidden');
+        
+          // 3) โหลดข้อมูลให้พร้อม (ครั้งแรก/ยังไม่ครบ)
+          try {
+            const needsStudents = !Array.isArray(studentsData) || studentsData.length === 0;
+            const needsGrades   = !Array.isArray(gradesData)   || gradesData.length === 0;
+            const needsEnglish  = !Array.isArray(englishTestData) || englishTestData.length === 0;
+            const needsAdvisors = !Array.isArray(advisorsData) || advisorsData.length === 0;
+        
+            if (needsStudents || needsGrades || needsEnglish || needsAdvisors) {
+              // ถ้ามีฟังก์ชันรวม ให้เรียกอันเดียว
+              if (typeof loadAdminData === 'function') {
+                await loadAdminData();
+              } else {
+                // เผื่อโปรเจ็กต์แยกโหลดเป็นรายชุด
+                await Promise.all([
+                  typeof loadStudentsFromSheets === 'function' ? loadStudentsFromSheets() : Promise.resolve(),
+                  typeof loadGradesFromSheets   === 'function' ? loadGradesFromSheets()   : Promise.resolve(),
+                  typeof loadEnglishTestFromSheets === 'function' ? loadEnglishTestFromSheets() : Promise.resolve(),
+                  typeof loadAdvisorsFromSheets === 'function' ? loadAdvisorsFromSheets() : Promise.resolve(),
+                ]);
+              }
+            }
+          } catch (e) {
+            console.error('load data error:', e);
+            Swal?.fire?.({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถโหลดข้อมูลได้' });
+            return;
+          }
+        
+          // 4) เรนเดอร์ตามส่วนที่เลือก
+          try {
+            if (section === 'overview'  && typeof loadOverviewData  === 'function') loadOverviewData();
+            if (section === 'students'  && typeof loadStudentsData  === 'function') loadStudentsData();
+            if (section === 'grades'    && typeof loadGradesData    === 'function') loadGradesData();
+            if (section === 'individual'&& typeof loadIndividualData=== 'function') loadIndividualData();
+          } catch (e) {
+            console.error('render section error:', e);
+          }
         }
-
-        // โชว์/ซ่อนส่วนเนื้อหา
-        document.querySelectorAll('.admin-section').forEach(sec => sec.classList.add('hidden'));
-        document.getElementById(`admin${section.charAt(0).toUpperCase() + section.slice(1)}`).classList.remove('hidden');
-
-        // โหลดข้อมูลส่วนที่เลือก
-        if (section === 'overview') {
-            loadOverviewData();
-        } else if (section === 'students') {
-            loadStudentsData();
-        } else if (section === 'grades') {
-            loadGradesData();
-        } else if (section === 'individual') {
-            loadIndividualData();
-        }
-    }
 
     async function loadAdminData() {
         try {
@@ -241,31 +321,46 @@ async function login() {
             return subjects.size;
         }
 
-        function updateStudentsChart(data) {
-        const ctx = document.getElementById('studentsChart').getContext('2d');
+        function updateStudentsChart(dataArray) {
+        const canvas = document.getElementById('studentsChart');
+        if (!canvas) return; // กันกรณียังไม่ได้ mount UI
+      
+        const ctx = canvas.getContext('2d');
         if (_studentsChart) _studentsChart.destroy();
+      
         _studentsChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-            labels: ['ชั้นปีที่ 1', 'ชั้นปีที่ 2', 'ชั้นปีที่ 3', 'ชั้นปีที่ 4'],
-            datasets: [{ label: 'จำนวนนักศึกษา', data, backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'] }]
-            },
-            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+          type: 'bar',
+          data: {
+            labels: ['ชั้นปี 1', 'ชั้นปี 2', 'ชั้นปี 3', 'ชั้นปี 4'],
+            datasets: [{
+              label: 'จำนวนนักศึกษา',
+              data: Array.isArray(dataArray) ? dataArray : [0,0,0,0],
+              backgroundColor: ['#3B82F6','#10B981','#F59E0B','#EF4444']
+            }]
+          },
+          options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
         });
-        }
-
-        function updateEnglishChart(stats) {
-        const ctx = document.getElementById('englishChart').getContext('2d');
+      }
+      
+      function updateEnglishChart(stats) {
+        const canvas = document.getElementById('englishChart');
+        if (!canvas) return;
+      
+        const ctx = canvas.getContext('2d');
         if (_englishChart) _englishChart.destroy();
+      
+        const passed = stats?.passed ?? 0;
+        const failed = stats?.failed ?? 0;
+      
         _englishChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
+          type: 'doughnut',
+          data: {
             labels: ['ผ่าน', 'ไม่ผ่าน'],
-            datasets: [{ data: [stats.passed, stats.failed], backgroundColor: ['#10B981', '#EF4444'] }]
-            },
-            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            datasets: [{ data: [passed, failed], backgroundColor: ['#10B981','#EF4444'] }]
+          },
+          options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
         });
-        }
+      }
 
         // Mock data loading functions (replace with actual Google Sheets API calls)
         async function loadStudentsFromSheets() {
@@ -511,40 +606,74 @@ document.getElementById('addGradeForm').addEventListener('submit', async functio
             return latest.status;
         }
 
-        function showSemester(semester, el) {
+      // ปุ่มแท็บภาคเรียนของนักศึกษา → ต้องเรียกแบบ onclick="showSemester('1', this)"
+      async function showSemester(semester, el) {
+        // 1) อัปเดตสไตล์แท็บภาคเรียน
         document.querySelectorAll('.semester-tab').forEach(tab => {
-            tab.classList.remove('border-blue-500', 'text-blue-600');
-            tab.classList.add('border-transparent', 'text-gray-500');
+          tab.classList.remove('border-blue-500', 'text-blue-600');
+          tab.classList.add('border-transparent', 'text-gray-500');
         });
         if (el) {
-            el.classList.remove('border-transparent', 'text-gray-500');
-            el.classList.add('border-blue-500', 'text-blue-600');
+          el.classList.remove('border-transparent', 'text-gray-500');
+          el.classList.add('border-blue-500', 'text-blue-600');
         }
-        loadSemesterGrades(semester);
+      
+        // 2) ให้แน่ใจว่าข้อมูลเกรดโหลดแล้ว
+        try {
+          if (!Array.isArray(gradesData) || gradesData.length === 0) {
+            if (typeof loadGradesFromSheets === 'function') {
+              await loadGradesFromSheets();
+            }
+          }
+        } catch (e) {
+          console.error('load grades error:', e);
+          Swal?.fire?.({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถโหลดผลการเรียนได้' });
+          return;
         }
+      
+        // 3) เรนเดอร์เกรดของภาคเรียน (ฟังก์ชันเดิมของโปรเจ็กต์)
+        try {
+          if (typeof loadSemesterGrades === 'function') {
+            loadSemesterGrades(semester);
+          }
+        } catch (e) {
+          console.error('render semester error:', e);
+        }
+      }
 
         function loadSemesterGrades(semester) {
-            const academicYear = document.getElementById('studentAcademicYear').value;
-            const studentGrades = gradesData.filter(grade => {
-                const matchesStudent = grade.studentId === currentUser.id;
-                const matchesSemester = grade.semester.endsWith(`/${semester}`);
-                const matchesYear = !academicYear || grade.semester.startsWith(academicYear);
-                return matchesStudent && matchesSemester && matchesYear;
-            });
-            
-            const tbody = document.getElementById('studentGradesTable');
-            tbody.innerHTML = studentGrades.map(grade => `
-                <tr>
-                    <td class="px-4 py-2 text-sm text-gray-900">${grade.subjectCode}</td>
-                    <td class="px-4 py-2 text-sm text-gray-900">${grade.subjectName}</td>
-                    <td class="px-4 py-2 text-sm text-gray-900">${grade.credits}</td>
-                    <td class="px-4 py-2 text-sm font-medium ${getGradeColor(grade.grade)}">${grade.grade}</td>
-                </tr>
-            `).join('');
-            
-            // Calculate semester GPA
-            const semesterGPA = calculateSemesterGPA(studentGrades);
-            document.getElementById('semesterGPA').textContent = semesterGPA.toFixed(2);
+          const academicYear = document.getElementById('studentAcademicYear').value;
+          const semSuffix = '/' + String(semester);
+        
+          const studentGrades = (gradesData || []).filter(grade => {
+            if (!grade) return false;
+            // กันกรณีไม่มีค่า semester
+            if (!grade.semester) return false;
+        
+            const matchesStudent = grade.studentId === currentUser.id;
+            const matchesSemester = String(grade.semester).endsWith(semSuffix);
+            const matchesYear = academicYear
+              ? String(grade.semester).startsWith(academicYear)
+              : true;
+        
+            return matchesStudent && matchesSemester && matchesYear;
+          });
+        
+          const tbody = document.getElementById('studentGradesTable');
+          tbody.innerHTML = studentGrades
+            .map(grade => `
+              <tr>
+                <td class="px-4 py-2 text-sm text-gray-900">${grade.subjectCode}</td>
+                <td class="px-4 py-2 text-sm text-gray-900">${grade.subjectName}</td>
+                <td class="px-4 py-2 text-sm text-gray-900">${grade.credits}</td>
+                <td class="px-4 py-2 text-sm font-medium ${getGradeColor(grade.grade)}">${grade.grade}</td>
+              </tr>
+            `)
+            .join('');
+        
+          // คำนวณ GPA ภาคเรียน
+          const semesterGPA = calculateSemesterGPA(studentGrades);
+          document.getElementById('semesterGPA').textContent = semesterGPA.toFixed(2);
         }
 
         function calculateSemesterGPA(grades) {
@@ -980,5 +1109,6 @@ document.getElementById('addGradeForm').addEventListener('submit', async functio
                 }
             });
         }
+
 
 
