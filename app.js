@@ -148,9 +148,21 @@ async function preloadForAdvisor() {
   ]);
 }
 async function ensureDataLoadedForRole(roleKey) {
-  if (roleKey === 'admin')   return preloadForAdmin();
-  if (roleKey === 'student') return preloadForStudent();
-  if (roleKey === 'advisor') return preloadForAdvisor();
+  // เรียกครั้งเดียวจบ
+  const resp = await callAPI('bootstrap', {
+    userType: roleKey,
+    user: currentUser // ต้องมี {id,name,email} อย่างน้อย
+  }, { timeoutMs: 45000, retries: 2 });
+
+  if (!resp?.success || !resp?.data) {
+    throw new Error(resp?.message || 'โหลดข้อมูลไม่สำเร็จ');
+  }
+
+  // set datasets ทีเดียว
+  studentsData     = Array.isArray(resp.data.students)     ? resp.data.students     : [];
+  gradesData       = Array.isArray(resp.data.grades)       ? resp.data.grades       : [];
+  englishTestData  = Array.isArray(resp.data.englishTests) ? resp.data.englishTests : [];
+  advisorsData     = Array.isArray(resp.data.advisors)     ? resp.data.advisors     : [];
 }
 
 // ===== Login flow: authenticate -> preload datasets (blocking) -> showDashboard =====
@@ -344,9 +356,10 @@ function loadOverviewData() {
   document.getElementById('totalSubjects').textContent = totalSubjects;
 
   // Update charts
+  requestAnimationFrame(() => {
   updateStudentsChart(studentsByYear);
   updateEnglishChart(englishStats);
-}
+});
 function calculateEnglishStats() {
   const total = englishTestData.length;
   const passed = englishTestData.filter(test => test.status === 'ผ่าน').length;
@@ -992,3 +1005,4 @@ function deleteGrade(studentId, subjectCode) {
     }
   });
 }
+
