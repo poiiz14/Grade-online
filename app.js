@@ -78,7 +78,12 @@ async function login() {
   }
 
   try {
-    Swal.fire({ title: 'กำลังเข้าสู่ระบบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    Swal.fire({
+    title: 'กำลังเข้าสู่ระบบ...',
+    allowOutsideClick: false,
+    showConfirmButton: false,   // << ซ่อนปุ่ม OK
+    didOpen: () => Swal.showLoading()
+  });
     const resp = await callAPI('authenticate', { userType, credentials }, { timeoutMs: 45000, retries: 2 });
     if (!resp?.success || !resp?.data) throw new Error(resp?.message || 'ข้อมูลการเข้าสู่ระบบไม่ถูกต้อง');
 
@@ -104,7 +109,12 @@ document.addEventListener('DOMContentLoaded', async function () {
   if (savedUser && savedUserType) {
     currentUser = JSON.parse(savedUser); currentUserType = savedUserType;
     try {
-      Swal.fire({ title:'กำลังเตรียมข้อมูล...', allowOutsideClick:false, didOpen:() => Swal.showLoading() });
+      Swal.fire({
+      title: 'กำลังเตรียมข้อมูล...',
+      allowOutsideClick: false,
+      showConfirmButton: false,   // << ซ่อนปุ่ม OK
+      didOpen: () => Swal.showLoading()
+    });
       await ensureDataLoadedForRole(currentUserType);
       if (Swal.isVisible()) Swal.close();
       showDashboard();
@@ -200,7 +210,12 @@ async function showAdminSection(section, el) {
 async function lazyLoadGradesForYear(year) {
   if (!year) return;
   try {
-    Swal.fire({ title:`กำลังโหลดเกรดปี ${year}`, allowOutsideClick:false, didOpen:() => Swal.showLoading() });
+    Swal.fire({
+    title: 'กำลังโหลดเกรดปี ' + year,
+    allowOutsideClick: false,
+    showConfirmButton: false,   // << ซ่อนปุ่ม OK
+    didOpen: () => Swal.showLoading()
+  });
     const resp = await callAPI('getGradesByYear', { year }, { timeoutMs: 45000, retries: 2 });
     if (!resp?.success || !Array.isArray(resp.data)) throw new Error(resp?.message || 'โหลดเกรดไม่สำเร็จ');
     gradesData = resp.data;
@@ -452,3 +467,4 @@ function formatDate(d){ if(!d) return '-'; const dt=new Date(d); return isNaN(dt
 /* ===================== PLACEHOLDERS ===================== */
 function editStudent(id){ Swal.fire({ icon:'info', title:'แก้ไขข้อมูลนักศึกษา', text:`${id}` }); }
 function deleteStudent(id){ Swal.fire({ icon:'warning', title:'ยืนยันการลบ', showCancelButton:true }).then(r=>{ if(r.isConfirmed){ studentsData=(studentsData||[]).filter(s=>s.id!==id); displayStudents(); loadOverviewData(); Swal.fire('ลบสำเร็จ','','success'); } }); }
+
