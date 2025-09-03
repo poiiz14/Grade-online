@@ -134,7 +134,11 @@ let gradesPerPage = 10;
     
         // ปิดโหลดแน่นอน แล้วไป Dashboard แม้ข้อมูลบางส่วนพลาด
         if (Swal.isVisible()) Swal.close();
-        showDashboard();
+        
+        // รอให้ state เซตเสร็จก่อนแล้วค่อยเปิดแดชบอร์ด
+        setTimeout(() => {
+          showDashboard();
+        }, 200);
     
       } catch (err) {
         console.error('Login error:', err);
@@ -170,9 +174,8 @@ let gradesPerPage = 10;
         function showDashboard() {
         // ดึง state แบบปลอดภัย
         const user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
-        const roleKey = (typeof currentUserType !== 'undefined' && currentUserType)
-        ? currentUserType
-        : (user.role || '');
+        let roleKey = currentUserType || user.role || '';
+        roleKey = roleKey.trim().toLowerCase();
       
         // อัปเดตชื่อ/บทบาท (เช็ก element ก่อน และใช้ helper)
         const nameEl = document.getElementById('userName');
@@ -1205,6 +1208,7 @@ function filterGrades() {
   currentGradesPage = 1;
   renderGradesPage();
 }
+
 
 
 
