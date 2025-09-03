@@ -1,42 +1,54 @@
 // === API base & JSONP helper ===
 const API_BASE =
   'https://script.google.com/macros/s/AKfycbz7edo925YsuHCE6cTHw7npL69olAvnBVILIDE1pbVkBpptBgG0Uz6zFhnaqbEEe4AY/exec';
+// ===== JSONP helper (with timeout & retries) =====
+function callAPI(action, data = {}, { timeoutMs = 30000, retries = 2, backoffMs = 800 } = {}) {
+  function once(timeout) {
+    return new Promise((resolve, reject) => {
+      const cb = 'cb_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+      const script = document.createElement('script');
+      const payload = encodeURIComponent(JSON.stringify(data || {}));
 
-// ===== JSONP helper (with timeout) =====
-function callAPI(action, data = {}, { timeoutMs = 15000 } = {}) {
-  return new Promise((resolve, reject) => {
-    const cb = 'cb_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
-    const script = document.createElement('script');
-    const payload = encodeURIComponent(JSON.stringify(data || {}));
+      const cleanup = () => {
+        try { delete window[cb]; } catch {}
+        try { script.remove(); } catch {}
+      };
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error(`API timeout: ${action}`));
+      }, timeout);
 
-    const cleanup = () => {
-      try { delete window[cb]; } catch {}
-      try { script.remove(); } catch {}
-    };
+      window[cb] = (resp) => {
+        clearTimeout(timer);
+        cleanup();
+        resolve(resp);
+      };
+      script.onerror = () => {
+        clearTimeout(timer);
+        cleanup();
+        reject(new Error(`API network error: ${action}`));
+      };
 
-    const timer = setTimeout(() => {
-      cleanup();
-      reject(new Error(`API timeout: ${action}`));
-    }, timeoutMs);
-
-    window[cb] = (resp) => {
-      clearTimeout(timer);
-      cleanup();
-      resolve(resp);
-    };
-
-    script.onerror = () => {
-      clearTimeout(timer);
-      cleanup();
-      reject(new Error(`API network error: ${action}`));
-    };
-
-    script.src = `${API_BASE}?action=${encodeURIComponent(action)}&data=${payload}&callback=${cb}`;
-    document.body.appendChild(script);
+      script.src = `${API_BASE}?action=${encodeURIComponent(action)}&data=${payload}&callback=${cb}`;
+      document.body.appendChild(script);
+    });
+  }
+  return new Promise(async (resolve, reject) => {
+    let attempt = 0, lastErr;
+    while (attempt <= retries) {
+      try {
+        const resp = await once(timeoutMs);
+        return resolve(resp);
+      } catch (e) {
+        lastErr = e;
+        attempt++;
+        if (attempt > retries) break;
+        await new Promise(r => setTimeout(r, backoffMs * attempt)); // exponential-ish backoff
+      }
+    }
+    reject(lastErr);
   });
 }
-
-// ========================
 // ตัวแปร global
 // ========================
 let currentUser = null;
@@ -90,7 +102,7 @@ let gradesPerPage = 10;
             document.getElementById('gradeYearFilter')?.addEventListener('change', filterGrades);
         });
         
-  // ===== Login flow with guaranteed close =====
+      // ===== Login flow: navigate immediately, load data in background =====
       async function login() {
         const userType = document.getElementById('userType')?.value || 'admin';
         let credentials = {};
@@ -108,27 +120,26 @@ let gradesPerPage = 10;
         try {
           Swal.fire({ title: 'กำลังเข้าสู่ระบบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
       
-          const resp = await callAPI('authenticate', { userType, credentials }, { timeoutMs: 15000 });
-          console.log('AUTH RESP:', resp);
-      
+          // ยืด timeout สำหรับ authenticate (เผื่อ cold start)
+          const resp = await callAPI('authenticate', { userType, credentials }, { timeoutMs: 45000, retries: 2 });
           if (!resp?.success || !resp?.data) {
             throw new Error(resp?.message || 'ข้อมูลการเข้าสู่ระบบไม่ถูกต้อง');
           }
       
-          // >>> ใช้ตัวแปร global โดยตรง (ไม่ใช้ window.*) <<<
+          // เซต state + เก็บ localStorage
           currentUser = resp.data;
           currentUserType = userType;
-      
           try {
             localStorage.setItem('currentUser', JSON.stringify(resp.data));
             localStorage.setItem('currentUserType', userType);
           } catch {}
       
-          // โหลดข้อมูลหลัก (ล้มเหลวได้ ไม่บล็อกการเข้า dashboard)
-          try { await loadAdminData(); } catch (e) { console.warn('Initial load error:', e); }
-      
+          // ปิดโหลด แล้ว "เข้าแดชบอร์ดเลย"
           if (Swal.isVisible()) Swal.close();
-          showDashboard();
+          showDashboard(); // << ไม่ await อะไร
+      
+          // ค่อยโหลด datasets เบื้องหลัง (ไม่บล็อก UI)
+          loadAdminData().catch(e => console.warn('Initial load error:', e));
       
         } catch (err) {
           console.error('Login error:', err);
@@ -136,10 +147,7 @@ let gradesPerPage = 10;
           Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message || 'ไม่สามารถเข้าสู่ระบบได้' });
         }
       }
-      
-      // (ถ้าอยากชัวร์ว่าเรียกได้จาก onclick) 
       window.login = login;
-
 
         function logout() {
             localStorage.removeItem('currentUser');
@@ -1202,6 +1210,7 @@ function filterGrades() {
   currentGradesPage = 1;
   renderGradesPage();
 }
+
 
 
 
