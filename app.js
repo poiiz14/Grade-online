@@ -2,27 +2,36 @@
 const API_BASE =
   'https://script.google.com/macros/s/AKfycbz7edo925YsuHCE6cTHw7npL69olAvnBVILIDE1pbVkBpptBgG0Uz6zFhnaqbEEe4AY/exec';
 
-function callAPI(action, data = {}) {
+// ===== JSONP helper (with timeout) =====
+function callAPI(action, data = {}, { timeoutMs = 15000 } = {}) {
   return new Promise((resolve, reject) => {
     const cb = 'cb_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
     const script = document.createElement('script');
-    const payload = encodeURIComponent(JSON.stringify(data));
+    const payload = encodeURIComponent(JSON.stringify(data || {}));
+
+    const cleanup = () => {
+      try { delete window[cb]; } catch {}
+      try { script.remove(); } catch {}
+    };
+
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error(`API timeout: ${action}`));
+    }, timeoutMs);
+
     window[cb] = (resp) => {
-      try {
-        resolve(resp);
-      } finally {
-        delete window[cb];
-        script.remove();
-      }
+      clearTimeout(timer);
+      cleanup();
+      resolve(resp);
     };
+
     script.onerror = () => {
-      delete window[cb];
-      script.remove();
-      reject(new Error('JSONP error'));
+      clearTimeout(timer);
+      cleanup();
+      reject(new Error(`API network error: ${action}`));
     };
-    script.src = `${API_BASE}?action=${encodeURIComponent(
-      action
-    )}&data=${payload}&callback=${cb}`;
+
+    script.src = `${API_BASE}?action=${encodeURIComponent(action)}&data=${payload}&callback=${cb}`;
     document.body.appendChild(script);
   });
 }
@@ -83,89 +92,54 @@ let gradesPerPage = 10;
 
         // Authentication functions
         
-    // ====== แทนที่ฟังก์ชัน login() เดิมทั้งก้อนด้วยโค้ดนี้ ======
+    // ===== Login flow with guaranteed close =====
     async function login() {
       const userType = document.getElementById('userType')?.value || 'admin';
-    
-      // เตรียม credentials ตามบทบาท
       let credentials = {};
       if (userType === 'admin') {
-        credentials.email = (document.getElementById('adminEmail')?.value || '').trim();
+        credentials.email    = (document.getElementById('adminEmail')?.value || '').trim();
         credentials.password = (document.getElementById('adminPassword')?.value || '').trim();
       } else if (userType === 'student') {
-        // เข้าด้วยเลขบัตรประชาชน (ตัดช่องว่าง/ขีด เผื่อผู้ใช้พิมพ์มา)
-        const rawCid = (document.getElementById('studentId')?.value || '').trim();
-        credentials.citizenId = rawCid.replace(/\s|-/g, '');
+        const raw = (document.getElementById('studentId')?.value || '').trim();
+        credentials.citizenId = raw.replace(/\s|-/g, '');
       } else if (userType === 'advisor') {
-        credentials.email = (document.getElementById('advisorEmail')?.value || '').trim();
+        credentials.email    = (document.getElementById('advisorEmail')?.value || '').trim();
         credentials.password = (document.getElementById('advisorPassword')?.value || '').trim();
       }
     
       try {
-        // Loading UI
-        if (typeof Swal !== 'undefined') {
-          Swal.fire({
-            title: 'กำลังเข้าสู่ระบบ...',
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
-          });
+        Swal.fire({ title: 'กำลังเข้าสู่ระบบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    
+        const resp = await callAPI('authenticate', { userType, credentials }, { timeoutMs: 15000 });
+        console.log('AUTH RESP:', resp);
+    
+        if (!resp?.success || !resp?.data) {
+          throw new Error(resp?.message || 'ข้อมูลการเข้าสู่ระบบไม่ถูกต้อง');
         }
     
-        // เรียก API authenticate (รองรับ JSONP ผ่าน callAPI)
-        const resp = await callAPI('authenticate', { userType, credentials });
-        console.log('AUTH RESP:', resp); // ช่วยดีบัก
+        // set state
+        window.currentUser = resp.data;
+        window.currentUserType = userType;
+        try {
+          localStorage.setItem('currentUser', JSON.stringify(resp.data));
+          localStorage.setItem('currentUserType', userType);
+        } catch {}
     
-        if (resp && resp.success && resp.data) {
-          // เก็บสถานะผู้ใช้
-          window.currentUser = resp.data;
-          window.currentUserType = userType;
-          try {
-            localStorage.setItem('currentUser', JSON.stringify(resp.data));
-            localStorage.setItem('currentUserType', userType);
-          } catch (_) {}
-    
-          // โหลดข้อมูลก้อนแรกให้พร้อมก่อนขึ้น Dashboard
-          try {
-            if (typeof loadAdminData === 'function') {
-              await loadAdminData(); // ภายในควรดึง students/grades/english/advisors
-            } else {
-              // เผื่อโปรเจ็กต์แยกเป็นฟังก์ชันย่อย
-              await Promise.all([
-                typeof loadStudentsFromSheets === 'function' ? loadStudentsFromSheets() : Promise.resolve(),
-                typeof loadGradesFromSheets   === 'function' ? loadGradesFromSheets()   : Promise.resolve(),
-                typeof loadEnglishTestFromSheets === 'function' ? loadEnglishTestFromSheets() : Promise.resolve(),
-                typeof loadAdvisorsFromSheets === 'function' ? loadAdvisorsFromSheets() : Promise.resolve()
-              ]);
-            }
-          } catch (err) {
-            console.error('Initial load error:', err);
-            // ไม่ fail login แต่แจ้งเตือนผู้ใช้
-            if (typeof Swal !== 'undefined') {
-              await Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'เข้าสู่ระบบสำเร็จ แต่โหลดข้อมูลบางส่วนไม่ครบ' });
-            }
-          }
-    
-          if (typeof Swal !== 'undefined') Swal.close();
-    
-          // แสดงหน้า Dashboard ตามบทบาท (ฟังก์ชันเดิมของโปรเจ็กต์)
-          if (typeof showDashboard === 'function') {
-            showDashboard();
-          }
-          return;
+        // โหลดข้อมูลหลัก—อย่าค้าง: มี timeout ใน callAPI และ allSettled แล้ว
+        try {
+          await loadAdminData();
+        } catch (e) {
+          console.warn('Initial load error:', e);
         }
     
-        // กรณีไม่ผ่าน: แสดงข้อความจาก API ถ้ามี
-        const msg = (resp && resp.message)
-          ? resp.message
-          : 'ข้อมูลการเข้าสู่ระบบไม่ถูกต้อง';
-        if (typeof Swal !== 'undefined') {
-          Swal.fire({ icon: 'error', title: 'เข้าสู่ระบบไม่สำเร็จ', text: msg });
-        }
-      } catch (error) {
-        console.error('Login error:', error);
-        if (typeof Swal !== 'undefined') {
-          Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถเข้าสู่ระบบได้ กรุณาลองใหม่อีกครั้ง' });
-        }
+        // ปิดโหลดแน่นอน แล้วไป Dashboard แม้ข้อมูลบางส่วนพลาด
+        if (Swal.isVisible()) Swal.close();
+        showDashboard();
+    
+      } catch (err) {
+        console.error('Login error:', err);
+        if (Swal.isVisible()) Swal.close();
+        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message || 'ไม่สามารถเข้าสู่ระบบได้' });
       }
     }
 
@@ -283,8 +257,8 @@ let gradesPerPage = 10;
         
             if (needsStudents || needsGrades || needsEnglish || needsAdvisors) {
               // ถ้ามีฟังก์ชันรวม ให้เรียกอันเดียว
-              if (typeof loadAdminData === 'function') {
-                await loadAdminData();
+              if (typeof  === 'function') {
+                await ();
               } else {
                 // เผื่อโปรเจ็กต์แยกโหลดเป็นรายชุด
                 await Promise.all([
@@ -312,19 +286,21 @@ let gradesPerPage = 10;
           }
         }
 
+    // ===== Load all datasets but never hang =====
     async function loadAdminData() {
-        try {
-            await Promise.all([
-            loadStudentsFromSheets(),
-            loadGradesFromSheets(),
-            loadEnglishTestFromSheets(),
-            loadAdvisorsFromSheets()
-            ]);
-        } catch (error) {
-            console.error('Error loading admin data:', error);
-            Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถโหลดข้อมูลได้' });
-        }
-        }
+      const tasks = [
+        (async () => { const r = await callAPI('getStudents', {});       studentsData      = (r?.success && Array.isArray(r.data)) ? r.data : []; })(),
+        (async () => { const r = await callAPI('getGrades', {});         gradesData        = (r?.success && Array.isArray(r.data)) ? r.data : []; })(),
+        (async () => { const r = await callAPI('getEnglishTests', {});   englishTestData   = (r?.success && Array.isArray(r.data)) ? r.data : []; })(),
+        (async () => { const r = await callAPI('getAdvisors', {});       advisorsData      = (r?.success && Array.isArray(r.data)) ? r.data : []; })(),
+      ];
+    
+      const results = await Promise.allSettled(tasks);
+      const failed  = results.filter(r => r.status === 'rejected');
+      if (failed.length) {
+        console.warn('Some datasets failed to load:', failed);
+      }
+    }
         async function loadOverviewData() {
             // Calculate overview statistics
             const totalStudents = studentsData.length;
@@ -1242,5 +1218,6 @@ function filterGrades() {
   currentGradesPage = 1;
   renderGradesPage();
 }
+
 
 
