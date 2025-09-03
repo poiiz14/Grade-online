@@ -231,61 +231,49 @@ let gradesPerPage = 10;
         }
       }
         // Admin functions
-       // ปุ่มเมนูใน Admin Dashboard → ต้องเรียกแบบ onclick="showAdminSection('overview', this)"
-        async function showAdminSection(section, el) {
-          // 1) อัปเดตสไตล์ปุ่มนำทาง
-          document.querySelectorAll('.admin-nav-btn').forEach(btn => {
-            btn.classList.remove('border-blue-500', 'text-blue-600');
-            btn.classList.add('border-transparent', 'text-gray-500');
-          });
-          if (el) {
-            el.classList.remove('border-transparent', 'text-gray-500');
-            el.classList.add('border-blue-500', 'text-blue-600');
-          }
-        
-          // 2) โชว์/ซ่อน section
-          document.querySelectorAll('.admin-section').forEach(sec => sec.classList.add('hidden'));
-          const targetId = `admin${section.charAt(0).toUpperCase() + section.slice(1)}`;
-          document.getElementById(targetId)?.classList.remove('hidden');
-        
-          // 3) โหลดข้อมูลให้พร้อม (ครั้งแรก/ยังไม่ครบ)
-          try {
-            const needsStudents = !Array.isArray(studentsData) || studentsData.length === 0;
-            const needsGrades   = !Array.isArray(gradesData)   || gradesData.length === 0;
-            const needsEnglish  = !Array.isArray(englishTestData) || englishTestData.length === 0;
-            const needsAdvisors = !Array.isArray(advisorsData) || advisorsData.length === 0;
-        
-            if (needsStudents || needsGrades || needsEnglish || needsAdvisors) {
-              // ถ้ามีฟังก์ชันรวม ให้เรียกอันเดียว
-              if (typeof  === 'function') {
-                await ();
-              } else {
-                // เผื่อโปรเจ็กต์แยกโหลดเป็นรายชุด
-                await Promise.all([
-                  typeof loadStudentsFromSheets === 'function' ? loadStudentsFromSheets() : Promise.resolve(),
-                  typeof loadGradesFromSheets   === 'function' ? loadGradesFromSheets()   : Promise.resolve(),
-                  typeof loadEnglishTestFromSheets === 'function' ? loadEnglishTestFromSheets() : Promise.resolve(),
-                  typeof loadAdvisorsFromSheets === 'function' ? loadAdvisorsFromSheets() : Promise.resolve(),
-                ]);
-              }
-            }
-          } catch (e) {
-            console.error('load data error:', e);
-            Swal?.fire?.({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถโหลดข้อมูลได้' });
-            return;
-          }
-        
-          // 4) เรนเดอร์ตามส่วนที่เลือก
-          try {
-            if (section === 'overview'  && typeof loadOverviewData  === 'function') loadOverviewData();
-            if (section === 'students'  && typeof loadStudentsData  === 'function') loadStudentsData();
-            if (section === 'grades'    && typeof loadGradesData    === 'function') loadGradesData();
-            if (section === 'individual'&& typeof loadIndividualData=== 'function') loadIndividualData();
-          } catch (e) {
-            console.error('render section error:', e);
-          }
-        }
+       // --- แก้ใน showAdminSection ให้เรียก loadAdminData ---
+async function showAdminSection(section, el) {
+  // อัปเดตสไตล์ปุ่ม
+  document.querySelectorAll('.admin-nav-btn').forEach(btn => {
+    btn.classList.remove('border-blue-500', 'text-blue-600');
+    btn.classList.add('border-transparent', 'text-gray-500');
+  });
+  if (el) {
+    el.classList.remove('border-transparent', 'text-gray-500');
+    el.classList.add('border-blue-500', 'text-blue-600');
+  }
 
+  // โชว์/ซ่อน section
+  document.querySelectorAll('.admin-section').forEach(sec => sec.classList.add('hidden'));
+  const targetId = `admin${section.charAt(0).toUpperCase() + section.slice(1)}`;
+  document.getElementById(targetId)?.classList.remove('hidden');
+
+  // โหลดข้อมูล
+  try {
+    const needsStudents = !Array.isArray(studentsData) || studentsData.length === 0;
+    const needsGrades   = !Array.isArray(gradesData)   || gradesData.length === 0;
+    const needsEnglish  = !Array.isArray(englishTestData) || englishTestData.length === 0;
+    const needsAdvisors = !Array.isArray(advisorsData) || advisorsData.length === 0;
+
+    if (needsStudents || needsGrades || needsEnglish || needsAdvisors) {
+      await loadAdminData();
+    }
+  } catch (e) {
+    console.error('load data error:', e);
+    Swal?.fire?.({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถโหลดข้อมูลได้' });
+    return;
+  }
+
+  // เรนเดอร์ตามส่วนที่เลือก
+  try {
+    if (section === 'overview'  && typeof loadOverviewData  === 'function') loadOverviewData();
+    if (section === 'students'  && typeof loadStudentsData  === 'function') loadStudentsData();
+    if (section === 'grades'    && typeof loadGradesData    === 'function') loadGradesData();
+    if (section === 'individual'&& typeof loadIndividualData=== 'function') loadIndividualData();
+  } catch (e) {
+    console.error('render section error:', e);
+  }
+}
     // ===== Load all datasets but never hang =====
     async function loadAdminData() {
       const tasks = [
@@ -446,22 +434,21 @@ let gradesPerPage = 10;
             document.getElementById('studentsTotal').textContent = filteredStudents.length;
         }
 
-        function getFilteredStudents() {
-            const yearFilter = document.getElementById('yearFilter').value;
-            const searchTerm = document.getElementById('searchStudent').value.toLowerCase();
-            const matchesSearch = !searchTerm ||
-              (student.name || '').toLowerCase().includes(searchTerm) ||
-              String(student.id || '').toLowerCase().includes(searchTerm) ||
-              String(student.studentId || '').toLowerCase().includes(searchTerm);
-
-            return studentsData.filter(student => {
-                const matchesYear = !yearFilter || student.year.toString() === yearFilter;
-                const matchesSearch = !searchTerm || 
-                    student.name.toLowerCase().includes(searchTerm) ||
-                    student.id.toLowerCase().includes(searchTerm);
-                return matchesYear && matchesSearch;
-            });
-        }
+      // --- แก้ getFilteredStudents ให้ปลอดภัย ---
+    function getFilteredStudents() {
+      const yearFilter = document.getElementById('yearFilter').value;
+      const searchTerm = document.getElementById('searchStudent').value.toLowerCase();
+    
+      return studentsData.filter(student => {
+        const matchesYear = !yearFilter || String(student.year) === yearFilter;
+        const matchesSearch =
+          !searchTerm ||
+          (student.name || '').toLowerCase().includes(searchTerm) ||
+          String(student.id || '').toLowerCase().includes(searchTerm) ||
+          String(student.studentId || '').toLowerCase().includes(searchTerm);
+        return matchesYear && matchesSearch;
+      });
+    }
 
         function filterStudents() {
             currentStudentsPage = 1;
@@ -1218,6 +1205,7 @@ function filterGrades() {
   currentGradesPage = 1;
   renderGradesPage();
 }
+
 
 
 
