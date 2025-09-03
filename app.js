@@ -261,7 +261,7 @@ let gradesPerPage = 10;
         }, 0);
       } else if (roleKey === 'advisor') {
         document.getElementById('advisorDashboard')?.classList.remove('hidden');
-        setTimeout(() => { try { loadAdvisorStudents?.(); } catch(e){} }, 0);
+        setTimeout(() => { try { loadAdvisorData(); } catch(e){} }, 0);
       } else {
         // ไม่รู้บทบาท → กลับหน้า login
         document.getElementById('dashboard')?.classList.add('hidden');
@@ -907,7 +907,7 @@ document.getElementById('addGradeForm').addEventListener('submit', async functio
                             <tbody class="divide-y divide-gray-200">
                                 ${studentEnglish.map(test => `
                                     <tr>
-                                        <td class="px-3 py-2">${test.year}</td>
+                                        <td class="px-3 py-2">${test.academicYear || '-'}</td>
                                         <td class="px-3 py-2">${test.attempt}</td>
                                         <td class="px-3 py-2">${test.score}</td>
                                         <td class="px-3 py-2">
@@ -915,7 +915,7 @@ document.getElementById('addGradeForm').addEventListener('submit', async functio
                                                 ${test.status}
                                             </span>
                                         </td>
-                                        <td class="px-3 py-2">${formatDate(test.date)}</td>
+                                        <td class="px-3 py-2">${formatDate(test.examDate)}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -1082,7 +1082,7 @@ document.getElementById('addGradeForm').addEventListener('submit', async functio
             const englishTbody = document.getElementById('englishTestTable');
             englishTbody.innerHTML = studentEnglish.map(test => `
                 <tr>
-                    <td class="px-4 py-2 text-sm text-gray-900">${test.year}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${test.academicYear || '-'}
                     <td class="px-4 py-2 text-sm text-gray-900">${test.attempt}</td>
                     <td class="px-4 py-2 text-sm text-gray-900">${test.score}</td>
                     <td class="px-4 py-2 text-sm">
@@ -1090,7 +1090,7 @@ document.getElementById('addGradeForm').addEventListener('submit', async functio
                             ${test.status}
                         </span>
                     </td>
-                    <td class="px-4 py-2 text-sm text-gray-900">${formatDate(test.date)}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${formatDate(test.examDate)}
                 </tr>
             `).join('');
             
@@ -1245,6 +1245,7 @@ function filterGrades() {
   currentGradesPage = 1;
   renderGradesPage();
 }
+
 
 
 
