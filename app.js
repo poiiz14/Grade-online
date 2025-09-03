@@ -76,35 +76,87 @@ let gradesPerPage = 10;
         };
 
         // Initialize app
-        document.addEventListener('DOMContentLoaded', function() {
-            // Check if user is already logged in
-            const savedUser = localStorage.getItem('currentUser');
-            const savedUserType = localStorage.getItem('currentUserType');
-            
-            if (savedUser && savedUserType) {
-                currentUser = JSON.parse(savedUser);
-                currentUserType = savedUserType;
-                showDashboard();
-            }
-
-            // Setup user type change handler
-            document.getElementById('userType').addEventListener('change', function() {
-                const userType = this.value;
-                document.getElementById('adminLogin').classList.toggle('hidden', userType !== 'admin');
-                document.getElementById('studentLogin').classList.toggle('hidden', userType !== 'student');
-                document.getElementById('advisorLogin').classList.toggle('hidden', userType !== 'advisor');
-            });
-
-            // Setup search handlers
-            document.getElementById('searchStudent')?.addEventListener('input', filterStudents);
-            document.getElementById('yearFilter')?.addEventListener('change', filterStudents);
-            document.getElementById('searchGrade')?.addEventListener('input', filterGrades);
-            document.getElementById('gradeYearFilter')?.addEventListener('change', filterGrades);
-        });
+        // === Auto-login & initial wiring on page load ===
+        document.addEventListener('DOMContentLoaded', async function () {
+          // ---- auto-login (ถ้ามี session เดิม) ----
+          const savedUser = localStorage.getItem('currentUser');
+          const savedUserType = localStorage.getItem('currentUserType');
         
+          if (savedUser && savedUserType) {
+            currentUser = JSON.parse(savedUser);
+            currentUserType = savedUserType;
+        
+            try {
+              Swal.fire({
+                title: 'กำลังเตรียมข้อมูล...',
+                html: 'โปรดรอสักครู่',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+              });
+        
+              // โหลดข้อมูลให้ครบก่อนเข้าหน้า ตามบทบาท
+              await ensureDataLoadedForRole(currentUserType);
+        
+              if (Swal.isVisible()) Swal.close();
+              showDashboard();  // เข้าหน้าถัดไปทันทีเมื่อโหลดครบ
+            } catch (e) {
+              console.warn('Auto-preload error:', e);
+              if (Swal.isVisible()) Swal.close();
+              // ถ้าโหลดพลาด ให้กลับหน้า login
+              document.getElementById('loginScreen')?.classList.remove('hidden');
+              document.getElementById('dashboard')?.classList.add('hidden');
+            }
+          }
+        
+          // ---- ตั้งค่า handler พื้นฐาน ----
+          document.getElementById('userType')?.addEventListener('change', function () {
+            const userType = this.value;
+            document.getElementById('adminLogin')?.classList.toggle('hidden', userType !== 'admin');
+            document.getElementById('studentLogin')?.classList.toggle('hidden', userType !== 'student');
+            document.getElementById('advisorLogin')?.classList.toggle('hidden', userType !== 'advisor');
+          });
+        
+          document.getElementById('searchStudent')?.addEventListener('input', filterStudents);
+          document.getElementById('yearFilter')?.addEventListener('change', filterStudents);
+          document.getElementById('searchGrade')?.addEventListener('input', filterGrades);
+          document.getElementById('gradeYearFilter')?.addEventListener('change', filterGrades);
+        });
+        // ===== Preload datasets per-role (โหลดครบก่อนเข้า Dashboard) =====
+        async function preloadForAdmin() {
+          // นักศึกษา, เกรด, อังกฤษ, อาจารย์ที่ปรึกษา
+          await loadAdminData();
+        }
+        
+        async function preloadForStudent() {
+          // นักศึกษาไม่จำเป็น (มี currentUser อยู่แล้ว) แต่ต้องมี grade+อังกฤษของตน
+          await Promise.all([
+            loadGradesFromSheets(),
+            loadEnglishTestFromSheets()
+          ]);
+        }
+        
+        async function preloadForAdvisor() {
+          // ต้องมีรายชื่อนักศึกษาในที่ปรึกษา + เกรด + อังกฤษ + รายชื่ออาจารย์
+          await Promise.all([
+            loadStudentsFromSheets(),
+            loadGradesFromSheets(),
+            loadEnglishTestFromSheets(),
+            loadAdvisorsFromSheets()
+          ]);
+        }
+        
+        async function ensureDataLoadedForRole(roleKey) {
+          if (roleKey === 'admin')   return preloadForAdmin();
+          if (roleKey === 'student') return preloadForStudent();
+          if (roleKey === 'advisor') return preloadForAdvisor();
+        }
+
       // ===== Login flow: navigate immediately, load data in background =====
+     // ===== Login flow: authenticate -> preload datasets (blocking) -> showDashboard =====
       async function login() {
         const userType = document.getElementById('userType')?.value || 'admin';
+      
+        // เก็บ credential ตามบทบาท
         let credentials = {};
         if (userType === 'admin') {
           credentials.email    = (document.getElementById('adminEmail')?.value || '').trim();
@@ -118,15 +170,15 @@ let gradesPerPage = 10;
         }
       
         try {
+          // 1) ยืนยันตัวตน
           Swal.fire({ title: 'กำลังเข้าสู่ระบบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-      
-          // ยืด timeout สำหรับ authenticate (เผื่อ cold start)
           const resp = await callAPI('authenticate', { userType, credentials }, { timeoutMs: 45000, retries: 2 });
+      
           if (!resp?.success || !resp?.data) {
             throw new Error(resp?.message || 'ข้อมูลการเข้าสู่ระบบไม่ถูกต้อง');
           }
       
-          // เซต state + เก็บ localStorage
+          // 2) ตั้งค่า state
           currentUser = resp.data;
           currentUserType = userType;
           try {
@@ -134,12 +186,13 @@ let gradesPerPage = 10;
             localStorage.setItem('currentUserType', userType);
           } catch {}
       
-          // ปิดโหลด แล้ว "เข้าแดชบอร์ดเลย"
-          if (Swal.isVisible()) Swal.close();
-          showDashboard(); // << ไม่ await อะไร
+          // 3) โหลดข้อมูลครบก่อนเข้าหน้า
+          Swal.update({ title: 'กำลังโหลดข้อมูล...', html: 'โปรดรอสักครู่', didOpen: () => Swal.showLoading() });
+          await ensureDataLoadedForRole(userType);
       
-          // ค่อยโหลด datasets เบื้องหลัง (ไม่บล็อก UI)
-          loadAdminData().catch(e => console.warn('Initial load error:', e));
+          // 4) แสดงแดชบอร์ด
+          if (Swal.isVisible()) Swal.close();
+          showDashboard();
       
         } catch (err) {
           console.error('Login error:', err);
@@ -147,6 +200,7 @@ let gradesPerPage = 10;
           Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message || 'ไม่สามารถเข้าสู่ระบบได้' });
         }
       }
+      // ให้ปุ่มบน HTML เรียกทำงานได้
       window.login = login;
 
         function logout() {
@@ -173,68 +227,49 @@ let gradesPerPage = 10;
           return userObj?.role || '-';
         }
         // ===== แทนที่ showDashboard() เดิมทั้งก้อน =====
-        function showDashboard() {
-        // ดึง state แบบปลอดภัย
-        const user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
-        let roleKey = currentUserType || user.role || '';
-        roleKey = roleKey.trim().toLowerCase();
-      
-        // อัปเดตชื่อ/บทบาท (เช็ก element ก่อน และใช้ helper)
-        const nameEl = document.getElementById('userName');
-        const roleEl = document.getElementById('userRole');
-        if (nameEl) nameEl.textContent = getUserDisplayName(user);
-        if (roleEl) roleEl.textContent = getRoleLabel(roleKey, user);
-      
-        // ซ่อน/โชว์ layout หลัก
-        const loginScreen = document.getElementById('loginScreen');
-        const dashboard   = document.getElementById('dashboard');
-        loginScreen && loginScreen.classList.add('hidden');
-        dashboard   && dashboard.classList.remove('hidden');
-      
-        // ซ่อนทุกแดชบอร์ดก่อน
-        const adminDash   = document.getElementById('adminDashboard');
-        const studentDash = document.getElementById('studentDashboard');
-        const advisorDash = document.getElementById('advisorDashboard');
-        adminDash   && adminDash.classList.add('hidden');
-        studentDash && studentDash.classList.add('hidden');
-        advisorDash && advisorDash.classList.add('hidden');
-      
-        // โชว์ตามบทบาท
-        if (roleKey === 'admin') {
-          adminDash && adminDash.classList.remove('hidden');
-          // เปิดแท็บภาพรวมเป็นค่าเริ่มต้น (หน่วง 1 เฟรมให้ DOM พร้อม)
-          setTimeout(() => { try { showAdminSection('overview'); } catch(e){ console.error(e); } }, 0);
-        } else if (roleKey === 'student') {
-          studentDash && studentDash.classList.remove('hidden');
-          setTimeout(async () => {
-            try {
-              if (!Array.isArray(gradesData) || gradesData.length === 0) {
-                if (typeof loadGradesFromSheets === 'function') await loadGradesFromSheets();
-              }
-              if (!Array.isArray(englishTestData) || englishTestData.length === 0) {
-                if (typeof loadEnglishTestFromSheets === 'function') await loadEnglishTestFromSheets();
-              }
-              if (typeof showSemester === 'function') showSemester('1'); // ค่าเริ่มต้น
-              if (typeof loadStudentSummary === 'function') loadStudentSummary();
-            } catch (e) { console.error(e); }
-          }, 0);
-        } else if (roleKey === 'advisor') {
-          advisorDash && advisorDash.classList.remove('hidden');
-          setTimeout(async () => {
-            try {
-              if (!Array.isArray(studentsData) || studentsData.length === 0) {
-                if (typeof loadStudentsFromSheets === 'function') await loadStudentsFromSheets();
-              }
-              if (typeof loadAdvisorStudents === 'function') loadAdvisorStudents();
-            } catch (e) { console.error(e); }
-          }, 0);
-        } else {
-          // ไม่รู้บทบาท → กลับหน้า login
-          dashboard   && dashboard.classList.add('hidden');
-          loginScreen && loginScreen.classList.remove('hidden');
-          console.warn('Unknown role key:', roleKey, 'user:', user);
-        }
+       function showDashboard() {
+      const user = currentUser || {};
+      let roleKey = (currentUserType || user.role || '').trim().toLowerCase();
+    
+      // อัปเดตชื่อ/บทบาท
+      const nameEl = document.getElementById('userName');
+      const roleEl = document.getElementById('userRole');
+      if (nameEl) nameEl.textContent = user.name || user.fullName || user.email || '-';
+      if (roleEl) roleEl.textContent =
+        roleKey === 'admin' ? 'ผู้ดูแลระบบ' :
+        roleKey === 'advisor' ? 'อาจารย์ที่ปรึกษา' :
+        roleKey === 'student' ? 'นักศึกษา' : '-';
+    
+      // toggle layout
+      document.getElementById('loginScreen')?.classList.add('hidden');
+      document.getElementById('dashboard')?.classList.remove('hidden');
+    
+      // hide all dashboards
+      document.getElementById('adminDashboard')?.classList.add('hidden');
+      document.getElementById('studentDashboard')?.classList.add('hidden');
+      document.getElementById('advisorDashboard')?.classList.add('hidden');
+    
+      if (roleKey === 'admin') {
+        document.getElementById('adminDashboard')?.classList.remove('hidden');
+        // เปิดแท็บภาพรวมเป็นค่าเริ่มต้น
+        setTimeout(() => { try { showAdminSection('overview'); } catch(e){} }, 0);
+      } else if (roleKey === 'student') {
+        document.getElementById('studentDashboard')?.classList.remove('hidden');
+        setTimeout(() => {
+          try { showSemester('1'); } catch(e){}
+          try { loadStudentEnglishTests(); } catch(e){}
+        }, 0);
+      } else if (roleKey === 'advisor') {
+        document.getElementById('advisorDashboard')?.classList.remove('hidden');
+        setTimeout(() => { try { loadAdvisorStudents?.(); } catch(e){} }, 0);
+      } else {
+        // ไม่รู้บทบาท → กลับหน้า login
+        document.getElementById('dashboard')?.classList.add('hidden');
+        document.getElementById('loginScreen')?.classList.remove('hidden');
+        console.warn('Unknown role key:', roleKey, 'user:', user);
       }
+    }
+
         // Admin functions
        // --- แก้ใน showAdminSection ให้เรียก loadAdminData ---
 async function showAdminSection(section, el) {
@@ -1210,6 +1245,7 @@ function filterGrades() {
   currentGradesPage = 1;
   renderGradesPage();
 }
+
 
 
 
