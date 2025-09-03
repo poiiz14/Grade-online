@@ -98,6 +98,8 @@ async function login() {
     }
 
     const resp = await callAPI('authenticate', { userType, credentials });
+    console.log('AUTH RESP:', resp); // ช่วยดีบัก
+    
     if (resp && resp.success && resp.data) {
       currentUser = resp.data;
       currentUserType = userType;
@@ -106,16 +108,14 @@ async function login() {
       Swal.close();
       showDashboard();
     } else {
-      Swal.fire({ icon: 'error', title: 'เข้าสู่ระบบไม่สำเร็จ', text: 'ข้อมูลการเข้าสู่ระบบไม่ถูกต้อง' });
+      const msg = (resp && resp.message) ? resp.message : 'ข้อมูลการเข้าสู่ระบบไม่ถูกต้อง';
+      Swal.fire({ icon: 'error', title: 'เข้าสู่ระบบไม่สำเร็จ', text: msg });
     }
   } catch (err) {
     console.error('Login error:', err);
     Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถเข้าสู่ระบบได้ กรุณาลองใหม่อีกครั้ง' });
   }
 }
-
-
-        
 
         function logout() {
             localStorage.removeItem('currentUser');
@@ -980,4 +980,5 @@ document.getElementById('addGradeForm').addEventListener('submit', async functio
                 }
             });
         }
+
 
