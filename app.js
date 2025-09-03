@@ -196,7 +196,9 @@ let gradesPerPage = 10;
         function showDashboard() {
         // ดึง state แบบปลอดภัย
         const user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
-        const roleKey = (typeof currentUserType !== 'undefined' && currentUserType) ? currentUserType : '';
+        const roleKey = (typeof currentUserType !== 'undefined' && currentUserType)
+        ? currentUserType
+        : (user.role || '');
       
         // อัปเดตชื่อ/บทบาท (เช็ก element ก่อน และใช้ helper)
         const nameEl = document.getElementById('userName');
@@ -1240,4 +1242,5 @@ function filterGrades() {
   currentGradesPage = 1;
   renderGradesPage();
 }
+
 
