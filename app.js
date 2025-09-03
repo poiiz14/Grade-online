@@ -181,88 +181,79 @@ let gradesPerPage = 10;
             // Reset forms
             document.querySelectorAll('input').forEach(input => input.value = '');
         }
-
+        function getUserDisplayName(user) {
+          if (!user || typeof user !== 'object') return '-';
+          return user.name || user.fullName || user.displayName || user.email || user.id || '-';
+        }
+        function getRoleLabel(role, userObj) {
+          // role อาจมาจาก currentUserType ('admin'|'advisor'|'student') หรือ user.role (ภาษาไทย)
+          if (role === 'admin')   return 'ผู้ดูแลระบบ';
+          if (role === 'advisor') return 'อาจารย์ที่ปรึกษา';
+          if (role === 'student') return 'นักศึกษา';
+          return userObj?.role || '-';
+        }
         // ===== แทนที่ showDashboard() เดิมทั้งก้อน =====
         function showDashboard() {
-          // กันข้อมูลผู้ใช้ว่าง
-          const user = window.currentUser || {};
-          const role = window.currentUserType || user.role || '';
-        
-          // อัปเดตชื่อ/บทบาท (เช็ก element ก่อน)
-          const nameEl = document.getElementById('userName');
-          const roleEl = document.getElementById('userRole');
-        
-          const displayName =
-            user.name || user.fullName || user.email || user.id || '-';
-          const roleLabel =
-            role === 'admin'      ? 'ผู้ดูแลระบบ' :
-            role === 'advisor'    ? 'อาจารย์ที่ปรึกษา' :
-            role === 'student'    ? 'นักศึกษา' :
-            (user.role || '-');
-        
-          if (nameEl) nameEl.textContent = displayName;
-          if (roleEl) roleEl.textContent = roleLabel;
-        
-          // ซ่อนหน้าล็อกอิน โชว์แดชบอร์ดหลัก
-          const loginScreen = document.getElementById('loginScreen');
-          const dashboard   = document.getElementById('dashboard');
-          if (loginScreen) loginScreen.classList.add('hidden');
-          if (dashboard)   dashboard.classList.remove('hidden');
-        
-          // ซ่อนทุกแดชบอร์ดก่อน
-          const adminDash   = document.getElementById('adminDashboard');
-          const studentDash = document.getElementById('studentDashboard');
-          const advisorDash = document.getElementById('advisorDashboard');
-          if (adminDash)   adminDash.classList.add('hidden');
-          if (studentDash) studentDash.classList.add('hidden');
-          if (advisorDash) advisorDash.classList.add('hidden');
-        
-          // โชว์ตามบทบาท + เรียกโหลดข้อมูลของแต่ละหน้า
-          if (role === 'admin') {
-            if (adminDash)   adminDash.classList.remove('hidden');
-            // เปิดแท็บภาพรวมเป็นค่าเริ่มต้น
-            // ป้องกันเรียกก่อนข้อมูลมา: ใช้ setTimeout สั้น ๆ ให้ DOM พร้อม
-            setTimeout(() => {
-              try { showAdminSection('overview'); } catch (e) { console.error(e); }
-            }, 0);
-          } else if (role === 'student') {
-            if (studentDash) studentDash.classList.remove('hidden');
-            // โหลดข้อมูลของนักศึกษาคนนี้ (ใช้โค้ดเดิมของโปรเจ็กต์ถ้ามี)
-            setTimeout(async () => {
-              try {
-                // ให้แน่ใจว่ามีเกรด/อังกฤษก่อน
-                if (!Array.isArray(gradesData) || gradesData.length === 0) {
-                  if (typeof loadGradesFromSheets === 'function') await loadGradesFromSheets();
-                }
-                if (!Array.isArray(englishTestData) || englishTestData.length === 0) {
-                  if (typeof loadEnglishTestFromSheets === 'function') await loadEnglishTestFromSheets();
-                }
-                // ภาคเรียนค่าเริ่มต้น = 1
-                if (typeof showSemester === 'function') showSemester('1');
-                // ถ้ามีฟังก์ชันรวมสรุปนักศึกษา ให้เรียกด้วย
-                if (typeof loadStudentSummary === 'function') loadStudentSummary();
-              } catch (e) { console.error(e); }
-            }, 0);
-          } else if (role === 'advisor') {
-            if (advisorDash) advisorDash.classList.remove('hidden');
-            setTimeout(async () => {
-              try {
-                // โหลดรายชื่อนศ.ในความดูแล
-                if (!Array.isArray(studentsData) || studentsData.length === 0) {
-                  if (typeof loadStudentsFromSheets === 'function') await loadStudentsFromSheets();
-                }
-                if (typeof loadAdvisorStudents === 'function') loadAdvisorStudents();
-              } catch (e) { console.error(e); }
-            }, 0);
-          } else {
-            // ไม่รู้บทบาท → fallback: ซ่อนแดชบอร์ด กลับหน้า login
-            if (dashboard)   dashboard.classList.add('hidden');
-            if (loginScreen) loginScreen.classList.remove('hidden');
-            console.warn('Unknown role:', role, user);
-          }
+        // ดึง state แบบปลอดภัย
+        const user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+        const roleKey = (typeof currentUserType !== 'undefined' && currentUserType) ? currentUserType : '';
+      
+        // อัปเดตชื่อ/บทบาท (เช็ก element ก่อน และใช้ helper)
+        const nameEl = document.getElementById('userName');
+        const roleEl = document.getElementById('userRole');
+        if (nameEl) nameEl.textContent = getUserDisplayName(user);
+        if (roleEl) roleEl.textContent = getRoleLabel(roleKey, user);
+      
+        // ซ่อน/โชว์ layout หลัก
+        const loginScreen = document.getElementById('loginScreen');
+        const dashboard   = document.getElementById('dashboard');
+        loginScreen && loginScreen.classList.add('hidden');
+        dashboard   && dashboard.classList.remove('hidden');
+      
+        // ซ่อนทุกแดชบอร์ดก่อน
+        const adminDash   = document.getElementById('adminDashboard');
+        const studentDash = document.getElementById('studentDashboard');
+        const advisorDash = document.getElementById('advisorDashboard');
+        adminDash   && adminDash.classList.add('hidden');
+        studentDash && studentDash.classList.add('hidden');
+        advisorDash && advisorDash.classList.add('hidden');
+      
+        // โชว์ตามบทบาท
+        if (roleKey === 'admin') {
+          adminDash && adminDash.classList.remove('hidden');
+          // เปิดแท็บภาพรวมเป็นค่าเริ่มต้น (หน่วง 1 เฟรมให้ DOM พร้อม)
+          setTimeout(() => { try { showAdminSection('overview'); } catch(e){ console.error(e); } }, 0);
+        } else if (roleKey === 'student') {
+          studentDash && studentDash.classList.remove('hidden');
+          setTimeout(async () => {
+            try {
+              if (!Array.isArray(gradesData) || gradesData.length === 0) {
+                if (typeof loadGradesFromSheets === 'function') await loadGradesFromSheets();
+              }
+              if (!Array.isArray(englishTestData) || englishTestData.length === 0) {
+                if (typeof loadEnglishTestFromSheets === 'function') await loadEnglishTestFromSheets();
+              }
+              if (typeof showSemester === 'function') showSemester('1'); // ค่าเริ่มต้น
+              if (typeof loadStudentSummary === 'function') loadStudentSummary();
+            } catch (e) { console.error(e); }
+          }, 0);
+        } else if (roleKey === 'advisor') {
+          advisorDash && advisorDash.classList.remove('hidden');
+          setTimeout(async () => {
+            try {
+              if (!Array.isArray(studentsData) || studentsData.length === 0) {
+                if (typeof loadStudentsFromSheets === 'function') await loadStudentsFromSheets();
+              }
+              if (typeof loadAdvisorStudents === 'function') loadAdvisorStudents();
+            } catch (e) { console.error(e); }
+          }, 0);
+        } else {
+          // ไม่รู้บทบาท → กลับหน้า login
+          dashboard   && dashboard.classList.add('hidden');
+          loginScreen && loginScreen.classList.remove('hidden');
+          console.warn('Unknown role key:', roleKey, 'user:', user);
         }
-
-
+      }
         // Admin functions
        // ปุ่มเมนูใน Admin Dashboard → ต้องเรียกแบบ onclick="showAdminSection('overview', this)"
         async function showAdminSection(section, el) {
@@ -1166,6 +1157,7 @@ document.getElementById('addGradeForm').addEventListener('submit', async functio
                 }
             });
         }
+
 
 
 
