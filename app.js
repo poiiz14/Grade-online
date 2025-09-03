@@ -471,6 +471,10 @@ let gradesPerPage = 10;
         function getFilteredStudents() {
             const yearFilter = document.getElementById('yearFilter').value;
             const searchTerm = document.getElementById('searchStudent').value.toLowerCase();
+            const matchesSearch = !searchTerm ||
+              (student.name || '').toLowerCase().includes(searchTerm) ||
+              String(student.id || '').toLowerCase().includes(searchTerm) ||
+              String(student.studentId || '').toLowerCase().includes(searchTerm);
 
             return studentsData.filter(student => {
                 const matchesYear = !yearFilter || student.year.toString() === yearFilter;
@@ -644,14 +648,14 @@ document.getElementById('addGradeForm').addEventListener('submit', async functio
             return { gpax, totalCredits };
         }
 
+        // หาค่าสถานะล่าสุด ใช้ examDate แทน date
         function getLatestEnglishStatus(englishTests) {
-            if (englishTests.length === 0) return 'ยังไม่ได้สอบ';
-            
-            const latest = englishTests.reduce((latest, test) => 
-                new Date(test.date) > new Date(latest.date) ? test : latest
-            );
-            
-            return latest.status;
+          if (!englishTests?.length) return 'ยังไม่ได้สอบ';
+          const latest = englishTests.reduce((acc, t) => {
+            const a = new Date(acc.examDate), b = new Date(t.examDate);
+            return (b > a ? t : acc);
+          });
+          return latest.status || '-';
         }
 
       // ปุ่มแท็บภาคเรียนของนักศึกษา → ต้องเรียกแบบ onclick="showSemester('1', this)"
@@ -757,23 +761,26 @@ document.getElementById('addGradeForm').addEventListener('submit', async functio
             return colors[grade] || 'text-gray-600';
         }
 
+        // ใช้ฟิลด์ academicYear, examDate ให้ตรงกับ GAS
         function loadStudentEnglishTests() {
-            const studentEnglish = englishTestData.filter(test => test.studentId === currentUser.id);
-            const tbody = document.getElementById('studentEnglishTable');
-            
-            tbody.innerHTML = studentEnglish.map(test => `
-                <tr>
-                    <td class="px-4 py-2 text-sm text-gray-900">${test.year}</td>
-                    <td class="px-4 py-2 text-sm text-gray-900">${test.attempt}</td>
-                    <td class="px-4 py-2 text-sm text-gray-900">${test.score}</td>
-                    <td class="px-4 py-2 text-sm">
-                        <span class="px-2 py-1 text-xs rounded-full ${test.status === 'ผ่าน' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-                            ${test.status}
-                        </span>
-                    </td>
-                    <td class="px-4 py-2 text-sm text-gray-900">${formatDate(test.date)}</td>
-                </tr>
-            `).join('');
+          const myId = currentUser?.id;
+          const studentEnglish = (englishTestData || []).filter(t => t.studentId === myId);
+          const tbody = document.getElementById('studentEnglishTable');
+          if (!tbody) return;
+        
+          tbody.innerHTML = studentEnglish.map(test => `
+            <tr>
+              <td class="px-4 py-2 text-sm text-gray-900">${test.academicYear || '-'}</td>
+              <td class="px-4 py-2 text-sm text-gray-900">${test.attempt || '-'}</td>
+              <td class="px-4 py-2 text-sm text-gray-900">${test.score ?? '-'}</td>
+              <td class="px-4 py-2 text-sm">
+                <span class="px-2 py-1 text-xs rounded-full ${
+                  test.status === 'ผ่าน' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }">${test.status || '-'}</span>
+              </td>
+              <td class="px-4 py-2 text-sm text-gray-900">${formatDate(test.examDate)}</td>
+            </tr>
+          `).join('');
         }
 
         // Advisor dashboard functions
@@ -925,9 +932,12 @@ document.getElementById('addGradeForm').addEventListener('submit', async functio
                 years.map(year => `<option value="${year}">${year}</option>`).join('');
         }
 
-        function formatDate(dateString) {
-            const date = new Date(dateString);
-            return date.toLocaleDateString('th-TH');
+        // helper formatDate
+        function formatDate(d) {
+          if (!d) return '-';
+          const dt = new Date(d);
+          if (isNaN(dt)) return String(d);
+          return dt.toLocaleDateString('th-TH');
         }
 
         // Additional admin functions for grades management
@@ -1157,3 +1167,77 @@ document.getElementById('addGradeForm').addEventListener('submit', async functio
                 }
             });
         }
+// ===== Grades table with filter + pagination (Admin) =====
+function applyGradesFilters() {
+  const year = document.getElementById('gradeYearFilter')?.value || '';
+  const q = (document.getElementById('searchGrade')?.value || '').trim().toLowerCase();
+
+  return (gradesData || []).filter(g => {
+    const hay = `${g.studentId || ''} ${g.studentName || ''} ${g.subjectCode || ''} ${g.subjectName || ''} ${g.semester || ''}`.toLowerCase();
+    const okQ = q ? hay.includes(q) : true;
+
+    // ถ้า backend ยังไม่มี year ในแต่ละแถว ให้ปล่อยผ่าน (okYear = true)
+    const okYear = year ? String(g.year || g.studentYear || '') === String(year) : true;
+    return okQ && okYear;
+  });
+}
+
+function renderGradesPage() {
+  // map ชื่อนักศึกษาจาก studentsData (กรณี getGrades ไม่มี studentName)
+  const stuMap = new Map((studentsData || []).map(s => [String(s.id || s.studentId), s]));
+  const list = applyGradesFilters();
+
+  const perPage = gradesPerPage || 10;
+  const totalPages = Math.max(1, Math.ceil(list.length / perPage));
+  currentGradesPage = Math.min(Math.max(1, currentGradesPage || 1), totalPages);
+  const startIdx = (currentGradesPage - 1) * perPage;
+  const endIdx = Math.min(startIdx + perPage, list.length);
+  const pageRows = list.slice(startIdx, endIdx);
+
+  const tbody = document.getElementById('gradesTable');
+  if (tbody) {
+    tbody.innerHTML = pageRows.map(g => {
+      const sid = String(g.studentId || '');
+      const name = g.studentName || stuMap.get(sid)?.name || '-';
+      return `
+        <tr>
+          <td class="px-6 py-3 text-sm text-gray-900">${sid || '-'}</td>
+          <td class="px-6 py-3 text-sm text-gray-900">${name}</td>
+          <td class="px-6 py-3 text-sm text-gray-900">${g.semester || '-'}</td>
+          <td class="px-6 py-3 text-sm text-gray-900">
+            ${(g.subjectCode || '')} ${(g.subjectName || '')}
+          </td>
+          <td class="px-6 py-3 text-sm text-gray-900 ${getGradeColor(g.grade)}">${g.grade || '-'}</td>
+          <td class="px-6 py-3 text-sm text-gray-900">-</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // อัปเดตตัวเลขสรุป
+  const gStart = document.getElementById('gradesStart');
+  const gEnd   = document.getElementById('gradesEnd');
+  const gTotal = document.getElementById('gradesTotal');
+  if (gStart) gStart.textContent = list.length ? (startIdx + 1) : 0;
+  if (gEnd)   gEnd.textContent   = endIdx;
+  if (gTotal) gTotal.textContent = list.length;
+}
+
+function loadGradesData() {
+  currentGradesPage = 1;
+  renderGradesPage();
+}
+
+function nextGradesPage() {
+  currentGradesPage += 1;
+  renderGradesPage();
+}
+function previousGradesPage() {
+  currentGradesPage -= 1;
+  renderGradesPage();
+}
+function filterGrades() {
+  currentGradesPage = 1;
+  renderGradesPage();
+}
+
