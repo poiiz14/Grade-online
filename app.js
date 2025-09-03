@@ -182,29 +182,86 @@ let gradesPerPage = 10;
             document.querySelectorAll('input').forEach(input => input.value = '');
         }
 
+        // ===== แทนที่ showDashboard() เดิมทั้งก้อน =====
         function showDashboard() {
-            document.getElementById('loginScreen').classList.add('hidden');
-            document.getElementById('dashboard').classList.remove('hidden');
-            
-            // Update user info
-            document.getElementById('userName').textContent = currentUser.name;
-            document.getElementById('userRole').textContent = currentUser.role || currentUser.position || `นักศึกษาชั้นปีที่ ${currentUser.year}`;
-            
-            // Show appropriate dashboard
-            document.getElementById('adminDashboard').classList.toggle('hidden', currentUserType !== 'admin');
-            document.getElementById('studentDashboard').classList.toggle('hidden', currentUserType !== 'student');
-            document.getElementById('advisorDashboard').classList.toggle('hidden', currentUserType !== 'advisor');
-            
-            // Load initial data
-            if (currentUserType === 'admin') {
-                loadAdminData();
-                showAdminSection('overview');
-            } else if (currentUserType === 'student') {
-                loadStudentData();
-            } else if (currentUserType === 'advisor') {
-                loadAdvisorData();
-            }
+          // กันข้อมูลผู้ใช้ว่าง
+          const user = window.currentUser || {};
+          const role = window.currentUserType || user.role || '';
+        
+          // อัปเดตชื่อ/บทบาท (เช็ก element ก่อน)
+          const nameEl = document.getElementById('userName');
+          const roleEl = document.getElementById('userRole');
+        
+          const displayName =
+            user.name || user.fullName || user.email || user.id || '-';
+          const roleLabel =
+            role === 'admin'      ? 'ผู้ดูแลระบบ' :
+            role === 'advisor'    ? 'อาจารย์ที่ปรึกษา' :
+            role === 'student'    ? 'นักศึกษา' :
+            (user.role || '-');
+        
+          if (nameEl) nameEl.textContent = displayName;
+          if (roleEl) roleEl.textContent = roleLabel;
+        
+          // ซ่อนหน้าล็อกอิน โชว์แดชบอร์ดหลัก
+          const loginScreen = document.getElementById('loginScreen');
+          const dashboard   = document.getElementById('dashboard');
+          if (loginScreen) loginScreen.classList.add('hidden');
+          if (dashboard)   dashboard.classList.remove('hidden');
+        
+          // ซ่อนทุกแดชบอร์ดก่อน
+          const adminDash   = document.getElementById('adminDashboard');
+          const studentDash = document.getElementById('studentDashboard');
+          const advisorDash = document.getElementById('advisorDashboard');
+          if (adminDash)   adminDash.classList.add('hidden');
+          if (studentDash) studentDash.classList.add('hidden');
+          if (advisorDash) advisorDash.classList.add('hidden');
+        
+          // โชว์ตามบทบาท + เรียกโหลดข้อมูลของแต่ละหน้า
+          if (role === 'admin') {
+            if (adminDash)   adminDash.classList.remove('hidden');
+            // เปิดแท็บภาพรวมเป็นค่าเริ่มต้น
+            // ป้องกันเรียกก่อนข้อมูลมา: ใช้ setTimeout สั้น ๆ ให้ DOM พร้อม
+            setTimeout(() => {
+              try { showAdminSection('overview'); } catch (e) { console.error(e); }
+            }, 0);
+          } else if (role === 'student') {
+            if (studentDash) studentDash.classList.remove('hidden');
+            // โหลดข้อมูลของนักศึกษาคนนี้ (ใช้โค้ดเดิมของโปรเจ็กต์ถ้ามี)
+            setTimeout(async () => {
+              try {
+                // ให้แน่ใจว่ามีเกรด/อังกฤษก่อน
+                if (!Array.isArray(gradesData) || gradesData.length === 0) {
+                  if (typeof loadGradesFromSheets === 'function') await loadGradesFromSheets();
+                }
+                if (!Array.isArray(englishTestData) || englishTestData.length === 0) {
+                  if (typeof loadEnglishTestFromSheets === 'function') await loadEnglishTestFromSheets();
+                }
+                // ภาคเรียนค่าเริ่มต้น = 1
+                if (typeof showSemester === 'function') showSemester('1');
+                // ถ้ามีฟังก์ชันรวมสรุปนักศึกษา ให้เรียกด้วย
+                if (typeof loadStudentSummary === 'function') loadStudentSummary();
+              } catch (e) { console.error(e); }
+            }, 0);
+          } else if (role === 'advisor') {
+            if (advisorDash) advisorDash.classList.remove('hidden');
+            setTimeout(async () => {
+              try {
+                // โหลดรายชื่อนศ.ในความดูแล
+                if (!Array.isArray(studentsData) || studentsData.length === 0) {
+                  if (typeof loadStudentsFromSheets === 'function') await loadStudentsFromSheets();
+                }
+                if (typeof loadAdvisorStudents === 'function') loadAdvisorStudents();
+              } catch (e) { console.error(e); }
+            }, 0);
+          } else {
+            // ไม่รู้บทบาท → fallback: ซ่อนแดชบอร์ด กลับหน้า login
+            if (dashboard)   dashboard.classList.add('hidden');
+            if (loginScreen) loginScreen.classList.remove('hidden');
+            console.warn('Unknown role:', role, user);
+          }
         }
+
 
         // Admin functions
        // ปุ่มเมนูใน Admin Dashboard → ต้องเรียกแบบ onclick="showAdminSection('overview', this)"
@@ -1109,6 +1166,7 @@ document.getElementById('addGradeForm').addEventListener('submit', async functio
                 }
             });
         }
+
 
 
 
