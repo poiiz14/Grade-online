@@ -1,34 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
 
-body {
-  font-family: 'Sarabun', sans-serif;
-}
+body { font-family: 'Sarabun', sans-serif; }
 
 .gradient-bg {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-.card-shadow {
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-}
+.card-shadow { box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
 
-.hover-scale {
-  transition: transform 0.2s;
-}
+.hover-scale { transition: transform 0.2s; }
+.hover-scale:hover { transform: scale(1.02); }
 
-.hover-scale:hover {
-  transform: scale(1.02);
-}
 
-.loading-spinner {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
