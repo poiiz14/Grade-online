@@ -252,21 +252,136 @@ function updateStudentsDataTable(list) {
       <td class="px-6 py-3 text-sm text-gray-900">-</td>
     </tr>`).join('');
 }
-function loadStudentsData() { updateStudentsDataTable(studentsData); }
+// ===== Students table with pagination =====
+function applyStudentsFilters() {
+  const year = document.getElementById('yearFilter')?.value || '';
+  const q = (document.getElementById('searchStudent')?.value || '').trim().toLowerCase();
+
+  return (studentsData || []).filter(s => {
+    const okYear = year ? String(s.year) === String(year) : true;
+    const hay = `${s.studentId || s.id || ''} ${s.name || ''} ${s.advisor || ''}`.toLowerCase();
+    const okQ = q ? hay.includes(q) : true;
+    return okYear && okQ;
+  });
+}
+
+function renderStudentsPage() {
+  const list = applyStudentsFilters();
+  const paged = paginate(list, currentStudentsPage, studentsPerPage);
+
+  const tbody = document.getElementById('studentsTable');
+  if (tbody) {
+    tbody.innerHTML = paged.slice.map(st => `
+      <tr>
+        <td class="px-6 py-3 text-sm text-gray-900">${st.studentId || st.id || '-'}</td>
+        <td class="px-6 py-3 text-sm text-gray-900">${st.name || '-'}</td>
+        <td class="px-6 py-3 text-sm text-gray-900">${st.year || '-'}</td>
+        <td class="px-6 py-3 text-sm text-gray-900">${st.advisor || '-'}</td>
+        <td class="px-6 py-3 text-sm text-gray-900">-</td>
+      </tr>
+    `).join('');
+  }
+
+  // อัปเดตตัวเลขแสดงผล
+  const sStart = document.getElementById('studentsStart');
+  const sEnd   = document.getElementById('studentsEnd');
+  const sTotal = document.getElementById('studentsTotal');
+  if (sStart) sStart.textContent = paged.start;
+  if (sEnd)   sEnd.textContent   = paged.end;
+  if (sTotal) sTotal.textContent = paged.total;
+
+  // เก็บหน้าปัจจุบันกลับ (กรณีโดน clamp)
+  currentStudentsPage = paged.page;
+}
+
+function loadStudentsData() {
+  currentStudentsPage = 1;
+  renderStudentsPage();
+}
+
+// ปุ่มก่อนหน้า/ถัดไปของ Students
+function nextStudentsPage() {
+  currentStudentsPage += 1;
+  renderStudentsPage();
+}
+function previousStudentsPage() {
+  currentStudentsPage -= 1;
+  renderStudentsPage();
+}
+
+// ผูก event กับช่องค้นหา/ตัวกรอง
+document.getElementById('searchStudent')?.addEventListener('input', () => {
+  currentStudentsPage = 1; renderStudentsPage();
+});
+document.getElementById('yearFilter')?.addEventListener('change', () => {
+  currentStudentsPage = 1; renderStudentsPage();
+});
+
+
+// ===== Grades table with pagination (admin view) =====
+function applyGradesFilters() {
+  const year = document.getElementById('gradeYearFilter')?.value || '';
+  const q = (document.getElementById('searchGrade')?.value || '').trim().toLowerCase();
+
+  return (gradesData || []).filter(g => {
+    const okYear = year ? String(g.studentYear || g.year || '') === String(year) : true; // ถ้าไม่มี field year จาก backend ให้ปล่อยผ่าน
+    const hay = `${g.studentId || ''} ${g.studentName || ''} ${g.subjectCode || ''} ${g.subjectName || ''} ${g.semester || ''}`.toLowerCase();
+    const okQ = q ? hay.includes(q) : true;
+    return okYear && okQ;
+  });
+}
+
+function renderGradesPage() {
+  const list = applyGradesFilters();
+  const paged = paginate(list, currentGradesPage, gradesPerPage);
+
+  const tbody = document.getElementById('gradesTable');
+  if (tbody) {
+    tbody.innerHTML = paged.slice.map(g => `
+      <tr>
+        <td class="px-6 py-3 text-sm text-gray-900">${g.studentId || '-'}</td>
+        <td class="px-6 py-3 text-sm text-gray-900">${g.studentName || '-'}</td>
+        <td class="px-6 py-3 text-sm text-gray-900">${g.semester || '-'}</td>
+        <td class="px-6 py-3 text-sm text-gray-900">${g.subjectCode || ''} ${g.subjectName || ''}</td>
+        <td class="px-6 py-3 text-sm text-gray-900 ${getGradeColor(g.grade)}">${g.grade || '-'}</td>
+        <td class="px-6 py-3 text-sm text-gray-900">-</td>
+      </tr>
+    `).join('');
+  }
+
+  const gStart = document.getElementById('gradesStart');
+  const gEnd   = document.getElementById('gradesEnd');
+  const gTotal = document.getElementById('gradesTotal');
+  if (gStart) gStart.textContent = paged.start;
+  if (gEnd)   gEnd.textContent   = paged.end;
+  if (gTotal) gTotal.textContent = paged.total;
+
+  currentGradesPage = paged.page;
+}
 
 function loadGradesData() {
-  const tbody = document.getElementById('gradesTable');
-  if (!tbody) return;
-  tbody.innerHTML = (gradesData || []).slice(0, 50).map(g => `
-    <tr>
-      <td class="px-6 py-3 text-sm text-gray-900">${g.studentId || '-'}</td>
-      <td class="px-6 py-3 text-sm text-gray-900">${g.studentName || '-'}</td>
-      <td class="px-6 py-3 text-sm text-gray-900">${g.semester || '-'}</td>
-      <td class="px-6 py-3 text-sm text-gray-900">${g.subjectCode || ''} ${g.subjectName || ''}</td>
-      <td class="px-6 py-3 text-sm text-gray-900 ${getGradeColor(g.grade)}">${g.grade || '-'}</td>
-      <td class="px-6 py-3 text-sm text-gray-900">-</td>
-    </tr>`).join('');
+  currentGradesPage = 1;
+  renderGradesPage();
 }
+
+// ปุ่มก่อนหน้า/ถัดไปของ Grades
+function nextGradesPage() {
+  currentGradesPage += 1;
+  renderGradesPage();
+}
+function previousGradesPage() {
+  currentGradesPage -= 1;
+  renderGradesPage();
+}
+
+// ผูก event กับช่องค้นหา/ตัวกรอง
+document.getElementById('searchGrade')?.addEventListener('input', () => {
+  currentGradesPage = 1; renderGradesPage();
+});
+document.getElementById('gradeYearFilter')?.addEventListener('change', () => {
+  currentGradesPage = 1; renderGradesPage();
+});
+
 
 function loadIndividualData() {
   // ขึ้นอยู่กับ UI ของปอย — โค้ดนี้เป็น placeholder ให้ไม่ error
@@ -388,3 +503,13 @@ document.getElementById('addGradeForm')?.addEventListener('submit', async (e) =>
     Swal.fire({ icon:'error', title:'บันทึกล้มเหลว', text: resp?.message || 'กรุณาลองใหม่' });
   }
 });
+// ===== Pagination Helpers =====
+function paginate(array, page, perPage) {
+  const total = array.length;
+  const pages = Math.max(1, Math.ceil(total / perPage));
+  const p = Math.min(Math.max(1, page), pages);
+  const start = (p - 1) * perPage;
+  const end = Math.min(start + perPage, total);
+  return { slice: array.slice(start, end), page: p, pages, start: start + 1, end, total };
+}
+
