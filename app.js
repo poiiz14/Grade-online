@@ -206,8 +206,9 @@ async function login(){
 
     Swal.close();
     goToDashboard();
-
-    if (CURRENT_USER.role==='admin') showAdminDashboard();
+    setActiveDashboard(CURRENT_USER.role);
+    
+    if (CURRENT_USER.role==='admin')      showAdminDashboard();
     else if (CURRENT_USER.role==='advisor') showAdvisorDashboard();
     else showStudentDashboard();
 
@@ -230,6 +231,19 @@ function logout(){
   CURRENT_USER=null;
   GLOBAL_DATA={ students:[], grades:[], englishTests:[], advisors:[] };
   goToLogin();
+}
+function setActiveDashboard(role){
+  ['adminDashboard','studentDashboard','advisorDashboard'].forEach(id=>{
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
+  if (role === 'admin') {
+    document.getElementById('adminDashboard')?.classList.remove('hidden');
+  } else if (role === 'advisor') {
+    document.getElementById('advisorDashboard')?.classList.remove('hidden');
+  } else {
+    document.getElementById('studentDashboard')?.classList.remove('hidden');
+  }
 }
 
 /* ===================== ADMIN ===================== */
@@ -817,6 +831,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     GLOBAL_DATA = boot?.data || GLOBAL_DATA;
     if (typeof window.updateRoleUI === 'function') window.updateRoleUI(CURRENT_USER.role, CURRENT_USER.name);
     goToDashboard();
+    setActiveDashboard(CURRENT_USER.role);
     if (CURRENT_USER.role==='admin') showAdminDashboard();
     else if (CURRENT_USER.role==='advisor') showAdvisorDashboard();
     else showStudentDashboard();
@@ -833,4 +848,5 @@ window.saveEditStudent = saveEditStudent;
 window.saveAddGrade = saveAddGrade;
 window.saveAddEnglish = saveAddEnglish;
 window.openChangePasswordModal = openChangePasswordModal;
+
 
