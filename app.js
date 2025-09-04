@@ -31,7 +31,69 @@ function callAPI(action, data = {}, { timeoutMs = 30000, retries = 2, backoffMs 
     reject(lastErr);
   });
 }
+//กล่องเปลี่ยนรหัส + เรียก API//
+async function openChangePasswordDialog() {
+  const role = (currentUserType || '').toLowerCase();
+  if (!['admin','advisor'].includes(role)) {
+    Swal.fire({ icon:'warning', title:'ไม่สามารถใช้งานได้', text:'นักศึกษาไม่สามารถเปลี่ยนรหัสผ่านในระบบนี้' });
+    return;
+  }
+  const email = (currentUser?.email || '').trim();
+  if (!email) {
+    Swal.fire({ icon:'error', title:'ไม่พบอีเมลผู้ใช้', text:'บัญชีนี้ไม่มีอีเมลในระบบ' });
+    return;
+  }
 
+  const { value: formValues } = await Swal.fire({
+    title: 'เปลี่ยนรหัสผ่าน',
+    html:
+      `<div class="text-left">
+        <div class="mb-2"><b>อีเมล:</b> ${email}</div>
+        <input id="cp-old" class="swal2-input" placeholder="รหัสผ่านเดิม" type="password">
+        <input id="cp-new" class="swal2-input" placeholder="รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)" type="password">
+        <input id="cp-new2" class="swal2-input" placeholder="ยืนยันรหัสผ่านใหม่" type="password">
+      </div>`,
+    focusConfirm: false,
+    confirmButtonText: 'บันทึก',
+    cancelButtonText: 'ยกเลิก',
+    showCancelButton: true,
+    preConfirm: () => {
+      const oldPw = document.getElementById('cp-old').value.trim();
+      const newPw = document.getElementById('cp-new').value.trim();
+      const newPw2 = document.getElementById('cp-new2').value.trim();
+      if (!oldPw || !newPw || !newPw2) {
+        Swal.showValidationMessage('กรอกข้อมูลให้ครบ');
+        return false;
+      }
+      if (newPw.length < 6) {
+        Swal.showValidationMessage('รหัสผ่านใหม่ต้องยาวอย่างน้อย 6 ตัวอักษร');
+        return false;
+      }
+      if (newPw !== newPw2) {
+        Swal.showValidationMessage('รหัสผ่านใหม่และยืนยันไม่ตรงกัน');
+        return false;
+      }
+      return { oldPw, newPw };
+    }
+  });
+
+  if (!formValues) return;
+
+  try {
+    Swal.fire({ title:'กำลังบันทึก...', showConfirmButton:false, allowOutsideClick:false, didOpen:() => Swal.showLoading() });
+    const resp = await callAPI('changePassword', {
+      userType: role,
+      email: email,
+      oldPassword: formValues.oldPw,
+      newPassword: formValues.newPw
+    }, { timeoutMs: 45000, retries: 1 });
+
+    if (!resp?.success) throw new Error(resp?.message || 'เปลี่ยนรหัสผ่านไม่สำเร็จ');
+    Swal.fire({ icon:'success', title:'สำเร็จ', text:'เปลี่ยนรหัสผ่านเรียบร้อย' });
+  } catch (e) {
+    Swal.fire({ icon:'error', title:'ไม่สำเร็จ', text: e.message || 'เกิดข้อผิดพลาด' });
+  }
+}
 /* ===================== GLOBAL STATE ===================== */
 let currentUser = null;
 let currentUserType = null;
@@ -123,8 +185,9 @@ document.addEventListener('DOMContentLoaded', async function () {
       document.getElementById('loginScreen')?.classList.remove('hidden');
       document.getElementById('dashboard')?.classList.add('hidden');
     }
-  }
-
+  } 
+  // ซ่อน/แสดงปุ่มตามบทบาทหลังแสดงแดชบอร์ด
+  document.getElementById('changePasswordBtn')?.addEventListener('click', openChangePasswordDialog);
   // handlers
   document.getElementById('userType')?.addEventListener('change', function () {
     const t = this.value;
@@ -155,6 +218,9 @@ function showDashboard() {
   const roleEl = document.getElementById('userRole');
   if (nameEl) nameEl.textContent = user.name || user.fullName || user.email || '-';
   if (roleEl) roleEl.textContent = roleKey === 'admin' ? 'ผู้ดูแลระบบ' : roleKey === 'advisor' ? 'อาจารย์ที่ปรึกษา' : roleKey === 'student' ? 'นักศึกษา' : '-';
+  
+  const cpBtn = document.getElementById('changePasswordBtn');
+  if (cpBtn) cpBtn.classList.toggle('hidden', !['admin','advisor'].includes((currentUserType||'').toLowerCase()));
 
   // layout
   document.getElementById('loginScreen')?.classList.add('hidden');
@@ -467,4 +533,5 @@ function formatDate(d){ if(!d) return '-'; const dt=new Date(d); return isNaN(dt
 /* ===================== PLACEHOLDERS ===================== */
 function editStudent(id){ Swal.fire({ icon:'info', title:'แก้ไขข้อมูลนักศึกษา', text:`${id}` }); }
 function deleteStudent(id){ Swal.fire({ icon:'warning', title:'ยืนยันการลบ', showCancelButton:true }).then(r=>{ if(r.isConfirmed){ studentsData=(studentsData||[]).filter(s=>s.id!==id); displayStudents(); loadOverviewData(); Swal.fire('ลบสำเร็จ','','success'); } }); }
+
 
