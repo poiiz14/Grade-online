@@ -453,7 +453,9 @@ function advisorYearChanged() {
 
 function advisorOpenView(id, name, year) {
   // โหลด detail เฉพาะคน
+  showLoadingOverlay('กำลังโหลดข้อมูลนักศึกษา...');
   jsonp('getStudentDetail', { studentId: id }, (res) => {
+    hideLoadingOverlay();
     if (!res || !res.success) return Swal.fire('ไม่สำเร็จ', res && res.message ? res.message : '', 'error');
     const det = res.data;
     document.getElementById('advVName').textContent = name;
@@ -593,5 +595,6 @@ window.studentTermChanged = studentTermChanged;
 window.advisorYearChanged = advisorYearChanged;
 window.advisorOpenView = advisorOpenView;
 window.closeAdvView = closeAdvView;
+
 
 
