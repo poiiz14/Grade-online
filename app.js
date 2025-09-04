@@ -87,10 +87,10 @@ async function authenticate(role, credentials){
 async function bootstrapAll(){
   const resp = await callAPI('bootstrap', {}, { timeoutMs: 45000, retries: 1 });
   if (!resp?.success) throw new Error(resp?.message || 'bootstrap failed');
-  return resp.data;
+  return resp.data; // {students, grades, englishTests, advisors}
 }
 
-/* ===================== LOGIN HANDLER (robust) ===================== */
+/* ===================== LOGIN HANDLER ===================== */
 async function handleLoginSubmit(ev){
   ev?.preventDefault?.();
   console.log('[LOGIN] submit triggered');
@@ -129,7 +129,6 @@ async function handleLoginSubmit(ev){
     const data = await bootstrapAll();
     hideBlockingLoader();
 
-    // อัปเดต header + ปุ่มเปลี่ยนรหัสผ่าน
     if (typeof window.updateRoleUI === 'function') window.updateRoleUI(user.role, user.name);
     goToDashboard();
 
@@ -150,7 +149,6 @@ async function handleLoginSubmit(ev){
     Swal?.fire({ icon:'error', title:'เกิดข้อผิดพลาด', text:String(err?.message||err) });
   }
 }
-// เผื่อกรณี HTML ยังมี onclick เก่า
 window.handleLoginSubmit = handleLoginSubmit;
 
 /* bind ให้ครบทั้ง submit และปุ่ม */
@@ -166,10 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const loginBtn = document.querySelector('button[type="submit"], #loginBtn');
   if (loginBtn) {
-    loginBtn.addEventListener('click', (e)=>{ 
-      // ป้องกัน browser submit ปกติซ้ำซ้อน
-      e.preventDefault(); handleLoginSubmit(e);
-    });
+    loginBtn.addEventListener('click', (e)=>{ e.preventDefault(); handleLoginSubmit(e); });
     console.log('[BOOT] attach click listener to login button');
   }
 
@@ -183,78 +178,201 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('[BOOT] role from query:', qRole);
   }
 
-  // เรียก updateRoleUI ถ้ามี session
+  // ถ้ามี session ให้แสดงชื่อ/บทบาทบน header
   const sess = loadSession();
   if (sess?.role && sess?.name && typeof window.updateRoleUI === 'function') {
     window.updateRoleUI(sess.role, sess.name);
   }
 });
 
-/* ===================== DASHBOARDS (ย่อ/พร้อมใช้) ===================== */
+/* ===================== DASHBOARDS (พร้อมใช้งาน) ===================== */
 function showOnlyDashboard(id){
   ['adminDashboard','studentDashboard','advisorDashboard'].forEach(x=>document.getElementById(x)?.classList.add('hidden'));
   document.getElementById(id)?.classList.remove('hidden');
 }
+
+/* ---------- ADMIN ---------- */
 function showAdminDashboard(data){
   showOnlyDashboard('adminDashboard');
-  // ถ้า index.html ยังไม่ได้แปะส่วน Admin เต็ม ให้โชว์ข้อความไว้ก่อน
-  if (!document.getElementById('adminOverview')) {
-    document.getElementById('adminDashboard').innerHTML =
-      '<div class="p-8 text-center text-gray-600">เข้าสู่ระบบสำเร็จ (Admin) — ยังไม่ได้ใส่เนื้อหาแดชบอร์ด</div>';
+  showAdminSection('overview'); // default
+
+  // เติมตัวเลขภาพรวม
+  setText('totalStudents', data.students?.length || 0);
+  setText('totalSubjects', data.grades?.length || 0);
+
+  const passCount = (data.englishTests||[]).filter(r=>{
+    const s = (r.status || r['สถานะ'] || '').toString().trim().toLowerCase();
+    return s === 'ผ่าน' || s === 'pass' || s === 'passed';
+  }).length;
+  const totalEng = (data.englishTests||[]).length;
+  setText('passedEnglish', passCount);
+  setText('failedEnglish', Math.max(totalEng - passCount, 0));
+
+  // ตารางนักศึกษา (ตัวอย่างแสดง 20 คนแรก)
+  renderStudentsTable(data.students || []);
+
+  // กราฟ
+  try { if (window.Chart) renderAdminCharts(data); } catch(e){ console.warn('Chart skipped', e); }
+}
+
+// ให้เรียกได้จาก HTML onclick
+window.showAdminSection = showAdminSection;
+function showAdminSection(name){
+  ['adminOverview','adminStudents','adminGrades','adminIndividual'].forEach(id=>{
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
+  const map = {overview:'adminOverview', students:'adminStudents', grades:'adminGrades', individual:'adminIndividual'};
+  const target = map[name] || 'adminOverview';
+  document.getElementById(target)?.classList.remove('hidden');
+
+  // active tab
+  document.querySelectorAll('.admin-nav-btn').forEach(btn=>{
+    btn.classList.remove('border-blue-500','text-blue-600');
+    btn.classList.add('border-transparent','text-gray-600');
+  });
+  const tabs = ['overview','students','grades','individual'];
+  const idx = tabs.indexOf(name);
+  const navBtns = Array.from(document.querySelectorAll('.admin-nav-btn'));
+  if (idx>=0 && navBtns[idx]) {
+    navBtns[idx].classList.add('border-blue-500','text-blue-600');
+    navBtns[idx].classList.remove('text-gray-600','border-transparent');
   }
 }
-function showTeacherDashboard(data){
-  showOnlyDashboard('advisorDashboard');
-  if (!document.getElementById('advisorStudentsList')) {
-    document.getElementById('advisorDashboard').innerHTML =
-      '<div class="p-8 text-center text-gray-600">เข้าสู่ระบบสำเร็จ (Advisor) — ยังไม่ได้ใส่เนื้อหาแดชบอร์ด</div>';
+
+function renderStudentsTable(students){
+  const tbody = document.getElementById('studentsTable');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  const rows = (students||[]).slice(0,20);
+  rows.forEach(st=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="px-6 py-3 text-sm text-gray-700">${st.id||'-'}</td>
+      <td class="px-6 py-3 text-sm text-gray-700">${st.name||'-'}</td>
+      <td class="px-6 py-3 text-sm text-gray-700">${st.year||'-'}</td>
+      <td class="px-6 py-3 text-sm text-gray-700">${st.advisor||'-'}</td>
+      <td class="px-6 py-3 text-sm text-gray-700">
+        <button class="px-2 py-1 text-blue-600 hover:underline" onclick="openIndividual('${st.id||''}')">ดู</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  setText('studentsTotal', students.length || 0);
+  setText('studentsStart', rows.length ? 1 : 0);
+  setText('studentsEnd', rows.length);
+}
+
+function renderAdminCharts(data){
+  // จำนวนนักศึกษาตามชั้นปี
+  const byYear = {1:0,2:0,3:0,4:0};
+  (data.students||[]).forEach(s=>{ const y = String(s.year||''); if(byYear[y]!=null) byYear[y]++; });
+  const ctx1 = document.getElementById('studentsChart');
+  if (ctx1) {
+    new Chart(ctx1, {
+      type:'bar',
+      data:{ labels:['ปี1','ปี2','ปี3','ปี4'], datasets:[{ label:'จำนวนนักศึกษา', data:[byYear[1],byYear[2],byYear[3],byYear[4]] }] },
+      options:{ responsive:true, maintainAspectRatio:false }
+    });
+  }
+  // สถิติภาษาอังกฤษ
+  const eng = data.englishTests||[];
+  const pass = eng.filter(r=>['ผ่าน','pass','passed'].includes((r.status||'').toString().toLowerCase())).length;
+  const fail = Math.max(eng.length - pass, 0);
+  const ctx2 = document.getElementById('englishChart');
+  if (ctx2) {
+    new Chart(ctx2, {
+      type:'doughnut',
+      data:{ labels:['ผ่าน','ไม่ผ่าน'], datasets:[{ data:[pass, fail] }] },
+      options:{ responsive:true, maintainAspectRatio:false }
+    });
   }
 }
+
+// รายบุคคล (ปุ่ม "ดู")
+window.openIndividual = function(studentId){
+  showAdminSection('individual');
+  // TODO: เติม logic load รายบุคคลตาม studentId หากต้องการ
+};
+
+/* ---------- STUDENT ---------- */
 function showStudentDashboard(data, user){
   showOnlyDashboard('studentDashboard');
-  if (!document.getElementById('studentGPAX')) {
-    document.getElementById('studentDashboard').innerHTML =
-      '<div class="p-8 text-center text-gray-600">เข้าสู่ระบบสำเร็จ (Student) — ยังไม่ได้ใส่เนื้อหาแดชบอร์ด</div>';
+
+  const me = (data.students||[]).find(s => String(s.id||'')===String(user.id||'')
+    || String(s.citizenId||'')===String(user.citizenId||'')) || {};
+
+  const myGrades = (data.grades||[]).filter(g => String(g.studentId||'') === String(me.id||user.id||''));
+  const myEnglish = (data.englishTests||[]).filter(e => String(e.studentId||'') === String(me.id||user.id||''));
+
+  // หน่วยกิตสะสม
+  const credits = myGrades.reduce((sum,g)=> sum + (+g.credits || 0), 0);
+  setText('studentCredits', credits);
+
+  // สถานะอังกฤษล่าสุด
+  const latestEng = myEnglish[0];
+  setText('studentEnglishStatus', latestEng ? (latestEng.status || '-') : '-');
+
+  // GPAX แบบง่าย
+  const gp = {'A':4,'B+':3.5,'B':3,'C+':2.5,'C':2,'D+':1.5,'D':1,'F':0};
+  let tp=0, tc=0;
+  myGrades.forEach(g=>{
+    const cr = +g.credits || 0;
+    const gr = (g.grade||'').toUpperCase();
+    if (gp[gr]!=null){ tp += gp[gr]*cr; tc += cr; }
+  });
+  setText('studentGPAX', tc? (tp/tc).toFixed(2) : '-');
+
+  renderStudentGradesTable(myGrades);
+}
+function renderStudentGradesTable(list){
+  const tbody = document.getElementById('studentGradesTable');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  (list||[]).slice(0,30).forEach(g=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="px-4 py-2 text-sm text-gray-700">${g.courseCode || ''}</td>
+      <td class="px-4 py-2 text-sm text-gray-700">${g.courseTitle || ''}</td>
+      <td class="px-4 py-2 text-sm text-gray-700">${g.credits || ''}</td>
+      <td class="px-4 py-2 text-sm text-gray-700">${g.grade || ''}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  setText('semesterGPA','-'); // ถ้าต้องการคำนวณแยกเทอมค่อยเพิ่ม
+}
+
+/* ---------- ADVISOR ---------- */
+function showTeacherDashboard(data){
+  showOnlyDashboard('advisorDashboard');
+
+  const sess = loadSession();
+  const advisees = (data.students||[]).filter(s=>{
+    const adv = (s.advisor||'').toString().trim();
+    return adv && (adv === sess.name || adv.includes(sess.name));
+  });
+
+  const list = document.getElementById('advisorStudentsList');
+  if (list) {
+    list.innerHTML = '';
+    advisees.forEach(s=>{
+      const div = document.createElement('div');
+      div.className = 'p-4';
+      div.innerHTML = `
+        <div class="flex justify-between">
+          <div>
+            <div class="font-medium text-gray-900">${s.name||'-'}</div>
+            <div class="text-sm text-gray-500">รหัส: ${s.id||'-'} | ชั้นปี: ${s.year||'-'}</div>
+          </div>
+          <button class="text-blue-600 hover:underline" onclick="openIndividual('${s.id||''}')">รายละเอียด</button>
+        </div>`;
+      list.appendChild(div);
+    });
   }
 }
 
-/* ===================== Change Password ===================== */
-async function openChangePasswordDialog(){
-  const sess = loadSession();
-  if (!sess?.role || !['admin','advisor'].includes(sess.role)) {
-    return Swal?.fire({icon:'warning',title:'สำหรับผู้ดูแล/อาจารย์ที่ปรึกษาเท่านั้น'});
-  }
-
-  const { value: v } = await Swal.fire({
-    title: 'เปลี่ยนรหัสผ่าน',
-    html: `
-      <input id="cp_email" class="swal2-input" placeholder="email" style="width:100%" value="${sess.email||''}">
-      <input id="cp_old" class="swal2-input" type="password" placeholder="รหัสผ่านเดิม" style="width:100%">
-      <input id="cp_new" class="swal2-input" type="password" placeholder="รหัสผ่านใหม่" style="width:100%">
-    `,
-    focusConfirm: false,
-    preConfirm: () => ({
-      email: (document.getElementById('cp_email').value||'').trim(),
-      oldPw: document.getElementById('cp_old').value||'',
-      newPw: document.getElementById('cp_new').value||''
-    }),
-    confirmButtonText: 'บันทึก',
-    showCancelButton: true,
-    cancelButtonText: 'ยกเลิก'
-  });
-  if (!v) return;
-
-  try {
-    showBlockingLoader('กำลังบันทึก...');
-    const resp = await callAPI('changepassword', {
-      userType: sess.role, email: v.email, oldPassword: v.oldPw, newPassword: v.newPw
-    }, { timeoutMs: 45000, retries: 1 });
-    hideBlockingLoader();
-    if (!resp?.success) throw new Error(resp?.message || 'change password failed');
-    Swal?.fire({ icon:'success', title:'สำเร็จ', text:'เปลี่ยนรหัสผ่านเรียบร้อย' });
-  } catch (err) {
-    hideBlockingLoader();
-    console.error('[CP][error]', err);
-    Swal?.fire({ icon:'error', title:'เกิดข้อผิดพลาด', text:String(err?.message||err) });
-  }
+/* ===================== Small helpers ===================== */
+function setText(id, val){
+  const el = document.getElementById(id);
+  if (el) el.textContent = (val==null ? '' : String(val));
 }
