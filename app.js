@@ -732,3 +732,4 @@ window.updateRoleUI = function(role, name){
   const btn = document.getElementById('changePasswordBtn');
   btn && btn.classList.toggle('hidden', !showChange);
 };
+
