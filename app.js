@@ -94,20 +94,27 @@ function login() {
     document.getElementById('userName').textContent = state.user.name || state.user.email || '-';
     window.updateRoleUI(role, state.user.name || state.user.email);
 
-    // โหลดข้อมูลเริ่มต้น
-    jsonp('bootstrap', {}, (boot) => {
-      if (!boot || !boot.success) return Swal.fire('โหลดข้อมูลไม่สำเร็จ', 'ลองใหม่อีกครั้ง', 'error');
-      state.datasets = boot.data || state.datasets;
+    // แสดง Overlay ระหว่าง bootstrap
+showLoadingOverlay('กำลังโหลดข้อมูล...');
 
-      // Show shell
-      document.getElementById('loginScreen').classList.add('hidden');
-      document.getElementById('appShell').classList.remove('hidden');
+jsonp('bootstrap', {}, (boot) => {
+  hideLoadingOverlay(); // ปิด overlay เมื่อโหลดเสร็จ
 
-      // ไปยังหน้าตาม role
-      if (role === 'admin') initAdmin();
-      else if (role === 'student') initStudent();
-      else initAdvisor();
-    });
+  if (!boot || !boot.success)
+    return Swal.fire('โหลดข้อมูลไม่สำเร็จ', 'ลองใหม่อีกครั้ง', 'error');
+
+  state.datasets = boot.data || state.datasets;
+
+  // Show shell
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('appShell').classList.remove('hidden');
+
+  // ไปยังหน้าตาม role
+  if (role === 'admin') initAdmin();
+  else if (role === 'student') initStudent();
+  else initAdvisor();
+});
+
   });
 }
 
@@ -202,11 +209,13 @@ function openSelectedPerson() {
 }
 
 function openStudentDetail(studentId, isAdminPerson) {
+  showLoadingOverlay('กำลังดึงข้อมูลรายบุคคล...');
   jsonp('getStudentDetail', { studentId }, (res) => {
+    hideLoadingOverlay();
     if (!res || !res.success) return Swal.fire('ไม่สำเร็จ', res && res.message ? res.message : 'ไม่พบข้อมูล', 'error');
     state.person.selectedId = studentId;
     state.person.detail = res.data;
-
+    
     // enable ปุ่ม
     ['btnEditStudent', 'btnAddGrade', 'btnAddEnglish'].forEach(id => document.getElementById(id).disabled = false);
 
@@ -307,8 +316,9 @@ function initStudent() {
   // โหลดรายละเอียดนักศึกษาปัจจุบัน
   const sid = state.user && state.user.id ? state.user.id : (state.user && state.user.citizenId) || '';
   if (!sid) return Swal.fire('ไม่พบรหัสนักศึกษา', '', 'error');
-
+  showLoadingOverlay('กำลังเตรียมข้อมูลนักศึกษา...');
   jsonp('getStudentDetail', { studentId: sid }, (res) => {
+    hideLoadingOverlay();
     if (!res || !res.success) return Swal.fire('โหลดข้อมูลไม่สำเร็จ', '', 'error');
     state.studentView.detail = res.data;
 
@@ -537,6 +547,21 @@ function latestEnglish(list) {
   return best ? best.r : null;
 }
 
+function showLoadingOverlay(text){
+  const ol = document.getElementById('appLoadingOverlay');
+  if (!ol) return;
+  if (text) {
+    const el = ol.querySelector('.ol-title span:last-child');
+    if (el) el.textContent = text;
+  }
+  ol.classList.remove('hidden');
+}
+function hideLoadingOverlay(){
+  const ol = document.getElementById('appLoadingOverlay');
+  if (!ol) return;
+  ol.classList.add('hidden');
+}
+
 // Expose to window (ฟังก์ชันที่ผูกกับ HTML)
 window.login = login;
 window.logout = logout;
@@ -568,4 +593,5 @@ window.studentTermChanged = studentTermChanged;
 window.advisorYearChanged = advisorYearChanged;
 window.advisorOpenView = advisorOpenView;
 window.closeAdvView = closeAdvView;
+
 
