@@ -164,9 +164,23 @@
 
         <!-- STUDENTS -->
         <section id="adminStudents" class="admin-section hidden">
-          <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-gray-900">รายชื่อนักศึกษา</h2>
+          <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-4">
+            <div class="flex-1">
+              <label class="block text-sm text-gray-600 mb-1">ค้นหาชื่อ/นามสกุล</label>
+              <input id="adminStudentSearch" class="w-full p-2 border rounded-lg" placeholder="พิมพ์ชื่อหรือสกุล">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">เลือกชั้นปี</label>
+              <select id="adminStudentYearFilter" class="p-2 border rounded-lg">
+                <option value="">ทั้งหมด</option>
+                <option value="1">ปี 1</option>
+                <option value="2">ปี 2</option>
+                <option value="3">ปี 3</option>
+                <option value="4">ปี 4</option>
+              </select>
+            </div>
           </div>
+
           <div class="bg-white rounded-xl card-shadow">
             <div class="overflow-x-auto">
               <table class="w-full">
@@ -176,25 +190,44 @@
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600">ชื่อ-สกุล</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600">ชั้นปี</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600">อาจารย์ที่ปรึกษา</th>
-                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600">การจัดการ</th>
                   </tr>
                 </thead>
                 <tbody id="studentsTable" class="bg-white divide-y divide-gray-200"></tbody>
               </table>
+            </div>
+            <div class="flex items-center justify-between p-3 border-t">
+              <button id="adminStudentsPrev" class="px-3 py-1 border rounded-lg">ก่อนหน้า</button>
+              <span id="adminStudentsPageInfo" class="text-sm text-gray-600"></span>
+              <button id="adminStudentsNext" class="px-3 py-1 border rounded-lg">ถัดไป</button>
             </div>
           </div>
         </section>
 
         <!-- GRADES -->
         <section id="adminGrades" class="admin-section hidden">
-          <h2 class="text-2xl font-bold text-gray-900 mb-6">จัดการผลการเรียน</h2>
+          <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-4">
+            <div class="flex-1">
+              <label class="block text-sm text-gray-600 mb-1">ค้นหารหัส/ชื่อวิชา หรือรหัสนักศึกษา</label>
+              <input id="adminGradesSearch" class="w-full p-2 border rounded-lg" placeholder="พิมพ์คำค้น">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">เลือกชั้นปี</label>
+              <select id="adminGradesYearFilter" class="p-2 border rounded-lg">
+                <option value="">ทั้งหมด</option>
+                <option value="1">ปี 1</option>
+                <option value="2">ปี 2</option>
+                <option value="3">ปี 3</option>
+                <option value="4">ปี 4</option>
+              </select>
+            </div>
+          </div>
+
           <div class="bg-white rounded-xl card-shadow">
             <div class="overflow-x-auto">
               <table class="w-full">
                 <thead class="bg-gray-50">
                   <tr>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600">รหัสนักศึกษา</th>
-                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600">ภาคการศึกษา</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600">รหัสวิชา</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600">รายวิชา</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600">หน่วยกิต</th>
@@ -204,12 +237,23 @@
                 <tbody id="gradesTable" class="bg-white divide-y divide-gray-200"></tbody>
               </table>
             </div>
+            <div class="flex items-center justify-between p-3 border-t">
+              <button id="adminGradesPrev" class="px-3 py-1 border rounded-lg">ก่อนหน้า</button>
+              <span id="adminGradesPageInfo" class="text-sm text-gray-600"></span>
+              <button id="adminGradesNext" class="px-3 py-1 border rounded-lg">ถัดไป</button>
+            </div>
           </div>
         </section>
 
         <!-- INDIVIDUAL -->
         <section id="adminIndividual" class="admin-section hidden">
-          <h2 class="text-2xl font-bold text-gray-900 mb-6">ข้อมูลรายบุคคล</h2>
+          <div class="bg-white rounded-xl p-6 card-shadow mb-4">
+            <label class="block text-sm text-gray-600 mb-2">ค้นหาชื่อหรือนามสกุลนักศึกษา</label>
+            <input id="individualSearch" class="w-full p-2 border rounded-lg" placeholder="พิมพ์อย่างน้อย 2 ตัวอักษร">
+            <div id="individualSearchResults" class="mt-2 space-y-1"></div>
+          </div>
+
+          <h2 class="text-2xl font-bold text-gray-900 mb-4">ข้อมูลรายบุคคล</h2>
           <div class="bg-white rounded-xl p-6 card-shadow mb-6">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div><p class="text-sm text-gray-600">ชื่อ-สกุล</p><p id="studentName" class="font-medium">-</p></div>
@@ -218,25 +262,57 @@
             </div>
           </div>
 
-          <div class="bg-white rounded-xl p-6 card-shadow mb-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">ผลสอบภาษาอังกฤษ สบช.</h3>
-            <div class="overflow-x-auto">
-              <table class="w-full">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ปีการศึกษา</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ครั้งที่สอบ</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">คะแนน</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">สถานะ</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">วันที่สอบ</th>
-                  </tr>
-                </thead>
-                <tbody id="englishTestTable" class="divide-y divide-gray-200"></tbody>
-              </table>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-xl p-6 card-shadow">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">สรุปเกรดเฉลี่ย</h3>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div class="bg-blue-50 p-4 rounded-lg">
+                  <p class="text-sm text-blue-700">GPAX</p>
+                  <p id="indGpax" class="text-2xl font-bold text-blue-900">-</p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg">
+                  <p class="text-sm text-green-700">หน่วยกิตสะสม</p>
+                  <p id="indCredits" class="text-2xl font-bold text-green-900">-</p>
+                </div>
+                <div class="bg-purple-50 p-4 rounded-lg">
+                  <p class="text-sm text-purple-700">จำนวนวิชาที่ได้เกรด</p>
+                  <p id="indCourseCount" class="text-2xl font-bold text-purple-900">-</p>
+                </div>
+              </div>
+              <div class="mt-4 overflow-x-auto">
+                <table class="w-full">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">ปีการศึกษา</th>
+                      <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">ภาค</th>
+                      <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">GPA</th>
+                    </tr>
+                  </thead>
+                  <tbody id="indGpaTable" class="divide-y divide-gray-200"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-6 card-shadow">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">ผลสอบภาษาอังกฤษ สบช.</h3>
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ปีการศึกษา</th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ครั้งที่สอบ</th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">คะแนน</th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">สถานะ</th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">วันที่สอบ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="englishTestTable" class="divide-y divide-gray-200"></tbody>
+                </table>
+              </div>
             </div>
           </div>
 
-          <div class="bg-white rounded-xl p-6 card-shadow">
+          <div class="bg-white rounded-xl p-6 card-shadow mt-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">ผลการเรียน</h3>
             <div class="overflow-x-auto">
               <table class="w-full">
@@ -336,23 +412,22 @@
         <h2 class="text-2xl font-bold text-gray-900 mb-6">นักศึกษาในความดูแล</h2>
 
         <!-- summary cards -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
           <div class="bg-white rounded-xl p-6 card-shadow">
             <p class="text-sm text-gray-600">จำนวนนักศึกษาทั้งหมด</p>
             <p id="advTotal" class="text-2xl font-bold">-</p>
           </div>
-          <div class="bg-white rounded-xl p-6 card-shadow">
-            <p class="text-sm text-gray-600">ปี 1</p>
-            <p id="advY1" class="text-2xl font-bold">-</p>
-          </div>
-          <div class="bg-white rounded-xl p-6 card-shadow">
-            <p class="text-sm text-gray-600">ปี 2-3-4 รวม</p>
-            <p><span id="advY2" class="text-xl font-bold">-</span></p>
-          </div>
-          <div class="bg-white rounded-xl p-6 card-shadow">
-            <p class="text-sm text-gray-600">ผ่าน สบช. (ล่าสุด)</p>
-            <p id="advPassLatest" class="text-2xl font-bold">-</p>
-          </div>
+          <div class="bg-white rounded-xl p-6 card-shadow"><p class="text-sm text-gray-600">ปี 1</p><p id="advY1" class="text-2xl font-bold">-</p></div>
+          <div class="bg-white rounded-xl p-6 card-shadow"><p class="text-sm text-gray-600">ปี 2</p><p id="advY2" class="text-2xl font-bold">-</p></div>
+          <div class="bg-white rounded-xl p-6 card-shadow"><p class="text-sm text-gray-600">ปี 3</p><p id="advY3" class="text-2xl font-bold">-</p></div>
+          <div class="bg-white rounded-xl p-6 card-shadow"><p class="text-sm text-gray-600">ปี 4</p><p id="advY4" class="text-2xl font-bold">-</p></div>
+        </div>
+
+        <div class="bg-white rounded-xl p-4 card-shadow mb-6">
+          <label class="text-sm text-gray-700 mr-2">เลือกปีการศึกษา:</label>
+          <select id="advisorYearFilter" class="p-2 border rounded-lg">
+            <option value="">ทุกปีการศึกษา</option>
+          </select>
         </div>
 
         <div class="bg-white rounded-xl card-shadow mb-6">
