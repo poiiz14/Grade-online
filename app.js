@@ -2,11 +2,16 @@
 /** ใส่ URL ของ Apps Script Web App ( /exec ) */
 const API_BASE = 'https://script.google.com/macros/s/AKfycbz7edo925YsuHCE6cTHw7npL69olAvnBVILIDE1pbVkBpptBgG0Uz6zFhnaqbEEe4AY/exec';
 
+// guard: เตือนถ้ายังไม่ใช่ /exec ที่ถูกต้อง
+(function(){
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(API_BASE)) {
+    console.error('[CONFIG] API_BASE ไม่ถูกต้อง:', API_BASE);
+    alert('API_BASE ยังไม่ใช่ URL /exec ของ Apps Script');
+  }
+})();
+
 /*
   JSONP with timeout + retries + verbose logging
-  - ใช้พารามิเตอร์ 'payload='
-  - กัน cache ด้วย &_ts=
-  - log: [API][send] / [API][ok] / [API][network-error] / [API][timeout] / [API][retry]
 */
 function callAPI(action, data = {}, { timeoutMs = 30000, retries = 2, backoffMs = 800 } = {}) {
   function once(timeout) {
@@ -42,7 +47,6 @@ function callAPI(action, data = {}, { timeoutMs = 30000, retries = 2, backoffMs 
         reject(new Error(`API network error: ${action}`));
       };
 
-      // fire
       s.src = url;
       document.body.appendChild(s);
       console.debug('[API][send]', { action, url, payload: payloadStr });
@@ -87,16 +91,14 @@ function saveSession(s){ try{ localStorage.setItem(SESSION_KEY, JSON.stringify(s
 function loadSession(){ try{ return JSON.parse(localStorage.getItem(SESSION_KEY)||'{}'); }catch{return {}} }
 function clearSession(){ try{ localStorage.removeItem(SESSION_KEY); }catch{} }
 
-/* ===================== Auth Flow ===================== */
+/* ===================== Auth API ===================== */
 async function authenticate(role, credentials){
   console.debug('[AUTH] start', { role, credentials: { ...credentials, password: '***' }});
   const resp = await callAPI('authenticate', { userType: role, credentials }, { timeoutMs: 30000, retries: 1 });
   console.debug('[AUTH] resp', resp);
   if (!resp?.success) throw new Error(resp?.message || 'authenticate failed');
-  return resp.data;
+  return resp.data; // {role,id,name,email,...}
 }
-
-/* ===================== Bootstrap (load dashboard data) ===================== */
 async function bootstrapAll(){
   console.debug('[BOOTSTRAP] start');
   const resp = await callAPI('bootstrap', {}, { timeoutMs: 45000, retries: 1 });
@@ -105,35 +107,26 @@ async function bootstrapAll(){
   return resp.data; // {students, grades, englishTests, advisors}
 }
 
-/* ===================== UI helpers ===================== */
+/* ===================== Frame helpers ===================== */
 function goToDashboard() {
-  const login = document.getElementById('loginScreen');
-  const dash  = document.getElementById('dashboard');
-  login?.classList.add('hidden');
-  dash?.classList.remove('hidden');
+  document.getElementById('loginScreen')?.classList.add('hidden');
+  document.getElementById('dashboard')?.classList.remove('hidden');
 }
 function goToLogin() {
-  const login = document.getElementById('loginScreen');
-  const dash  = document.getElementById('dashboard');
-  dash?.classList.add('hidden');
-  login?.classList.remove('hidden');
+  document.getElementById('dashboard')?.classList.add('hidden');
+  document.getElementById('loginScreen')?.classList.remove('hidden');
 }
-
-/* ===================== Logout (ใช้จากปุ่ม header) ===================== */
 function logout(){
   clearSession();
   goToLogin();
   Swal.fire({ icon:'success', title:'ออกจากระบบแล้ว', timer:1200, showConfirmButton:false });
 }
 
-/* ===================== Login UI Handlers ===================== */
+/* ===================== Login Handler ===================== */
 async function handleLoginSubmit(ev){
   ev?.preventDefault?.();
 
-  // อ่านบทบาทจาก hidden input ที่ index.html เซตไว้
   const role = document.getElementById('roleInput')?.value || 'student';
-
-  // อ่านช่องกรอกตามบทบาท (อิง id จาก index.html ใหม่)
   let credentials = {};
   if (role === 'student') {
     const citizenId = (document.getElementById('studentId')?.value || '').replace(/\s|-/g,'');
@@ -156,15 +149,9 @@ async function handleLoginSubmit(ev){
     const data = await bootstrapAll();
     hideBlockingLoader();
 
-    // 👉 อัปเดต Header + ปุ่มเปลี่ยนรหัสผ่าน ตาม role (index.html เตรียม window.updateRoleUI ไว้แล้ว)
-    if (typeof window.updateRoleUI === 'function') {
-      window.updateRoleUI(user.role, user.name);
-    }
-
-    // สลับจอไป Dashboard
+    if (typeof window.updateRoleUI === 'function') window.updateRoleUI(user.role, user.name);
     goToDashboard();
 
-    // Debug count
     console.log('[READY] user & data', { user, counts:{
       students: data.students?.length||0,
       grades: data.grades?.length||0,
@@ -172,11 +159,9 @@ async function handleLoginSubmit(ev){
       advisors: data.advisors?.length||0
     }});
 
-    // เรียกแดชบอร์ดตามบทบาท (ฟังก์ชันเดิมของปอย)
-    if (role==='admin'   && typeof showAdminDashboard==='function')   showAdminDashboard(data);
-    else if (role==='advisor' && typeof showTeacherDashboard==='function') showTeacherDashboard(data);
-    else if (role==='student' && typeof showStudentDashboard==='function') showStudentDashboard(data);
-
+    if (role==='admin')       showAdminDashboard(data);
+    else if (role==='advisor') showTeacherDashboard(data);
+    else                       showStudentDashboard(data, user);
   } catch (err) {
     hideBlockingLoader();
     console.error('[LOGIN][error]', err);
@@ -207,13 +192,11 @@ async function openChangePasswordDialog(){
       </div>
     `,
     focusConfirm: false,
-    preConfirm: () => {
-      return {
-        email: (document.getElementById('cp_email').value || '').trim(),
-        oldPw: document.getElementById('cp_old').value || '',
-        newPw: document.getElementById('cp_new').value || ''
-      };
-    },
+    preConfirm: () => ({
+      email: (document.getElementById('cp_email').value || '').trim(),
+      oldPw: document.getElementById('cp_old').value || '',
+      newPw: document.getElementById('cp_new').value || ''
+    }),
     confirmButtonText: 'บันทึก',
     showCancelButton: true,
     cancelButtonText: 'ยกเลิก'
@@ -238,21 +221,191 @@ async function openChangePasswordDialog(){
   }
 }
 
-/* ===================== Boot handlers ===================== */
-document.addEventListener('DOMContentLoaded', () => {
-  const form = document.getElementById('loginForm');
-  if (form) form.addEventListener('submit', handleLoginSubmit);
+/* ===================== DASHBOARD RENDERERS ===================== */
+// toggle main dashboards
+function showOnlyDashboard(id){
+  ['adminDashboard','studentDashboard','advisorDashboard'].forEach(x=>{
+    document.getElementById(x)?.classList.add('hidden');
+  });
+  document.getElementById(id)?.classList.remove('hidden');
+}
 
-  // auto-fill จาก session (ถ้าต้องการ auto-login เพิ่ม logic ตรงนี้)
-  const sess = loadSession();
-  if (sess?.role && sess?.name) {
-    // ถ้าจะ auto-login จริง ๆ ให้เรียก bootstrap แล้วไป dashboard
-    // แต่ตอนนี้แค่ตั้งชื่อหัวมุมไว้ก่อน
-    if (typeof window.updateRoleUI === 'function') {
-      window.updateRoleUI(sess.role, sess.name);
+/* ---------- ADMIN ---------- */
+function showAdminDashboard(data){
+  showOnlyDashboard('adminDashboard');
+  // default section
+  showAdminSection('overview');
+
+  // fill overview numbers
+  setText('totalStudents', data.students?.length || 0);
+  setText('totalSubjects', data.grades?.length || 0); // ถ้าต้องการนับรายวิชาไม่ซ้ำ ค่อยปรับ
+  const passed = (data.englishTests || []).filter(r=> (r.status||'').toLowerCase()==='ผ่าน' || (r.status||'').toLowerCase()==='pass').length;
+  const failed = (data.englishTests || []).length - passed;
+  setText('passedEnglish', passed);
+  setText('failedEnglish', failed);
+
+  // นักศึกษาตาราง (หน้าแรก)
+  renderStudentsTable(data.students || []);
+
+  // กราฟ (optional)
+  try {
+    if (window.Chart) {
+      renderAdminCharts(data);
     }
+  } catch(e){ console.warn('Chart render skipped', e); }
+}
+
+// switch admin sections
+function showAdminSection(name){
+  ['adminOverview','adminStudents','adminGrades','adminIndividual'].forEach(id=>{
+    document.getElementById(id)?.classList.add('hidden');
+  });
+  const map = {overview:'adminOverview', students:'adminStudents', grades:'adminGrades', individual:'adminIndividual'};
+  const target = map[name] || 'adminOverview';
+  document.getElementById(target)?.classList.remove('hidden');
+
+  // ปรับปุ่ม nav active
+  document.querySelectorAll('.admin-nav-btn').forEach(btn=>{
+    btn.classList.remove('border-blue-500','text-blue-600');
+    btn.classList.add('border-transparent','text-gray-600');
+  });
+  const buttons = {
+    adminOverview: 0, adminStudents:1, adminGrades:2, adminIndividual:3
+  };
+  const idx = buttons[target];
+  const navBtns = Array.from(document.querySelectorAll('.admin-nav-btn'));
+  if (navBtns[idx]) {
+    navBtns[idx].classList.add('border-blue-500','text-blue-600');
+    navBtns[idx].classList.remove('text-gray-600','border-transparent');
   }
-});
+}
 
+function renderStudentsTable(students){
+  const tbody = document.getElementById('studentsTable');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  const rows = students.slice(0, 20); // แสดงตัวอย่าง 20 รายการแรก
+  rows.forEach(st=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="px-6 py-3 text-sm text-gray-700">${st.id||'-'}</td>
+      <td class="px-6 py-3 text-sm text-gray-700">${st.name||'-'}</td>
+      <td class="px-6 py-3 text-sm text-gray-700">${st.year||'-'}</td>
+      <td class="px-6 py-3 text-sm text-gray-700">${st.advisor||'-'}</td>
+      <td class="px-6 py-3 text-sm text-gray-700">
+        <button class="px-2 py-1 text-blue-600 hover:underline" onclick="openIndividual('${st.id||''}')">ดู</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  setText('studentsTotal', students.length || 0);
+  setText('studentsStart', rows.length ? 1 : 0);
+  setText('studentsEnd', rows.length);
+}
 
+function renderAdminCharts(data){
+  const byYear = {1:0,2:0,3:0,4:0};
+  (data.students||[]).forEach(s=>{ const y=String(s.year||''); if (byYear[y]!=null) byYear[y]++; });
+  const ctx1 = document.getElementById('studentsChart');
+  if (ctx1) {
+    new Chart(ctx1, {
+      type: 'bar',
+      data: {
+        labels: ['ปี1','ปี2','ปี3','ปี4'],
+        datasets: [{ label: 'จำนวนนักศึกษา', data: [byYear[1],byYear[2],byYear[3],byYear[4]] }]
+      }
+    });
+  }
+  const eng = (data.englishTests||[]);
+  const pass = eng.filter(r=> (r.status||'').toLowerCase()==='ผ่าน' || (r.status||'').toLowerCase()==='pass').length;
+  const fail = eng.length - pass;
+  const ctx2 = document.getElementById('englishChart');
+  if (ctx2) {
+    new Chart(ctx2, {
+      type: 'doughnut',
+      data: {
+        labels: ['ผ่าน','ไม่ผ่าน'],
+        datasets: [{ data: [pass, fail] }]
+      }
+    });
+  }
+}
 
+/* ---------- STUDENT ---------- */
+function showStudentDashboard(data, user){
+  showOnlyDashboard('studentDashboard');
+
+  // หาข้อมูลของนักศึกษาคนนี้
+  const me = (data.students||[]).find(s => (String(s.id||'') === String(user.id||'')) || (String(s.citizenId||'') === String(user.citizenId||''))) || {};
+  const myGrades = (data.grades||[]).filter(g => String(g.studentId||g['รหัสนักศึกษา']||'') === String(me.id||user.id||''));
+  const myEnglish = (data.englishTests||[]).filter(e => String(e.studentId||e['รหัสนักศึกษา']||'') === String(me.id||user.id||''));
+
+  // คำนวณแบบง่าย ๆ
+  const credits = myGrades.reduce((sum,g)=> sum + (+g.credits || +g['หน่วยกิต'] || 0), 0);
+  setText('studentCredits', credits);
+
+  // สถานะอังกฤษ
+  const latestEng = myEnglish[0];
+  setText('studentEnglishStatus', latestEng ? (latestEng.status || latestEng['สถานะ'] || '-') : '-');
+
+  // GPAX (อย่างง่าย ถ้าต้องการสูตรเต็มค่อยปรับ)
+  const gradePoint = {'A':4,'B+':3.5,'B':3,'C+':2.5,'C':2,'D+':1.5,'D':1,'F':0};
+  let totalPoint=0, totalCred=0;
+  myGrades.forEach(g=>{
+    const cr = +g.credits || +g['หน่วยกิต'] || 0;
+    const gr = (g.grade || g['เกรด'] || '').toUpperCase();
+    if (gradePoint[gr]!=null) { totalPoint += gradePoint[gr]*cr; totalCred += cr; }
+  });
+  setText('studentGPAX', totalCred ? (totalPoint/totalCred).toFixed(2) : '-');
+
+  // ตารางรายวิชา (ภาคล่าสุดแบบง่าย)
+  renderStudentGradesTable(myGrades);
+}
+
+function renderStudentGradesTable(list){
+  const tbody = document.getElementById('studentGradesTable');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  list.slice(0, 30).forEach(g=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="px-4 py-2 text-sm text-gray-700">${g.subjectCode || g['รหัสวิชา'] || ''}</td>
+      <td class="px-4 py-2 text-sm text-gray-700">${g.subjectName || g['รายวิชา'] || ''}</td>
+      <td class="px-4 py-2 text-sm text-gray-700">${g.credits || g['หน่วยกิต'] || ''}</td>
+      <td class="px-4 py-2 text-sm text-gray-700">${g.grade || g['เกรด'] || ''}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  // ค่าเฉลี่ยเทอม (ถ้าจำแนกเทอมได้ค่อยเพิ่ม)
+  setText('semesterGPA', '-');
+}
+
+/* ---------- ADVISOR (Teacher) ---------- */
+function showTeacherDashboard(data){
+  showOnlyDashboard('advisorDashboard');
+
+  const sess = loadSession();
+  // หานักศึกษาที่ advisor ตรงกับชื่ออาจารย์ใน session (หรือ email)
+  const advisees = (data.students||[]).filter(s=>{
+    const adv = (s.advisor||'').toString().trim();
+    return adv && (adv === sess.name || adv.indexOf(sess.name)>=0);
+  });
+
+  const list = document.getElementById('advisorStudentsList');
+  if (list) {
+    list.innerHTML = '';
+    advisees.forEach(s=>{
+      const div = document.createElement('div');
+      div.className = 'p-4';
+      div.innerHTML = `
+        <div class="flex justify-between">
+          <div>
+            <div class="font-medium text-gray-900">${s.name||'-'}</div>
+            <div class="text-sm text-gray-500">รหัส: ${s.id||'-'} | ชั้นปี: ${s.year||'-'}</div>
+          </div>
+          <button class="text-blue-600 hover:underline" onclick="openIndividual('${s.id||''}')">รายละเอียด</button>
+        </div>`;
+      list.appendChild(div);
+    });
+  }
+}
