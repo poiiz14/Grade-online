@@ -7,6 +7,9 @@
   <!-- Libs -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- เพิ่ม Chart.js สำหรับกราฟ -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <link rel="stylesheet" href="styles.css"/>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"/>
   <link rel="icon" type="image/x-icon" href="./favicon.ico"/>
@@ -125,47 +128,35 @@
             <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
               <div class="flex items-center">
                 <div class="bg-blue-100 p-3 rounded-full"><i class="fas fa-users text-blue-600 text-xl"></i></div>
-                <div class="ml-4">
-                  <p class="text-sm text-gray-600">นักศึกษาทั้งหมด</p>
-                  <p id="totalStudents" class="text-2xl font-bold text-gray-900">-</p>
-                </div>
+                <div class="ml-4"><p class="text-sm text-gray-600">นักศึกษาทั้งหมด</p><p id="totalStudents" class="text-2xl font-bold text-gray-900">-</p></div>
               </div>
             </div>
             <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
               <div class="flex items-center">
                 <div class="bg-green-100 p-3 rounded-full"><i class="fas fa-check-circle text-green-600 text-xl"></i></div>
-                <div class="ml-4">
-                  <p class="text-sm text-gray-600">สอบผ่าน สบช.</p>
-                  <p id="passedEnglish" class="text-2xl font-bold text-gray-900">-</p>
-                </div>
+                <div class="ml-4"><p class="text-sm text-gray-600">สอบผ่าน สบช.</p><p id="passedEnglish" class="text-2xl font-bold text-gray-900">-</p></div>
               </div>
             </div>
             <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
               <div class="flex items-center">
                 <div class="bg-red-100 p-3 rounded-full"><i class="fas fa-times-circle text-red-600 text-xl"></i></div>
-                <div class="ml-4">
-                  <p class="text-sm text-gray-600">สอบไม่ผ่าน สบช.</p>
-                  <p id="failedEnglish" class="text-2xl font-bold text-gray-900">-</p>
-                </div>
+                <div class="ml-4"><p class="text-sm text-gray-600">สอบไม่ผ่าน สบช.</p><p id="failedEnglish" class="text-2xl font-bold text-gray-900">-</p></div>
               </div>
             </div>
             <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
               <div class="flex items-center">
                 <div class="bg-purple-100 p-3 rounded-full"><i class="fas fa-book text-purple-600 text-xl"></i></div>
-                <div class="ml-4">
-                  <p class="text-sm text-gray-600">รายวิชาทั้งหมด</p>
-                  <p id="totalSubjects" class="text-2xl font-bold text-gray-900">-</p>
-                </div>
+                <div class="ml-4"><p class="text-sm text-gray-600">รายวิชาทั้งหมด</p><p id="totalSubjects" class="text-2xl font-bold text-gray-900">-</p></div>
               </div>
             </div>
           </div>
 
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="bg-white rounded-xl p-6 card-shadow">
+            <div class="bg-white rounded-xl p-6 card-shadow" style="height:330px">
               <h3 class="text-lg font-semibold text-gray-900 mb-4">จำนวนนักศึกษาแยกตามชั้นปี</h3>
               <canvas id="studentsChart"></canvas>
             </div>
-            <div class="bg-white rounded-xl p-6 card-shadow">
+            <div class="bg-white rounded-xl p-6 card-shadow" style="height:330px">
               <h3 class="text-lg font-semibold text-gray-900 mb-4">สถิติการสอบภาษาอังกฤษ</h3>
               <canvas id="englishChart"></canvas>
             </div>
@@ -429,63 +420,7 @@
     </div><!-- /ADVISOR -->
   </div><!-- /APP -->
 
-  <!-- ============ MODALS ============ -->
-  <div id="addStudentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-      <h3 class="text-lg font-semibold text-gray-900 mb-4">เพิ่มนักศึกษาใหม่</h3>
-      <form id="addStudentForm" class="space-y-4">
-        <div><label class="block text-sm font-medium text-gray-700 mb-2">รหัสนักศึกษา</label><input type="text" id="newStudentId" class="w-full p-3 border rounded-lg" required></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-2">ชื่อ-สกุล</label><input type="text" id="newStudentName" class="w-full p-3 border rounded-lg" required></div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">ชั้นปี</label>
-          <select id="newStudentYear" class="w-full p-3 border rounded-lg" required>
-            <option value="">เลือกชั้นปี</option><option value="1">1</option><option value="2">2</option>
-            <option value="3">3</option><option value="4">4</option>
-          </select>
-        </div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-2">เลขบัตรประชาชน</label><input type="text" id="newStudentCitizenId" maxlength="13" class="w-full p-3 border rounded-lg" required></div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">อาจารย์ที่ปรึกษา</label>
-          <select id="newStudentAdvisor" class="w-full p-3 border rounded-lg" required><option value="">เลือกอาจารย์ที่ปรึกษา</option></select>
-        </div>
-        <div class="flex gap-3 pt-4">
-          <button type="submit" class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"><i class="fas fa-save mr-2"></i>บันทึก</button>
-          <button type="button" onclick="closeAddStudentModal()" class="flex-1 bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600">ยกเลิก</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div id="addGradeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-      <h3 class="text-lg font-semibold text-gray-900 mb-4">เพิ่มผลการเรียน</h3>
-      <form id="addGradeForm" class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">นักศึกษา</label>
-          <select id="gradeStudentSelect" class="w-full p-3 border rounded-lg" required><option value="">เลือกนักศึกษา</option></select>
-        </div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-2">ภาคการศึกษา</label><input type="text" id="gradeSemester" placeholder="เช่น 2567/1" class="w-full p-3 border rounded-lg" required></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-2">รหัสวิชา</label><input type="text" id="gradeSubjectCode" class="w-full p-3 border rounded-lg" required></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-2">ชื่อวิชา</label><input type="text" id="gradeSubjectName" class="w-full p-3 border rounded-lg" required></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-2">หน่วยกิต</label><input type="number" id="gradeCredits" min="1" max="6" class="w-full p-3 border rounded-lg" required></div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">เกรด</label>
-          <select id="gradeValue" class="w-full p-3 border rounded-lg" required>
-            <option value="">เลือกเกรด</option>
-            <option value="A">A</option><option value="B+">B+</option><option value="B">B</option>
-            <option value="C+">C+</option><option value="C">C</option><option value="D+">D+</option>
-            <option value="D">D</option><option value="F">F</option><option value="W">W</option><option value="I">I</option>
-          </select>
-        </div>
-        <div class="flex gap-3 pt-4">
-          <button type="submit" class="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700"><i class="fas fa-save mr-2"></i>บันทึก</button>
-          <button type="button" onclick="closeAddGradeModal()" class="flex-1 bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600">ยกเลิก</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ============ HELPERS (Login toggle + role UI) ============ -->
+  <!-- login UI switch + header UI -->
   <script>
     function switchLoginUI(role) {
       document.getElementById('roleInput').value = role;
@@ -499,7 +434,6 @@
       switchLoginUI(sel.value);
     });
 
-    // ให้ app.js เรียกหลัง login สำเร็จ
     window.updateRoleUI = function(role, name){
       document.getElementById('userName').textContent = name || '';
       document.getElementById('userRole').textContent =
@@ -508,7 +442,6 @@
     };
   </script>
 
-  <!-- สคริปต์หลัก (เวอร์ชันล่าสุดที่ส่งให้ปอย) -->
   <script src="app.js"></script>
 </body>
 </html>
