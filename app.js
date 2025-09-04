@@ -123,7 +123,12 @@ async function ensureDataLoadedForRole(roleKey) {
   englishTestData  = Array.isArray(resp.data.englishTests) ? resp.data.englishTests : [];
   advisorsData     = Array.isArray(resp.data.advisors)     ? resp.data.advisors     : [];
 }
-
+  console.log('BOOT:', {
+    students: studentsData.length,
+    grades: gradesData.length,
+    english: englishTestData.length,
+    advisors: advisorsData.length
+  });
 /* ===================== LOGIN / AUTO-LOGIN ===================== */
 async function login() {
   const userType = document.getElementById('userType')?.value || 'admin';
@@ -262,7 +267,7 @@ async function showAdminSection(section, el) {
   document.getElementById(`admin${section.charAt(0).toUpperCase()+section.slice(1)}`)?.classList.remove('hidden');
 
   // ข้อมูลควรพร้อมจาก bootstrap แล้ว แต่กันพลาดถ้าไม่มี
-  if (!studentsData.length || !englishTestData.length) {
+  if (!studentsData.length || !englishTestData.length || !gradesData.length) {
     try { await ensureDataLoadedForRole('admin'); } catch (e) { console.warn(e); }
   }
 
@@ -295,15 +300,18 @@ function loadOverviewData() {
   studentsData.forEach(s => { if (s.year>=1 && s.year<=4) studentsByYear[s.year-1]++; });
 
   const englishStats = (() => {
-    const total = englishTestData.length;
-    const passed = englishTestData.filter(t => t.status === 'ผ่าน').length;
-    const failed = total - passed;
-    return {
-      passed, failed,
-      passedPercent: total ? Math.round(passed*100/total) : 0,
-      failedPercent: total ? Math.round(failed*100/total) : 0
-    };
-  })();
+  const total = englishTestData.length;
+  const passed = englishTestData.filter(t => {
+    const s = String(t.status || '').toLowerCase();
+    return s.includes('ผ่าน') || s.includes('pass') || s === 'p';
+  }).length;
+  const failed = total - passed;
+  return {
+    passed, failed,
+    passedPercent: total ? Math.round(passed*100/total) : 0,
+    failedPercent: total ? Math.round(failed*100/total) : 0
+  };
+})();
 
   const subjects = new Set(); gradesData.forEach(g => subjects.add(g.subjectCode));
   const totalSubjects = subjects.size;
@@ -533,5 +541,6 @@ function formatDate(d){ if(!d) return '-'; const dt=new Date(d); return isNaN(dt
 /* ===================== PLACEHOLDERS ===================== */
 function editStudent(id){ Swal.fire({ icon:'info', title:'แก้ไขข้อมูลนักศึกษา', text:`${id}` }); }
 function deleteStudent(id){ Swal.fire({ icon:'warning', title:'ยืนยันการลบ', showCancelButton:true }).then(r=>{ if(r.isConfirmed){ studentsData=(studentsData||[]).filter(s=>s.id!==id); displayStudents(); loadOverviewData(); Swal.fire('ลบสำเร็จ','','success'); } }); }
+
 
 
