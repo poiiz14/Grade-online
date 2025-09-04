@@ -484,5 +484,15 @@ body.legacy .modal-panel{
   font-size: .9rem;
   color: #64748b;
 }
+/* โลโก้ Overlay */
+.ol-logo{
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 6px 14px rgba(0,0,0,.12);
+  background: #fff;
+  padding: 4px;
+}
 
 
