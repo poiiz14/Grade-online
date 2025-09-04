@@ -7,7 +7,7 @@
  */
 
 /** ============ CONFIG ============ **/
-const GAS_URL = window.GAS_URL || 'https://script.google.com/macros/s/AKfycbz7edo925YsuHCE6cTHw7npL69olAvnBVILIDE1pbVkBpptBgG0Uz6zFhnaqbEEe4AY/exec'; // ← ใส่ URL ของ Web App ที่นี่
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbz7edo925YsuHCE6cTHw7npL69olAvnBVILIDE1pbVkBpptBgG0Uz6zFhnaqbEEe4AY/exec'; // ← ใส่ URL ของ Web App ที่นี่
 const PAGE_SIZE_ADMIN = 50; // ตามสเปค: แสดงไม่เกินหน้าละ 50 รายการ
 const DEBOUNCE_MS = 300;
 
@@ -568,3 +568,4 @@ window.studentTermChanged = studentTermChanged;
 window.advisorYearChanged = advisorYearChanged;
 window.advisorOpenView = advisorOpenView;
 window.closeAdvView = closeAdvView;
+
