@@ -1,6 +1,6 @@
 /* ===================== CONFIG & JSONP ===================== */
 /** ใส่ URL ของ Apps Script Web App ( /exec ) */
-const API_BASE = 'https://script.google.com/macros/s/PUT-YOUR-EXEC-URL-HERE/exec';
+const API_BASE = 'https://script.google.com/macros/s/AKfycbz7edo925YsuHCE6cTHw7npL69olAvnBVILIDE1pbVkBpptBgG0Uz6zFhnaqbEEe4AY/exec';
 
 /*
   JSONP with timeout + retries + verbose logging
@@ -253,3 +253,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 });
+
