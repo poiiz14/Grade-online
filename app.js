@@ -552,8 +552,9 @@ function showStudentDashboard(){
 
   // ภาษาอังกฤษ (ล่าสุดเท่านั้น)
   const latest = latestEnglishMap(myTests||[])[String(me.id)];
-  q s=qs; // (no-op just to ensure variable exists) // eslint-disable-line
-  qs('#studentEnglishStatus').textContent = latest ? `${latest.status||'-'} (${latest.score||'-'})` : '-';
+    qs('#studentEnglishStatus').textContent = latest
+      ? `${latest.status||'-'} (${latest.score||'-'})`
+      : '-';
 
   // dropdown ปีการศึกษา
   const aySel = qs('#studentAcademicYear');
@@ -832,3 +833,4 @@ window.saveEditStudent = saveEditStudent;
 window.saveAddGrade = saveAddGrade;
 window.saveAddEnglish = saveAddEnglish;
 window.openChangePasswordModal = openChangePasswordModal;
+
