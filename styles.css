@@ -424,4 +424,65 @@ body.legacy .modal-panel{
   background: rgba(255,255,255,.98);
   box-shadow: 0 32px 64px rgba(2,6,23,.28);
 }
+/* ============== Overlay Loading (custom) ============== */
+.ol{
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: linear-gradient(180deg, rgba(124,131,255,.15), rgba(122,97,255,.2)), rgba(2,6,23,.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.ol.hidden{ display: none; }
+
+.ol-panel{
+  width: 100%;
+  max-width: 420px;
+  background: rgba(255,255,255,.95);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(15,23,42,.08);
+  border-radius: 20px;
+  box-shadow: 0 28px 60px rgba(2,6,23,.28);
+  padding: 24px 22px;
+  text-align: center;
+}
+
+.ol-title{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  color: #0f172a;
+  font-size: 1.05rem;
+}
+.ol-badge{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  color: #fff;
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 65%, #1d4ed8 100%);
+  box-shadow: 0 10px 22px rgba(37,99,235,.25);
+  font-weight: 900;
+  letter-spacing: .5px;
+}
+
+.ol-spinner{
+  width: 52px; height: 52px;
+  border-radius: 999px;
+  border: 4px solid rgba(37,99,235,.18);
+  border-top-color: #2563eb;
+  margin: 18px auto 10px;
+  animation: olSpin .85s linear infinite;
+}
+@keyframes olSpin { to { transform: rotate(360deg); } }
+
+.ol-sub{
+  font-size: .9rem;
+  color: #64748b;
+}
+
 
