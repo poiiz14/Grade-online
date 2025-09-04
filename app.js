@@ -1,9 +1,10 @@
 /* ===================== CONFIG & JSONP ===================== */
+/** ใส่ URL ของ Apps Script Web App ( /exec ) */
 const API_BASE = 'https://script.google.com/macros/s/PUT-YOUR-EXEC-URL-HERE/exec';
 
-/* 
+/*
   JSONP with timeout + retries + verbose logging
-  - ใช้พารามิเตอร์ 'payload=' (ฝั่ง server รองรับทั้ง payload และ data อยู่แล้ว)
+  - ใช้พารามิเตอร์ 'payload='
   - กัน cache ด้วย &_ts=
   - log: [API][send] / [API][ok] / [API][network-error] / [API][timeout] / [API][retry]
 */
@@ -80,11 +81,6 @@ function hideBlockingLoader() {
   if (typeof Swal !== 'undefined' && Swal.isVisible()) Swal.close();
 }
 
-/* ===========================================================
-   ที่เหลือคือโค้ดเดิมของปอย — ผมไม่แก้ไขโครง UI/flow อื่น ๆ
-   วางทับไฟล์เดิมได้เลย
-   =========================================================== */
-
 /* ===================== Session Utils ===================== */
 const SESSION_KEY = 'grade_online_session';
 function saveSession(s){ try{ localStorage.setItem(SESSION_KEY, JSON.stringify(s||{})); }catch{} }
@@ -109,18 +105,48 @@ async function bootstrapAll(){
   return resp.data; // {students, grades, englishTests, advisors}
 }
 
+/* ===================== UI helpers ===================== */
+function goToDashboard() {
+  const login = document.getElementById('loginScreen');
+  const dash  = document.getElementById('dashboard');
+  login?.classList.add('hidden');
+  dash?.classList.remove('hidden');
+}
+function goToLogin() {
+  const login = document.getElementById('loginScreen');
+  const dash  = document.getElementById('dashboard');
+  dash?.classList.add('hidden');
+  login?.classList.remove('hidden');
+}
+
+/* ===================== Logout (ใช้จากปุ่ม header) ===================== */
+function logout(){
+  clearSession();
+  goToLogin();
+  Swal.fire({ icon:'success', title:'ออกจากระบบแล้ว', timer:1200, showConfirmButton:false });
+}
+
 /* ===================== Login UI Handlers ===================== */
 async function handleLoginSubmit(ev){
   ev?.preventDefault?.();
-  const role = document.querySelector('input[name="role"]:checked')?.value || 'student';
 
-  const email = document.getElementById('email')?.value?.trim() || '';
-  const password = document.getElementById('password')?.value || '';
-  const citizenId = document.getElementById('citizenId')?.value?.replace(/\s|-/g,'') || '';
+  // อ่านบทบาทจาก hidden input ที่ index.html เซตไว้
+  const role = document.getElementById('roleInput')?.value || 'student';
 
+  // อ่านช่องกรอกตามบทบาท (อิง id จาก index.html ใหม่)
   let credentials = {};
-  if (role === 'student') credentials = { citizenId };
-  else credentials = { email, password };
+  if (role === 'student') {
+    const citizenId = (document.getElementById('studentId')?.value || '').replace(/\s|-/g,'');
+    credentials = { citizenId };
+  } else if (role === 'admin') {
+    const email = (document.getElementById('adminEmail')?.value || '').trim();
+    const password = document.getElementById('adminPassword')?.value || '';
+    credentials = { email, password };
+  } else if (role === 'advisor') {
+    const email = (document.getElementById('advisorEmail')?.value || '').trim();
+    const password = document.getElementById('advisorPassword')?.value || '';
+    credentials = { email, password };
+  }
 
   try {
     showBlockingLoader('กำลังเข้าสู่ระบบ', 'โปรดรอซักครู่...');
@@ -130,17 +156,27 @@ async function handleLoginSubmit(ev){
     const data = await bootstrapAll();
     hideBlockingLoader();
 
-    // TODO: เรียก render dashboard ตาม role เดิมของปอย (คงไว้ตามไฟล์เก่า)
+    // 👉 อัปเดต Header + ปุ่มเปลี่ยนรหัสผ่าน ตาม role (index.html เตรียม window.updateRoleUI ไว้แล้ว)
+    if (typeof window.updateRoleUI === 'function') {
+      window.updateRoleUI(user.role, user.name);
+    }
+
+    // สลับจอไป Dashboard
+    goToDashboard();
+
+    // Debug count
     console.log('[READY] user & data', { user, counts:{
       students: data.students?.length||0,
       grades: data.grades?.length||0,
       englishTests: data.englishTests?.length||0,
       advisors: data.advisors?.length||0
     }});
-    // call your existing showXxxDashboard(data)
-    if (role==='admin' && typeof showAdminDashboard==='function') showAdminDashboard(data);
+
+    // เรียกแดชบอร์ดตามบทบาท (ฟังก์ชันเดิมของปอย)
+    if (role==='admin'   && typeof showAdminDashboard==='function')   showAdminDashboard(data);
     else if (role==='advisor' && typeof showTeacherDashboard==='function') showTeacherDashboard(data);
     else if (role==='student' && typeof showStudentDashboard==='function') showStudentDashboard(data);
+
   } catch (err) {
     hideBlockingLoader();
     console.error('[LOGIN][error]', err);
@@ -206,5 +242,14 @@ async function openChangePasswordDialog(){
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('loginForm');
   if (form) form.addEventListener('submit', handleLoginSubmit);
-  // อื่น ๆ ตามไฟล์เดิมของปอย…
+
+  // auto-fill จาก session (ถ้าต้องการ auto-login เพิ่ม logic ตรงนี้)
+  const sess = loadSession();
+  if (sess?.role && sess?.name) {
+    // ถ้าจะ auto-login จริง ๆ ให้เรียก bootstrap แล้วไป dashboard
+    // แต่ตอนนี้แค่ตั้งชื่อหัวมุมไว้ก่อน
+    if (typeof window.updateRoleUI === 'function') {
+      window.updateRoleUI(sess.role, sess.name);
+    }
+  }
 });
