@@ -29,7 +29,8 @@ function callAPI(action, data = {}, { timeoutMs = 30000, retries = 2, backoffMs 
     reject(lastErr);
   });
 }
-// =============== Blocking Loader (Swal) ===============
+
+/* =============== Blocking Loader (Swal) =============== */
 function showBlockingLoader(title = 'กำลังโหลดข้อมูล...', text = 'โปรดรอสักครู่') {
   Swal.fire({
     title, html: text,
@@ -42,7 +43,8 @@ function showBlockingLoader(title = 'กำลังโหลดข้อมู�
 function hideBlockingLoader() {
   if (Swal.isVisible()) Swal.close();
 }
-//กล่องเปลี่ยนรหัส + เรียก API//
+
+/* ===================== เปลี่ยนรหัสผ่าน ===================== */
 async function openChangePasswordDialog() {
   const role = (currentUserType || '').toLowerCase();
   if (!['admin','advisor'].includes(role)) {
@@ -72,18 +74,9 @@ async function openChangePasswordDialog() {
       const oldPw = document.getElementById('cp-old').value.trim();
       const newPw = document.getElementById('cp-new').value.trim();
       const newPw2 = document.getElementById('cp-new2').value.trim();
-      if (!oldPw || !newPw || !newPw2) {
-        Swal.showValidationMessage('กรอกข้อมูลให้ครบ');
-        return false;
-      }
-      if (newPw.length < 6) {
-        Swal.showValidationMessage('รหัสผ่านใหม่ต้องยาวอย่างน้อย 6 ตัวอักษร');
-        return false;
-      }
-      if (newPw !== newPw2) {
-        Swal.showValidationMessage('รหัสผ่านใหม่และยืนยันไม่ตรงกัน');
-        return false;
-      }
+      if (!oldPw || !newPw || !newPw2) { Swal.showValidationMessage('กรอกข้อมูลให้ครบ'); return false; }
+      if (newPw.length < 6) { Swal.showValidationMessage('รหัสผ่านใหม่ต้องยาวอย่างน้อย 6 ตัวอักษร'); return false; }
+      if (newPw !== newPw2) { Swal.showValidationMessage('รหัสผ่านใหม่และยืนยันไม่ตรงกัน'); return false; }
       return { oldPw, newPw };
     }
   });
@@ -91,7 +84,7 @@ async function openChangePasswordDialog() {
   if (!formValues) return;
 
   try {
-    Swal.fire({ title:'กำลังบันทึก...', showConfirmButton:false, allowOutsideClick:false, didOpen:() => Swal.showLoading() });
+    showBlockingLoader('กำลังบันทึก...', 'โปรดรอสักครู่');
     const resp = await callAPI('changePassword', {
       userType: role,
       email: email,
@@ -99,12 +92,15 @@ async function openChangePasswordDialog() {
       newPassword: formValues.newPw
     }, { timeoutMs: 45000, retries: 1 });
 
+    hideBlockingLoader();
     if (!resp?.success) throw new Error(resp?.message || 'เปลี่ยนรหัสผ่านไม่สำเร็จ');
     Swal.fire({ icon:'success', title:'สำเร็จ', text:'เปลี่ยนรหัสผ่านเรียบร้อย' });
   } catch (e) {
+    hideBlockingLoader();
     Swal.fire({ icon:'error', title:'ไม่สำเร็จ', text: e.message || 'เกิดข้อผิดพลาด' });
   }
 }
+
 /* ===================== GLOBAL STATE ===================== */
 let currentUser = null;
 let currentUserType = null;
@@ -133,13 +129,15 @@ async function ensureDataLoadedForRole(roleKey) {
   gradesData       = Array.isArray(resp.data.grades)       ? resp.data.grades       : [];
   englishTestData  = Array.isArray(resp.data.englishTests) ? resp.data.englishTests : [];
   advisorsData     = Array.isArray(resp.data.advisors)     ? resp.data.advisors     : [];
-}
+
   console.log('BOOT:', {
     students: studentsData.length,
     grades: gradesData.length,
     english: englishTestData.length,
     advisors: advisorsData.length
   });
+}
+
 /* ===================== LOGIN / AUTO-LOGIN ===================== */
 async function login() {
   const userType = document.getElementById('userType')?.value || 'admin';
@@ -158,19 +156,22 @@ async function login() {
   try {
     showBlockingLoader('กำลังเข้าสู่ระบบ...', 'โปรดรอสักครู่');
     const resp = await callAPI('authenticate', { userType, credentials }, { timeoutMs: 45000, retries: 2 });
-
     if (!resp?.success || !resp?.data) throw new Error(resp?.message || 'ข้อมูลการเข้าสู่ระบบไม่ถูกต้อง');
-    currentUser = resp.data; currentUserType = userType;
-    try { localStorage.setItem('currentUser', JSON.stringify(resp.data)); localStorage.setItem('currentUserType', userType); } catch {}
 
-    SshowBlockingLoader('กำลังโหลดข้อมูล...', 'โปรดรอสักครู่');
+    currentUser = resp.data;
+    currentUserType = userType;
+    try {
+      localStorage.setItem('currentUser', JSON.stringify(resp.data));
+      localStorage.setItem('currentUserType', userType);
+    } catch {}
+
+    showBlockingLoader('กำลังโหลดข้อมูล...', 'โปรดรอสักครู่');
     await ensureDataLoadedForRole(userType);
     hideBlockingLoader();
 
-    if (Swal.isVisible()) Swal.close();
     showDashboard();
   } catch (err) {
-    if (Swal.isVisible()) Swal.close();
+    hideBlockingLoader();
     Swal.fire({ icon:'error', title:'เกิดข้อผิดพลาด', text: err.message || 'ไม่สามารถเข้าสู่ระบบได้' });
   }
 }
@@ -181,23 +182,24 @@ document.addEventListener('DOMContentLoaded', async function () {
   const savedUserType = localStorage.getItem('currentUserType');
 
   if (savedUser && savedUserType) {
-    currentUser = JSON.parse(savedUser); currentUserType = savedUserType;
+    currentUser = JSON.parse(savedUser);
+    currentUserType = savedUserType;
+
     try {
       showBlockingLoader('กำลังเตรียมข้อมูล...', 'โปรดรอสักครู่');
       await ensureDataLoadedForRole(currentUserType);
       hideBlockingLoader();
-
-      await ensureDataLoadedForRole(currentUserType);
-      if (Swal.isVisible()) Swal.close();
       showDashboard();
     } catch (e) {
-      if (Swal.isVisible()) Swal.close();
+      hideBlockingLoader();
       document.getElementById('loginScreen')?.classList.remove('hidden');
       document.getElementById('dashboard')?.classList.add('hidden');
     }
-  } 
-  // ซ่อน/แสดงปุ่มตามบทบาทหลังแสดงแดชบอร์ด
+  }
+
+  // ปุ่มเปลี่ยนรหัสผ่าน
   document.getElementById('changePasswordBtn')?.addEventListener('click', openChangePasswordDialog);
+
   // handlers
   document.getElementById('userType')?.addEventListener('change', function () {
     const t = this.value;
@@ -227,8 +229,11 @@ function showDashboard() {
   const nameEl = document.getElementById('userName');
   const roleEl = document.getElementById('userRole');
   if (nameEl) nameEl.textContent = user.name || user.fullName || user.email || '-';
-  if (roleEl) roleEl.textContent = roleKey === 'admin' ? 'ผู้ดูแลระบบ' : roleKey === 'advisor' ? 'อาจารย์ที่ปรึกษา' : roleKey === 'student' ? 'นักศึกษา' : '-';
-  
+  if (roleEl) roleEl.textContent =
+    roleKey === 'admin' ? 'ผู้ดูแลระบบ' :
+    roleKey === 'advisor' ? 'อาจารย์ที่ปรึกษา' :
+    roleKey === 'student' ? 'นักศึกษา' : '-';
+
   const cpBtn = document.getElementById('changePasswordBtn');
   if (cpBtn) cpBtn.classList.toggle('hidden', !['admin','advisor'].includes((currentUserType||'').toLowerCase()));
 
@@ -271,7 +276,7 @@ async function showAdminSection(section, el) {
   document.querySelectorAll('.admin-section').forEach(sec => sec.classList.add('hidden'));
   document.getElementById(`admin${section.charAt(0).toUpperCase()+section.slice(1)}`)?.classList.remove('hidden');
 
-  // ข้อมูลควรพร้อมจาก bootstrap แล้ว แต่กันพลาดถ้าไม่มี
+  // เผื่อกันพลาด ถ้ายังไม่มีข้อมูลครบ
   if (!studentsData.length || !englishTestData.length || !gradesData.length) {
     try { await ensureDataLoadedForRole('admin'); } catch (e) { console.warn(e); }
   }
@@ -282,7 +287,7 @@ async function showAdminSection(section, el) {
   if (section === 'individual') loadIndividualData();
 }
 
-// bootstrap แยก (ใช้ในบางกรณี)
+// lazy load เกรดตามปี (admin เลือกปี)
 async function lazyLoadGradesForYear(year) {
   if (!year) return;
   try {
@@ -290,12 +295,11 @@ async function lazyLoadGradesForYear(year) {
     const resp = await callAPI('getGradesByYear', { year }, { timeoutMs: 45000, retries: 2 });
     if (!resp?.success || !Array.isArray(resp.data)) throw new Error(resp?.message || 'โหลดเกรดไม่สำเร็จ');
     gradesData = resp.data;
+  } catch (e) {
+    Swal.fire({ icon:'error', title:'ไม่สำเร็จ', text: e.message || 'เกิดข้อผิดพลาด' });
+  } finally {
     hideBlockingLoader();
-
-    const resp = await callAPI('getGradesByYear', { year }, { timeoutMs: 45000, retries: 2 });
-    if (!resp?.success || !Array.isArray(resp.data)) throw new Error(resp?.message || 'โหลดเกรดไม่สำเร็จ');
-    gradesData = resp.data;
-  } finally { if (Swal.isVisible()) Swal.close(); }
+  }
 }
 
 /* ===================== OVERVIEW (ADMIN) ===================== */
@@ -305,18 +309,18 @@ function loadOverviewData() {
   studentsData.forEach(s => { if (s.year>=1 && s.year<=4) studentsByYear[s.year-1]++; });
 
   const englishStats = (() => {
-  const total = englishTestData.length;
-  const passed = englishTestData.filter(t => {
-    const s = String(t.status || '').toLowerCase();
-    return s.includes('ผ่าน') || s.includes('pass') || s === 'p';
-  }).length;
-  const failed = total - passed;
-  return {
-    passed, failed,
-    passedPercent: total ? Math.round(passed*100/total) : 0,
-    failedPercent: total ? Math.round(failed*100/total) : 0
-  };
-})();
+    const total = englishTestData.length;
+    const passed = englishTestData.filter(t => {
+      const s = String(t.status || '').toLowerCase();
+      return s.includes('ผ่าน') || s.includes('pass') || s === 'p';
+    }).length;
+    const failed = total - passed;
+    return {
+      passed, failed,
+      passedPercent: total ? Math.round(passed*100/total) : 0,
+      failedPercent: total ? Math.round(failed*100/total) : 0
+    };
+  })();
 
   const subjects = new Set(); gradesData.forEach(g => subjects.add(g.subjectCode));
   const totalSubjects = subjects.size;
@@ -326,7 +330,7 @@ function loadOverviewData() {
   document.getElementById('failedEnglish').textContent = `${englishStats.failedPercent}% (${englishStats.failed})`;
   document.getElementById('totalSubjects').textContent = totalSubjects;
 
-  // วาดหลัง DOM พร้อม → หน้าเปลี่ยนไวขึ้น
+  // วาดหลัง DOM พร้อม → หน้ารู้สึกไวขึ้น
   requestAnimationFrame(() => {
     updateStudentsChart(studentsByYear);
     updateEnglishChart(englishStats);
@@ -546,7 +550,3 @@ function formatDate(d){ if(!d) return '-'; const dt=new Date(d); return isNaN(dt
 /* ===================== PLACEHOLDERS ===================== */
 function editStudent(id){ Swal.fire({ icon:'info', title:'แก้ไขข้อมูลนักศึกษา', text:`${id}` }); }
 function deleteStudent(id){ Swal.fire({ icon:'warning', title:'ยืนยันการลบ', showCancelButton:true }).then(r=>{ if(r.isConfirmed){ studentsData=(studentsData||[]).filter(s=>s.id!==id); displayStudents(); loadOverviewData(); Swal.fire('ลบสำเร็จ','','success'); } }); }
-
-
-
-
