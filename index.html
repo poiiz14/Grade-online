@@ -8,6 +8,9 @@
   <!-- UI libs -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css"/>
 
   <!-- Icons -->
@@ -19,8 +22,8 @@
 <body class="bg-gray-50">
 
   <!-- ============ LOGIN ============ -->
-  <div id="loginScreen" class="min-h-screen gradient-bg flex items-center justify-center p-4">
-    <div class="w-full max-w-md bg-white/90 backdrop-blur shadow-xl rounded-2xl p-6">
+  <div id="loginScreen" class="min-h-screen legacy-bg flex items-center justify-center p-4">
+    <div class="w-full max-w-xl legacy-login-card">
       <div class="text-center mb-6">
         <h1 class="text-2xl font-bold text-gray-800">ระบบรายงานผลการเรียน</h1>
         <p class="text-gray-500">กรุณาเข้าสู่ระบบ</p>
@@ -68,9 +71,8 @@
           </div>
         </div>
 
-        <button id="loginBtn" onclick="login()" class="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700">
-          เข้าสู่ระบบ
-        </button>
+        <button id="loginBtn" onclick="login()" class="legacy-btn-primary">เข้าสู่ระบบ
+      </button>
       </div>
     </div>
   </div>
@@ -555,3 +557,4 @@
   <script src="app.js"></script>
 </body>
 </html>
+
