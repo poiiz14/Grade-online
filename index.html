@@ -552,9 +552,24 @@
       document.getElementById('advisorNav').classList.toggle('hidden', role!=='advisor');
     };
   </script>
-
+  
+  <!-- Overlay Loading (custom) -->
+  <div id="appLoadingOverlay" class="ol hidden" aria-hidden="true">
+    <div class="ol-panel">
+      <!-- โลโก้/ไตเติล -->
+      <div class="ol-title">
+        <span class="ol-badge">BCN</span>
+        <span>กำลังโหลดข้อมูล...</span>
+      </div>
+      <!-- วงกลมหมุน -->
+      <div class="ol-spinner" role="status" aria-label="Loading"></div>
+      <!-- คำอธิบายย่อย -->
+      <div class="ol-sub">กรุณารอสักครู่ ระบบกำลังเตรียมแดชบอร์ด</div>
+    </div>
+  </div>
   <!-- Main app logic -->
   <script src="app.js"></script>
 </body>
 </html>
+
 
