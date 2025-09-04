@@ -16,7 +16,7 @@ function callAPI(action, data = {}, { timeoutMs = 30000, retries = 2, backoffMs 
       const timer = setTimeout(() => { cleanup(); reject(new Error(`API timeout: ${action}`)); }, timeout);
       window[cb] = (resp) => { clearTimeout(timer); cleanup(); resolve(resp); };
       s.onerror = () => { clearTimeout(timer); cleanup(); reject(new Error(`API network error: ${action}`)); };
-      s.src = `${API_BASE}?action=${encodeURIComponent(action)}&data=${payload}&callback=${cb}`;
+      s.src = `${API_BASE}?action=${encodeURIComponent(action)}&payload=${payload}&callback=${cb}`;
       document.body.appendChild(s);
     });
   }
@@ -550,3 +550,4 @@ function formatDate(d){ if(!d) return '-'; const dt=new Date(d); return isNaN(dt
 /* ===================== PLACEHOLDERS ===================== */
 function editStudent(id){ Swal.fire({ icon:'info', title:'แก้ไขข้อมูลนักศึกษา', text:`${id}` }); }
 function deleteStudent(id){ Swal.fire({ icon:'warning', title:'ยืนยันการลบ', showCancelButton:true }).then(r=>{ if(r.isConfirmed){ studentsData=(studentsData||[]).filter(s=>s.id!==id); displayStudents(); loadOverviewData(); Swal.fire('ลบสำเร็จ','','success'); } }); }
+
