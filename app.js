@@ -227,13 +227,22 @@ function buildAdminOverview(){
       options:{ responsive:true, maintainAspectRatio:false }
     });
   }
+
   if (englishChartInst){ try{ englishChartInst.destroy(); }catch{} }
   if (qs('#englishChart')){
-    englishChartInst = new Chart(qs('#englishChart'), {
-      type:'doughnut',
-      data:{ labels:['ผ่าน','ไม่ผ่าน'], datasets:[{ data:[pass, fail] }] },
-      options:{ responsive:true, maintainAspectRatio:false }
-    });
+    const c2 = document.getElementById('englishChart');
+    if (c2) {
+      englishChartInst = new Chart(c2, {
+        type: 'doughnut',
+        data: { labels: ['ผ่าน', 'ไม่ผ่าน'], datasets: [{ data: [pass, fail] }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 1,
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+    }
   }
 }
 
@@ -763,3 +772,4 @@ window.saveAddGrade = saveAddGrade;
 window.saveAddEnglish = saveAddEnglish;
 window.openChangePasswordModal = openChangePasswordModal;
 window.setActiveDashboard = setActiveDashboard;
+
