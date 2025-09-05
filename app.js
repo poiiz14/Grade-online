@@ -252,7 +252,7 @@ function showAdminDashboard(){
   showAdminSection('overview');
   buildAdminOverview();
   buildAdminStudents();
-  buildAdminIndividual();
+  ;
 }
 
 /** nav สลับ section */
@@ -357,10 +357,43 @@ function buildAdminStudents(){
 
 /** หน้า “ข้อมูลรายบุคคล” — ค้นหา + เลือกชื่อ + ปุ่มจัดการ + ตารางเกรด/อังกฤษ + เลือกปี & GPA ปีนั้น */
 function buildAdminIndividual(){
-  const search = qs('#adminIndSearch');
-  const sel    = qs('#adminIndSelect');
-  const yearSel = qs('#adminIndYear');
+    // bind buttons (แก้ไข/เพิ่มเกรด/เพิ่มอังกฤษ)
+  const btnEdit = qs('#btnEditStudent');
+  const btnAddG = qs('#btnAddGrade');
+  const btnAddE = qs('#btnAddEnglish');
 
+  btnEdit?.onclick = () => {
+    if (!s) return;
+    qs('#editStudentId').value       = s.id || '';
+    qs('#editStudentName').value     = s.name || '';
+    qs('#editStudentAdvisor').value  = s.advisor || '';
+    qs('#editStudentYear').value     = s.year || '1';
+    openModal('modalEditStudent');
+  };
+
+  btnAddG?.onclick = () => {
+    if (!s) return;
+    qs('#gradeStudentId').value   = s.id || '';
+    qs('#gradeTerm').value        = '';
+    qs('#gradeCourseCode').value  = '';
+    qs('#gradeCourseTitle').value = '';
+    qs('#gradeCredits').value     = '';
+    qs('#gradeGrade').value       = '';
+    qs('#gradeRecordedAt').value  = '';
+    openModal('modalAddGrade');
+  };
+
+  btnAddE?.onclick = () => {
+    if (!s) return;
+    qs('#engStudentId').value     = s.id || '';
+    qs('#engAcademicYear').value  = '';
+    qs('#engAttempt').value       = '';
+    qs('#engScore').value         = '';
+    qs('#engStatus').value        = '';
+    qs('#engExamDate').value      = '';
+    openModal('modalAddEnglish');
+  };
+  
   function fillOptions(){
     if(!sel) return;
     const kw = (search?.value||'').trim().toLowerCase();
@@ -884,3 +917,4 @@ window.saveAddGrade = saveAddGrade;
 window.saveAddEnglish = saveAddEnglish;
 window.openChangePasswordModal = openChangePasswordModal;
 window.setActiveDashboard = setActiveDashboard;
+
