@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ระบบรายงานผลการเรียนนักศึกษา</title>
+  <title>ระบบรายงานผลการเรียน</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -19,7 +19,7 @@
         <div class="bg-blue-100 w-16 h-16 rounded-full mx-auto flex items-center justify-center">
           <i class="fas fa-graduation-cap text-blue-600"></i>
         </div>
-        <h1 class="text-2xl font-bold text-gray-900 mt-4">ระบบรายงานผลการเรียนนักศึกษา</h1>
+        <h1 class="text-2xl font-bold text-gray-900 mt-4">ระบบรายงานผลการเรียน</h1>
         <p class="text-gray-600">เข้าสู่ระบบเพื่อใช้งาน</p>
       </div>
 
@@ -110,7 +110,6 @@
           <div class="flex space-x-8 overflow-x-auto">
             <button onclick="showAdminSection('overview')"  class="admin-nav border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-1 text-sm font-medium whitespace-nowrap"><i class="fas fa-chart-pie mr-2"></i>ภาพรวม</button>
             <button onclick="showAdminSection('students')"  class="admin-nav border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-1 text-sm font-medium whitespace-nowrap"><i class="fas fa-users mr-2"></i>รายชื่อนักศึกษา</button>
-            <!-- ปุ่มจัดการผลการเรียน (เอาออกตาม requirement) -->
             <button onclick="showAdminSection('individual')" class="admin-nav border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-1 text-sm font-medium whitespace-nowrap"><i class="fas fa-user-graduate mr-2"></i>ข้อมูลรายบุคคล</button>
           </div>
         </div>
@@ -201,12 +200,10 @@
           </div>
         </section>
 
-        <!-- GRADES (removed per req) -->
-
         <!-- INDIVIDUAL -->
         <section id="adminIndividual" class="admin-section hidden">
           <h2 class="text-2xl font-bold text-gray-900 mb-4">ข้อมูลรายบุคคล</h2>
-          <!-- Controls: Search + select + action buttons -->
+          <!-- Controls -->
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
             <input id="adminIndSearch" type="text" placeholder="ค้นหา ชื่อ-สกุล" class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"/>
             <select id="adminIndSelect" class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
@@ -219,6 +216,27 @@
             </div>
           </div>
 
+          <!-- Year Filter + KPI -->
+          <div class="bg-white rounded-xl p-6 card-shadow mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="flex items-center gap-3">
+                <label class="text-sm text-gray-700 whitespace-nowrap">ปีการศึกษา:</label>
+                <select id="adminIndYear" class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[160px]">
+                  <option value="">ทุกปีการศึกษา</option>
+                </select>
+              </div>
+              <div class="bg-blue-50 p-4 rounded-lg">
+                <p class="text-sm text-gray-600">GPA (ปีนี้)</p>
+                <p id="adminIndYearGPA" class="text-2xl font-bold text-blue-800">-</p>
+              </div>
+              <div class="bg-green-50 p-4 rounded-lg">
+                <p class="text-sm text-gray-600">หน่วยกิต (ปีนี้)</p>
+                <p id="adminIndYearCredits" class="text-2xl font-bold text-green-800">-</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Profile -->
           <div class="bg-white rounded-xl p-6 card-shadow mb-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">ข้อมูลส่วนตัว</h3>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -229,6 +247,7 @@
             </div>
           </div>
 
+          <!-- English tests -->
           <div class="bg-white rounded-xl p-6 card-shadow mb-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">ผลสอบภาษาอังกฤษ</h3>
             <div class="overflow-x-auto">
@@ -247,6 +266,7 @@
             </div>
           </div>
 
+          <!-- Grades -->
           <div class="bg-white rounded-xl p-6 card-shadow">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">ผลการเรียน</h3>
             <div class="overflow-x-auto">
@@ -284,7 +304,7 @@
         </div>
 
         <div class="bg-white rounded-xl p-6 card-shadow mb-6">
-          <div class="flex items-center gap-4">
+          <div class="flex items-center gap-4 flex-wrap">
             <label class="text-sm font-medium text-gray-700">เลือกปีการศึกษา:</label>
             <select id="studentAcademicYear" class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
               <option value="">ทุกปีการศึกษา</option>
@@ -294,10 +314,10 @@
 
         <div class="bg-white rounded-xl card-shadow mb-6">
           <div class="border-b">
-            <nav class="flex space-x-8 px-6">
-              <button onclick="showSemester('1')" class="semester-tab border-b-2 border-blue-500 text-blue-600 py-4 px-1 text-sm font-medium">ภาคการศึกษาที่ 1</button>
-              <button onclick="showSemester('2')" class="semester-tab border-b-2 border-transparent text-gray-700 py-4 px-1 text-sm font-medium">ภาคการศึกษาที่ 2</button>
-              <button onclick="showSemester('3')" class="semester-tab border-b-2 border-transparent text-gray-700 py-4 px-1 text-sm font-medium">ภาคฤดูร้อน</button>
+            <nav class="flex space-x-8 px-6 overflow-x-auto">
+              <button onclick="showSemester('1')" class="semester-tab border-b-2 border-blue-500 text-blue-600 py-4 px-1 text-sm font-medium whitespace-nowrap">ภาคการศึกษาที่ 1</button>
+              <button onclick="showSemester('2')" class="semester-tab border-b-2 border-transparent text-gray-700 py-4 px-1 text-sm font-medium whitespace-nowrap">ภาคการศึกษาที่ 2</button>
+              <button onclick="showSemester('3')" class="semester-tab border-b-2 border-transparent text-gray-700 py-4 px-1 text-sm font-medium whitespace-nowrap">ภาคฤดูร้อน</button>
             </nav>
           </div>
           <div class="p-6">
@@ -343,19 +363,17 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h2 class="text-2xl font-bold text-gray-900 mb-6">นักศึกษาในความดูแล</h2>
 
-        <!-- summary cards -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <!-- summary cards (รวมยอด + แยกชั้นปี ในกรอบเดียว) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div class="bg-white rounded-xl p-6 card-shadow">
-            <p class="text-sm text-gray-600">จำนวนนักศึกษาทั้งหมด</p>
+            <p class="text-sm text-gray-600 mb-1">จำนวนนักศึกษาทั้งหมด</p>
             <p id="advTotal" class="text-2xl font-bold">-</p>
-          </div>
-          <div class="bg-white rounded-xl p-6 card-shadow">
-            <p class="text-sm text-gray-600">ปี 1</p>
-            <p id="advY1" class="text-2xl font-bold">-</p>
-          </div>
-          <div class="bg-white rounded-xl p-6 card-shadow">
-            <p class="text-sm text-gray-600">ปี 2-3-4 รวม</p>
-            <p><span id="advY2" class="text-xl font-bold">-</span></p>
+            <div class="mt-3 text-sm text-gray-700">
+              <span class="mr-4">ปี 1: <b id="advY1">-</b></span>
+              <span class="mr-4">ปี 2: <b id="advY2">-</b></span>
+              <span class="mr-4">ปี 3: <b id="advY3">-</b></span>
+              <span>ปี 4: <b id="advY4">-</b></span>
+            </div>
           </div>
           <div class="bg-white rounded-xl p-6 card-shadow">
             <p class="text-sm text-gray-600">ผ่าน สบช. (ทั้งหมด)</p>
@@ -364,10 +382,17 @@
         </div>
 
         <div class="bg-white rounded-xl card-shadow mb-6">
-          <div class="p-6 border-b"><div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <h3 class="text-lg font-semibold text-gray-900">รายชื่อนักศึกษา</h3>
-            <div class="flex items-center gap-2"><label class="text-sm text-gray-700">ปีการศึกษา:</label><select id="advisorAcademicYear" class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"><option value="">ทั้งหมด</option></select></div>
-          </div></div>
+          <div class="p-6 border-b">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <h3 class="text-lg font-semibold text-gray-900">รายชื่อนักศึกษา</h3>
+              <div class="flex items-center gap-2">
+                <label class="text-sm text-gray-700 whitespace-nowrap">ปีการศึกษา:</label>
+                <select id="advisorAcademicYear" class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                  <option value="">ทั้งหมด</option>
+                </select>
+              </div>
+            </div>
+          </div>
           <div class="divide-y divide-gray-200" id="advisorStudentsList"></div>
         </div>
 
@@ -449,7 +474,7 @@
       <h3 class="text-lg font-semibold mb-4">เพิ่มเกรดรายวิชา</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div><label class="text-sm">รหัสนักศึกษา</label><input id="gradeStudentId" class="w-full px-4 py-2 border rounded-lg" readonly/></div>
-        <div><label class="text-sm">ภาคการศึกษา (เช่น 2568/1)</label><input id="gradeTerm" class="w-full px-4 py-2 border rounded-lg"/></div>
+        <div><label class="text-sm">ภาคการศึกษา (เช่น 2568/1 หรือ 2568/ฤดูร้อน)</label><input id="gradeTerm" class="w-full px-4 py-2 border rounded-lg"/></div>
         <div><label class="text-sm">รหัสวิชา</label><input id="gradeCourseCode" class="w-full px-4 py-2 border rounded-lg"/></div>
         <div><label class="text-sm">รายวิชา</label><input id="gradeCourseTitle" class="w-full px-4 py-2 border rounded-lg"/></div>
         <div><label class="text-sm">หน่วยกิต</label><input id="gradeCredits" type="number" class="w-full px-4 py-2 border rounded-lg"/></div>
@@ -494,6 +519,5 @@
       </div>
     </div>
   </div>
-
 </body>
 </html>
