@@ -1,435 +1,524 @@
-<!doctype html>
+
+<!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ระบบรายงานผลการเรียนนักศึกษา</title>
-
-  <!-- Tailwind (CDN ใช้ทดสอบได้) -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- ไอคอน/ฟอนต์เสริม (ไม่บังคับ) -->
-  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="styles.css"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"/>
 </head>
-<body class="bg-slate-100 min-h-screen text-slate-900">
+<body class="bg-gray-50">
 
-  <!-- ================== LOGIN ================== -->
-  <section id="loginScreen" class="max-w-xl mx-auto py-10 px-4">
-    <div class="bg-white rounded-2xl shadow p-8">
-      <h1 class="text-2xl font-bold mb-1">>ระบบรายงานผลการเรียนนักศึกษา</h1>
-      <p class="text-sm text-slate-500 mb-6">เข้าสู่ระบบเพื่อใช้งาน</p>
+  <!-- LOGIN -->
+  <div id="loginScreen" class="min-h-screen gradient-bg flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+      <div class="text-center mb-8">
+        <div class="bg-blue-100 w-16 h-16 rounded-full mx-auto flex items-center justify-center">
+          <i class="fas fa-graduation-cap text-blue-600"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 mt-4">ระบบรายงานผลการเรียนนักศึกษา</h1>
+        <p class="text-gray-600">เข้าสู่ระบบเพื่อใช้งาน</p>
+      </div>
 
-      <form onsubmit="login(); return false;">
+      <form id="loginForm" onsubmit="event.preventDefault(); login();">
+        <input id="roleInput" type="hidden" value="admin"/>
         <div class="mb-4">
-          <label class="block text-sm mb-1">ประเภทผู้ใช้</label>
-          <select id="userType" class="w-full border rounded-lg px-3 py-2">
+          <label class="block text-sm font-medium text-gray-700 mb-2">ประเภทผู้ใช้</label>
+          <select id="userType" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500">
             <option value="admin">ผู้ดูแลระบบ</option>
-            <option value="advisor">อาจารย์ที่ปรึกษา</option>
             <option value="student">นักศึกษา</option>
+            <option value="advisor">อาจารย์ที่ปรึกษา</option>
           </select>
         </div>
 
         <!-- Admin -->
-        <div class="grid grid-cols-1 gap-4">
+        <div id="adminLogin" class="space-y-4">
           <div>
-            <label class="block text-sm mb-1">อีเมล (ผู้ดูแล/ที่ปรึกษา)</label>
-            <input id="adminEmail"    type="email" class="w-full border rounded-lg px-3 py-2" placeholder="admin@example.ac.th" />
-            <input id="advisorEmail"  type="email" class="hidden" />
+            <label class="block text-sm font-medium text-gray-700 mb-2">อีเมล</label>
+            <input type="email" id="adminEmail" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="admin@example.com">
           </div>
           <div>
-            <label class="block text-sm mb-1">รหัสผ่าน (ผู้ดูแล/ที่ปรึกษา)</label>
-            <input id="adminPassword"   type="password" class="w-full border rounded-lg px-3 py-2" placeholder="••••••••" />
-            <input id="advisorPassword" type="password" class="hidden" />
+            <label class="block text-sm font-medium text-gray-700 mb-2">รหัสผ่าน</label>
+            <input type="password" id="adminPassword" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="••••••••">
           </div>
         </div>
 
         <!-- Student -->
-        <div class="mt-4">
-          <label class="block text-sm mb-1">เลขบัตรประชาชน (นักศึกษา)</label>
-          <input id="studentCitizenId" type="text" class="w-full border rounded-lg px-3 py-2" placeholder="13 หลัก" />
+        <div id="studentLogin" class="space-y-4 hidden">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">เลขบัตรประชาชน</label>
+            <input type="text" id="studentCitizenId" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="เลขบัตรประชาชน">
+          </div>
         </div>
 
-        <button class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-3 font-medium">
-          เข้าสู่ระบบ
-        </button>
+        <!-- Advisor -->
+        <div id="advisorLogin" class="space-y-4 hidden">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">อีเมล</label>
+            <input type="email" id="advisorEmail" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="advisor@example.com">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">รหัสผ่าน</label>
+            <input type="password" id="advisorPassword" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="••••••••">
+          </div>
+        </div>
+
+        <div class="mt-6">
+          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg shadow-lg transition transform hover:-translate-y-0.5">
+            <i class="fas fa-sign-in-alt mr-2"></i>เข้าสู่ระบบ
+          </button>
+        </div>
       </form>
     </div>
-  </section>
+  </div>
 
-  <!-- ================== DASHBOARD (WRAPPER) ================== -->
-  <section id="dashboard" class="hidden max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+  <!-- APP -->
+  <div id="dashboard" class="hidden min-h-screen bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b sticky top-0 z-20">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center h-16">
+          <div class="flex items-center">
+            <div class="bg-blue-100 w-10 h-10 rounded-full flex items-center justify-center mr-3">
+              <i class="fas fa-graduation-cap text-blue-600"></i>
+            </div>
+            <h1 class="text-xl font-bold text-gray-900">ระบบรายงานผลการเรียนนักศึกษา</h1>
+          </div>
+          <div class="flex items-center space-x-4">
+            <div class="text-right">
+              <div id="userName" class="text-sm font-medium text-gray-900"></div>
+              <div id="userRole" class="text-xs text-gray-500"></div>
+            </div>
+            <button id="changePasswordBtn" onclick="openChangePasswordModal()" class="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 hidden">
+              <i class="fas fa-key mr-2"></i>เปลี่ยนรหัสผ่าน
+            </button>
+            <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">
+              <i class="fas fa-sign-out-alt mr-2"></i>ออกจากระบบ
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
 
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-semibold">แดชบอร์ด</h2>
-      <div class="flex items-center gap-2">
-        <button onclick="openChangePasswordModal()" class="px-3 py-2 rounded-lg border hover:bg-slate-50">เปลี่ยนรหัสผ่าน</button>
-        <button onclick="logout()" class="px-3 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-900">ออกจากระบบ</button>
+    <!-- ADMIN -->
+    <div id="adminDashboard" class="hidden">
+      <nav class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex space-x-8 overflow-x-auto">
+            <button onclick="showAdminSection('overview')"  class="admin-nav border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-1 text-sm font-medium whitespace-nowrap"><i class="fas fa-chart-pie mr-2"></i>ภาพรวม</button>
+            <button onclick="showAdminSection('students')"  class="admin-nav border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-1 text-sm font-medium whitespace-nowrap"><i class="fas fa-users mr-2"></i>รายชื่อนักศึกษา</button>
+            <button onclick="showAdminSection('individual')" class="admin-nav border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-1 text-sm font-medium whitespace-nowrap"><i class="fas fa-user-graduate mr-2"></i>ข้อมูลรายบุคคล</button>
+          </div>
+        </div>
+      </nav>
+
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- OVERVIEW -->
+        <section id="adminOverview" class="admin-section">
+          <h2 class="text-2xl font-bold text-gray-900 mb-6">ภาพรวมระบบ</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
+              <div class="flex items-center">
+                <div class="bg-blue-100 p-3 rounded-full"><i class="fas fa-users text-blue-600 text-xl"></i></div>
+                <div class="ml-4"><p class="text-sm text-gray-600">จำนวนนักศึกษาทั้งหมด</p><p id="totalStudents" class="text-2xl font-bold text-gray-900">-</p></div>
+              </div>
+            </div>
+            <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
+              <div class="flex items-center">
+                <div class="bg-green-100 p-3 rounded-full"><i class="fas fa-check-circle text-green-600 text-xl"></i></div>
+                <div class="ml-4"><p class="text-sm text-gray-600">ผ่านภาษาอังกฤษ (ล่าสุด)</p><p id="passedEnglish" class="text-2xl font-bold text-gray-900">-</p></div>
+              </div>
+            </div>
+            <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
+              <div class="flex items-center">
+                <div class="bg-red-100 p-3 rounded-full"><i class="fas fa-times-circle text-red-600 text-xl"></i></div>
+                <div class="ml-4"><p class="text-sm text-gray-600">ไม่ผ่านภาษาอังกฤษ (ล่าสุด)</p><p id="failedEnglish" class="text-2xl font-bold text-gray-900">-</p></div>
+              </div>
+            </div>
+            <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
+              <div class="flex items-center">
+                <div class="bg-purple-100 p-3 rounded-full"><i class="fas fa-book text-purple-600 text-xl"></i></div>
+                <div class="ml-4"><p class="text-sm text-gray-600">จำนวนรายวิชาทั้งหมด</p><p id="totalSubjects" class="text-2xl font-bold text-gray-900">-</p></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-xl p-6 card-shadow">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">จำนวนนักศึกษาแยกตามชั้นปี</h3>
+              <div class="relative" style="height:340px;">
+                <canvas id="studentsChart"></canvas>
+              </div>
+            </div>
+            <div class="bg-white rounded-xl p-6 card-shadow">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">สถิติการสอบภาษาอังกฤษ (ผลล่าสุด)</h3>
+              <div class="relative mx-auto" style="width:340px; height:340px;">
+                <canvas id="englishChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- STUDENTS -->
+        <section id="adminStudents" class="admin-section hidden">
+          <div class="flex justify-between items-center mb-2"><h2 class="text-2xl font-bold text-gray-900">รายชื่อนักศึกษา</h2></div>
+          <!-- Toolbar: Search + Year Filter -->
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-2 mb-4">
+            <div class="flex items-center gap-2">
+              <input id="adminStudentSearch" type="text" placeholder="ค้นหา ชื่อ-สกุล" class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 w-72"/>
+            </div>
+            <div class="flex items-center gap-2">
+              <label class="text-sm text-gray-700">ชั้นปี:</label>
+              <select id="adminStudentYearFilter" class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                <option value="">ทั้งหมด</option>
+                <option value="1">ปี 1</option>
+                <option value="2">ปี 2</option>
+                <option value="3">ปี 3</option>
+                <option value="4">ปี 4</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl card-shadow">
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600">รหัสนักศึกษา</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600">ชื่อ-สกุล</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600">ชั้นปี</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600">อาจารย์ที่ปรึกษา</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600">การจัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="studentsTable" class="bg-white divide-y divide-gray-200"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- INDIVIDUAL -->
+        <section id="adminIndividual" class="admin-section hidden">
+          <h2 class="text-2xl font-bold text-gray-900 mb-4">ข้อมูลรายบุคคล</h2>
+          <!-- Controls -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            <input id="adminIndSearch" type="text" placeholder="ค้นหา ชื่อ-สกุล" class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"/>
+            <select id="adminIndSelect" class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+              <option value="">-- เลือกนักศึกษา --</option>
+            </select>
+            <div class="flex items-center gap-2 lg:justify-end">
+              <button id="btnEditStudent" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg"><i class="fas fa-edit mr-2"></i>แก้ไขข้อมูล</button>
+              <button id="btnAddGrade" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"><i class="fas fa-plus mr-2"></i>เพิ่มเกรด</button>
+              <button id="btnAddEnglish" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg"><i class="fas fa-language mr-2"></i>เพิ่มผลสอบอังกฤษ</button>
+            </div>
+          </div>
+
+          <!-- Year Filter + KPI -->
+          <div class="bg-white rounded-xl p-6 card-shadow mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="flex items-center gap-3">
+                <label class="text-sm text-gray-700 whitespace-nowrap">ปีการศึกษา:</label>
+                <select id="adminIndYear" class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[160px]">
+                  <option value="">ทุกปีการศึกษา</option>
+                </select>
+              </div>
+              <div class="bg-blue-50 p-4 rounded-lg">
+                <p class="text-sm text-gray-600">GPA (ปีนี้)</p>
+                <p id="adminIndYearGPA" class="text-2xl font-bold text-blue-800">-</p>
+              </div>
+              <div class="bg-green-50 p-4 rounded-lg">
+                <p class="text-sm text-gray-600">หน่วยกิต (ปีนี้)</p>
+                <p id="adminIndYearCredits" class="text-2xl font-bold text-green-800">-</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Profile -->
+          <div class="bg-white rounded-xl p-6 card-shadow mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">ข้อมูลส่วนตัว</h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div><p class="text-sm text-gray-600">รหัสนักศึกษา</p><p id="detailStudentId" class="text-lg font-semibold">-</p></div>
+              <div><p class="text-sm text-gray-600">ชื่อ-สกุล</p><p id="detailStudentName" class="text-lg font-semibold">-</p></div>
+              <div><p class="text-sm text-gray-600">ชั้นปี</p><p id="detailStudentYear" class="text-lg font-semibold">-</p></div>
+              <div><p class="text-sm text-gray-600">อาจารย์ที่ปรึกษา</p><p id="detailStudentAdvisor" class="text-lg font-semibold">-</p></div>
+            </div>
+          </div>
+
+          <!-- English tests -->
+          <div class="bg-white rounded-xl p-6 card-shadow mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">ผลสอบภาษาอังกฤษ</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ปีการศึกษา</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ครั้งที่สอบ</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">คะแนน</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">สถานะ</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">วันที่สอบ</th>
+                  </tr>
+                </thead>
+                <tbody id="englishTestTable" class="divide-y divide-gray-200"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Grades -->
+          <div class="bg-white rounded-xl p-6 card-shadow">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">ผลการเรียน</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ภาคการศึกษา</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัสวิชา</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">รายวิชา</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วยกิต</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">เกรด</th>
+                  </tr>
+                </thead>
+                <tbody id="gradesDetailTable" class="divide-y divide-gray-200"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
+    <!-- /ADMIN -->
 
-    <!-- ============ ADMIN DASHBOARD ============ -->
-    <div id="adminDashboard" class="hidden">
-      <!-- Nav -->
-      <div class="flex gap-2 mb-4">
-        <button class="admin-nav px-4 py-2 rounded-lg border border-transparent text-gray-600" onclick="showAdminSection('overview')">ภาพรวม</button>
-        <button class="admin-nav px-4 py-2 rounded-lg border border-transparent text-gray-600" onclick="showAdminSection('students')">รายชื่อนักศึกษา</button>
-        <button class="admin-nav px-4 py-2 rounded-lg border border-transparent text-gray-600" onclick="showAdminSection('individual')">ข้อมูลรายบุคคล</button>
-      </div>
+    <!-- STUDENT -->
+    <div id="studentDashboard" class="hidden">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">ข้อมูลการเรียนของฉัน</h2>
 
-      <!-- ----- Overview ----- -->
-      <div id="adminOverview" class="bg-white rounded-xl p-6 shadow mb-6">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div class="bg-blue-50 p-4 rounded-lg">
-            <p class="text-sm text-slate-600">จำนวนนักศึกษา</p>
-            <p id="totalStudents" class="text-2xl font-bold text-blue-800">-</p>
-          </div>
-          <div class="bg-emerald-50 p-4 rounded-lg">
-            <p class="text-sm text-slate-600">ผ่านอังกฤษ (ล่าสุด)</p>
-            <p id="passedEnglish" class="text-2xl font-bold text-emerald-700">-</p>
-          </div>
-          <div class="bg-rose-50 p-4 rounded-lg">
-            <p class="text-sm text-slate-600">ไม่ผ่านอังกฤษ (ล่าสุด)</p>
-            <p id="failedEnglish" class="text-2xl font-bold text-rose-700">-</p>
-          </div>
-          <div class="bg-violet-50 p-4 rounded-lg">
-            <p class="text-sm text-slate-600">รายวิชาที่เปิดสอน (ไม่ซ้ำ)</p>
-            <p id="totalSubjects" class="text-2xl font-bold text-violet-700">-</p>
+        <div class="bg-white rounded-xl p-6 card-shadow mb-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">สรุปผลการเรียน</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-blue-50 p-4 rounded-lg"><p class="text-sm text-gray-600">เกรดเฉลี่ยสะสม (GPAX)</p><p id="studentGPAX" class="text-2xl font-bold text-blue-800">-</p></div>
+            <div class="bg-green-50 p-4 rounded-lg"><p class="text-sm text-gray-600">หน่วยกิตสะสม (ไม่นับซ้ำรายวิชา)</p><p id="studentCredits" class="text-2xl font-bold text-green-800">-</p></div>
+            <div class="bg-purple-50 p-4 rounded-lg"><p class="text-sm text-gray-600">ภาษาอังกฤษ (ล่าสุด)</p><p id="studentEnglishStatus" class="text-lg font-bold text-purple-800">-</p></div>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-          <div class="bg-slate-50 p-4 rounded-lg">
-            <h4 class="font-semibold mb-2">จำนวนนักศึกษาแต่ละชั้นปี</h4>
-            <canvas id="studentsChart" height="200"></canvas>
-          </div>
-          <div class="bg-slate-50 p-4 rounded-lg">
-            <h4 class="font-semibold mb-2">สัดส่วนผลสอบอังกฤษ (ล่าสุด)</h4>
-            <canvas id="englishChart" height="200"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- ----- Students list ----- -->
-      <div id="adminStudents" class="hidden bg-white rounded-xl p-6 shadow mb-6">
-        <div class="flex flex-col md:flex-row gap-3 mb-4">
-          <div class="flex items-center gap-2">
-            <span class="text-sm">ค้นหา:</span>
-            <input id="adminStudentSearch" type="text" class="border rounded-lg px-3 py-2" placeholder="ชื่อ-สกุล" />
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="text-sm">ชั้นปี:</span>
-            <select id="adminStudentYearFilter" class="border rounded-lg px-3 py-2">
-              <option value="">ทั้งหมด</option>
-              <option value="1">ปี 1</option>
-              <option value="2">ปี 2</option>
-              <option value="3">ปี 3</option>
-              <option value="4">ปี 4</option>
+        <div class="bg-white rounded-xl p-6 card-shadow mb-6">
+          <div class="flex items-center gap-4 flex-wrap">
+            <label class="text-sm font-medium text-gray-700">เลือกปีการศึกษา:</label>
+            <select id="studentAcademicYear" class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+              <option value="">ทุกปีการศึกษา</option>
             </select>
           </div>
         </div>
 
-        <div class="overflow-x-auto">
-          <table class="w-full">
-            <thead class="bg-slate-50">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs text-slate-500 uppercase">รหัส</th>
-                <th class="px-6 py-3 text-left text-xs text-slate-500 uppercase">ชื่อ</th>
-                <th class="px-6 py-3 text-left text-xs text-slate-500 uppercase">ชั้นปี</th>
-                <th class="px-6 py-3 text-left text-xs text-slate-500 uppercase">ที่ปรึกษา</th>
-                <th class="px-6 py-3"></th>
-              </tr>
-            </thead>
-            <tbody id="studentsTable" class="divide-y divide-slate-200"></tbody>
-          </table>
+        <div class="bg-white rounded-xl card-shadow mb-6">
+          <div class="border-b">
+            <nav class="flex space-x-8 px-6 overflow-x-auto">
+              <button onclick="showSemester('1')" class="semester-tab border-b-2 border-blue-500 text-blue-600 py-4 px-1 text-sm font-medium whitespace-nowrap">ภาคการศึกษาที่ 1</button>
+              <button onclick="showSemester('2')" class="semester-tab border-b-2 border-transparent text-gray-700 py-4 px-1 text-sm font-medium whitespace-nowrap">ภาคการศึกษาที่ 2</button>
+              <button onclick="showSemester('3')" class="semester-tab border-b-2 border-transparent text-gray-700 py-4 px-1 text-sm font-medium whitespace-nowrap">ภาคฤดูร้อน</button>
+            </nav>
+          </div>
+          <div class="p-6">
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัสวิชา</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อวิชา</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วยกิต</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">เกรด</th>
+                  </tr>
+                </thead>
+                <tbody id="studentSemesterTable" class="divide-y divide-gray-200"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl p-6 card-shadow">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">ผลสอบภาษาอังกฤษ (ทุกปีการศึกษา)</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ปีการศึกษา</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ครั้งที่สอบ</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">คะแนน</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">สถานะ</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">วันที่สอบ</th>
+                </tr>
+              </thead>
+              <tbody id="studentEnglishTable" class="divide-y divide-gray-200"></tbody>
+            </table>
+          </div>
         </div>
       </div>
+    </div>
+    <!-- /STUDENT -->
 
-      <!-- ----- Individual ----- -->
-      <div id="adminIndividual" class="hidden">
-        <!-- Filter + KPI -->
-        <div class="bg-white rounded-xl p-6 shadow mb-6">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="flex items-center gap-3">
-              <label class="text-sm whitespace-nowrap">เลือกนักศึกษา:</label>
-              <div class="flex-1 flex gap-2">
-                <input id="adminIndSearch" type="text" class="border rounded-lg px-3 py-2 w-full" placeholder="ค้นหาชื่อ/รหัส" />
-                <select id="adminIndSelect" class="border rounded-lg px-3 py-2 min-w-[220px]">
-                  <option value="">— เลือกนักศึกษา —</option>
+    <!-- ADVISOR -->
+    <div id="advisorDashboard" class="hidden">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">นักศึกษาในความดูแล</h2>
+
+        <!-- summary cards (รวมยอด + แยกชั้นปี ในกรอบเดียว) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div class="bg-white rounded-xl p-6 card-shadow">
+            <p class="text-sm text-gray-600 mb-1">จำนวนนักศึกษาทั้งหมด</p>
+            <p id="advTotal" class="text-2xl font-bold">-</p>
+            <div class="mt-3 text-sm text-gray-700">
+              <span class="mr-4">ปี 1: <b id="advY1">-</b></span>
+              <span class="mr-4">ปี 2: <b id="advY2">-</b></span>
+              <span class="mr-4">ปี 3: <b id="advY3">-</b></span>
+              <span>ปี 4: <b id="advY4">-</b></span>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl p-6 card-shadow">
+            <p class="text-sm text-gray-600">ผ่าน สบช. (ทั้งหมด)</p>
+            <p id="advPassAll" class="text-2xl font-bold">-</p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl card-shadow mb-6">
+          <div class="p-6 border-b">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <h3 class="text-lg font-semibold text-gray-900">รายชื่อนักศึกษา</h3>
+              <div class="flex items-center gap-2">
+                <label class="text-sm text-gray-700 whitespace-nowrap">ปีการศึกษา:</label>
+                <select id="advisorAcademicYear" class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                  <option value="">ทั้งหมด</option>
                 </select>
               </div>
             </div>
-            <div class="flex items-center gap-3">
-              <label class="text-sm whitespace-nowrap">ปีการศึกษา:</label>
-              <select id="adminIndYear" class="border rounded-lg px-3 py-2 min-w-[160px]">
-                <option value="">ทุกปีการศึกษา</option>
-              </select>
-            </div>
-
-            <!-- KPI: GPAX -->
-            <div class="bg-blue-50 p-4 rounded-lg">
-              <p class="text-sm text-slate-600">GPAX (สะสม)</p>
-              <p id="adminIndGPAX" class="text-2xl font-bold text-blue-800">-</p>
-            </div>
-            <div class="bg-emerald-50 p-4 rounded-lg">
-              <p class="text-sm text-slate-600">หน่วยกิต (ปีที่เลือก)</p>
-              <p id="adminIndYearCredits" class="text-2xl font-bold text-emerald-700">-</p>
-            </div>
           </div>
+          <div class="divide-y divide-gray-200" id="advisorStudentsList"></div>
         </div>
 
-        <!-- Profile + buttons -->
-        <div class="bg-white rounded-xl p-6 shadow mb-6">
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div><p class="text-xs text-slate-500">รหัส</p><p id="detailStudentId" class="font-semibold">-</p></div>
-            <div><p class="text-xs text-slate-500">ชื่อ</p><p id="detailStudentName" class="font-semibold">-</p></div>
-            <div><p class="text-xs text-slate-500">ชั้นปี</p><p id="detailStudentYear" class="font-semibold">-</p></div>
-            <div><p class="text-xs text-slate-500">ที่ปรึกษา</p><p id="detailStudentAdvisor" class="font-semibold">-</p></div>
+        <div class="bg-white rounded-xl card-shadow">
+          <div class="p-6 border-b">
+            <h3 class="text-lg font-semibold text-gray-900">สรุปผลสอบภาษาอังกฤษรายคน (ล่าสุด)</h3>
           </div>
-          <div class="mt-4 flex flex-wrap gap-2">
-            <button id="btnEditStudent" class="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-900">แก้ไขข้อมูล</button>
-            <button id="btnAddGrade"   class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">เพิ่มเกรด</button>
-            <button id="btnAddEnglish" class="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">เพิ่มผลสอบอังกฤษ</button>
-          </div>
-        </div>
-
-        <!-- Grades table -->
-        <div class="bg-white rounded-xl p-6 shadow mb-6">
-          <h3 class="text-lg font-semibold mb-3">ผลการเรียน</h3>
           <div class="overflow-x-auto">
             <table class="w-full">
-              <thead class="bg-slate-50">
+              <thead class="bg-gray-50">
                 <tr>
-                  <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">ภาคการศึกษา</th>
-                  <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">รหัสวิชา</th>
-                  <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">ชื่อวิชา</th>
-                  <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">หน่วยกิต</th>
-                  <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">เกรด</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัส</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อ</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชั้นปี</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">สถานะล่าสุด</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">คะแนนล่าสุด</th>
                 </tr>
               </thead>
-              <tbody id="gradesDetailTable" class="divide-y divide-slate-200"></tbody>
-            </table>
-          </div>
-          <div class="mt-3 text-right text-sm">
-            <span class="font-medium">GPA (ปีที่เลือก): </span><span id="adminIndYearGPA">-</span>
-          </div>
-        </div>
-
-        <!-- English all attempts -->
-        <div class="bg-white rounded-xl p-6 shadow mb-6">
-          <h3 class="text-lg font-semibold mb-3">ผลสอบภาษาอังกฤษ (ทั้งหมด)</h3>
-          <div class="overflow-x-auto">
-            <table class="w-full">
-              <thead class="bg-slate-50">
-                <tr>
-                  <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">ปีการศึกษา</th>
-                  <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">ครั้งที่สอบ</th>
-                  <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">คะแนน</th>
-                  <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">สถานะ</th>
-                  <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">วันที่สอบ</th>
-                </tr>
-              </thead>
-              <tbody id="englishTestTable" class="divide-y divide-slate-200"></tbody>
+              <tbody id="advisorEnglishTable" class="divide-y divide-gray-200"></tbody>
             </table>
           </div>
         </div>
       </div>
     </div>
+    <!-- /ADVISOR -->
 
-    <!-- ============ STUDENT DASHBOARD ============ -->
-    <div id="studentDashboard" class="hidden">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div class="bg-blue-50 p-4 rounded-lg">
-          <p class="text-sm text-slate-600">GPAX (สะสม)</p>
-          <p id="studentGPAX" class="text-2xl font-bold text-blue-800">-</p>
-        </div>
-        <div class="bg-emerald-50 p-4 rounded-lg">
-          <p class="text-sm text-slate-600">หน่วยกิตสะสม (ไม่ซ้ำรายวิชา)</p>
-          <p id="studentCredits" class="text-2xl font-bold text-emerald-700">-</p>
-        </div>
-        <div class="bg-violet-50 p-4 rounded-lg">
-          <p class="text-sm text-slate-600">สถานะสอบอังกฤษ (ครั้งล่าสุด)</p>
-          <p id="studentEnglishStatus" class="text-2xl font-bold text-violet-700">-</p>
-        </div>
-      </div>
+  </div><!-- /APP -->
 
-      <div class="bg-white rounded-xl p-6 shadow mb-6">
-        <div class="flex flex-wrap items-center gap-3 mb-3">
-          <label class="text-sm">ปีการศึกษา:</label>
-          <select id="studentAcademicYear" class="border rounded-lg px-3 py-2 min-w-[160px]">
-            <option value="">ทุกปีการศึกษา</option>
-          </select>
+  <!-- helpers -->
+  <script>
+    function switchLoginUI(role) {
+      document.getElementById('roleInput').value = role;
+      document.getElementById('adminLogin').classList.toggle('hidden', role !== 'admin');
+      document.getElementById('studentLogin').classList.toggle('hidden', role !== 'student');
+      document.getElementById('advisorLogin').classList.toggle('hidden', role !== 'advisor');
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      const sel = document.getElementById('userType');
+      sel.addEventListener('change', () => switchLoginUI(sel.value));
+      switchLoginUI(sel.value);
+    });
+    window.updateRoleUI = function(role, name){
+      document.getElementById('userName').textContent = name || '';
+      document.getElementById('userRole').textContent =
+        role === 'admin' ? 'ผู้ดูแลระบบ' : (role === 'advisor' ? 'อาจารย์ที่ปรึกษา' : 'นักศึกษา');
+      document.getElementById('changePasswordBtn')?.classList.toggle('hidden', !(role==='admin' || role==='advisor'));
+    };
+  </script>
 
-          <div class="ml-auto flex gap-2">
-            <button class="semester-tab px-3 py-2 border rounded-lg text-gray-700" onclick="showSemester('1')">ภาค 1</button>
-            <button class="semester-tab px-3 py-2 border rounded-lg text-gray-700" onclick="showSemester('2')">ภาค 2</button>
-            <button class="semester-tab px-3 py-2 border rounded-lg text-gray-700" onclick="showSemester('3')">ฤดูร้อน</button>
-          </div>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full">
-            <thead class="bg-slate-50">
-              <tr>
-                <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">ภาคการศึกษา</th>
-                <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">รหัสวิชา</th>
-                <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">ชื่อวิชา</th>
-                <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">หน่วยกิต</th>
-                <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">เกรด</th>
-              </tr>
-            </thead>
-            <tbody id="studentSemesterTable" class="divide-y divide-slate-200"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-xl p-6 shadow mb-6">
-        <h3 class="text-lg font-semibold mb-3">ผลสอบภาษาอังกฤษ (ทุกปีการศึกษา)</h3>
-        <div class="overflow-x-auto">
-          <table class="w-full">
-            <thead class="bg-slate-50">
-              <tr>
-                <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">ปีการศึกษา</th>
-                <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">ครั้งที่สอบ</th>
-                <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">คะแนน</th>
-                <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">สถานะ</th>
-                <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">วันที่สอบ</th>
-              </tr>
-            </thead>
-            <tbody id="studentEnglishTable" class="divide-y divide-slate-200"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ============ ADVISOR DASHBOARD ============ -->
-    <div id="advisorDashboard" class="hidden">
-      <div class="bg-white rounded-xl p-6 shadow mb-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-blue-50 p-4 rounded-lg">
-            <p class="text-sm text-slate-600">จำนวนนักศึกษาทั้งหมด</p>
-            <p id="advTotal" class="text-2xl font-bold text-blue-800">-</p>
-            <p class="text-xs text-slate-600 mt-2">
-              ปี 1: <span id="advY1">-</span> •
-              ปี 2: <span id="advY2">-</span> •
-              ปี 3: <span id="advY3">-</span> •
-              ปี 4: <span id="advY4">-</span>
-            </p>
-          </div>
-          <div class="bg-emerald-50 p-4 rounded-lg">
-            <p class="text-sm text-slate-600">ผ่านอังกฤษ (ผลล่าสุด)</p>
-            <p id="advPassLatest" class="text-2xl font-bold text-emerald-700">-</p>
-          </div>
-          <div class="p-4 rounded-lg">
-            <label class="block text-sm mb-1">กรองปีการศึกษา (สำหรับรายละเอียด):</label>
-            <select id="advisorAcademicYear" class="border rounded-lg px-3 py-2 min-w-[160px]">
-              <option value="">ทั้งหมด</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-xl p-6 shadow mb-6">
-        <h3 class="font-semibold mb-3">นักศึกษาในความดูแล</h3>
-        <div id="advisorStudentsList" class="divide-y divide-slate-200"></div>
-      </div>
-
-      <div class="bg-white rounded-xl p-6 shadow mb-6">
-        <h3 class="font-semibold mb-3">สรุปผลสอบภาษาอังกฤษ (ล่าสุดต่อคน)</h3>
-        <div class="overflow-x-auto">
-          <table class="w-full">
-            <thead class="bg-slate-50">
-              <tr>
-                <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">รหัส</th>
-                <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">ชื่อ</th>
-                <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">สถานะ</th>
-                <th class="px-4 py-2 text-left text-xs text-slate-500 uppercase">วันที่สอบ</th>
-              </tr>
-            </thead>
-            <tbody id="advisorEnglishTable" class="divide-y divide-slate-200"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-  </section>
-
-  <!-- ================== MODALS ================== -->
-  <div id="modalBackdrop" class="hidden fixed inset-0 bg-black/40 z-40"></div>
-
-  <!-- Edit Student -->
-  <div id="modalEditStudent" class="hidden fixed inset-0 z-50 flex items-center justify-center">
-    <div class="bg-white w-full max-w-lg rounded-xl shadow p-6">
-      <h3 class="font-semibold mb-4">แก้ไขข้อมูลนักศึกษา</h3>
-      <div class="grid grid-cols-1 gap-3">
-        <input id="editStudentId" class="border rounded-lg px-3 py-2" placeholder="รหัสนักศึกษา" />
-        <input id="editStudentName" class="border rounded-lg px-3 py-2" placeholder="ชื่อ-สกุล" />
-        <input id="editStudentAdvisor" class="border rounded-lg px-3 py-2" placeholder="อีเมลอาจารย์ที่ปรึกษา" />
-        <select id="editStudentYear" class="border rounded-lg px-3 py-2">
-          <option value="1">ปี 1</option><option value="2">ปี 2</option>
-          <option value="3">ปี 3</option><option value="4">ปี 4</option>
-        </select>
-      </div>
-      <div class="mt-5 flex justify-end gap-2">
-        <button onclick="closeModal('modalEditStudent')" class="px-4 py-2 rounded-lg border">ยกเลิก</button>
-        <button onclick="saveEditStudent()" class="px-4 py-2 rounded-lg bg-blue-600 text-white">บันทึก</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Add Grade -->
-  <div id="modalAddGrade" class="hidden fixed inset-0 z-50 flex items-center justify-center">
-    <div class="bg-white w-full max-w-lg rounded-xl shadow p-6">
-      <h3 class="font-semibold mb-4">เพิ่มผลการเรียน</h3>
-      <div class="grid grid-cols-1 gap-3">
-        <input id="gradeStudentId" class="border rounded-lg px-3 py-2" placeholder="รหัสนักศึกษา" />
-        <input id="gradeTerm" class="border rounded-lg px-3 py-2" placeholder="ปี/ภาค (เช่น 2568/1 หรือ 2568/ฤดูร้อน)" />
-        <input id="gradeCourseCode" class="border rounded-lg px-3 py-2" placeholder="รหัสวิชา" />
-        <input id="gradeCourseTitle" class="border rounded-lg px-3 py-2" placeholder="ชื่อวิชา" />
-        <input id="gradeCredits" class="border rounded-lg px-3 py-2" placeholder="หน่วยกิต" type="number" step="0.5" />
-        <input id="gradeGrade" class="border rounded-lg px-3 py-2" placeholder="เกรด (A,B+,...)" />
-        <input id="gradeRecordedAt" class="border rounded-lg px-3 py-2" placeholder="วันที่บันทึก (YYYY-MM-DD)" />
-      </div>
-      <div class="mt-5 flex justify-end gap-2">
-        <button onclick="closeModal('modalAddGrade')" class="px-4 py-2 rounded-lg border">ยกเลิก</button>
-        <button onclick="saveAddGrade()" class="px-4 py-2 rounded-lg bg-blue-600 text-white">บันทึก</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Add English -->
-  <div id="modalAddEnglish" class="hidden fixed inset-0 z-50 flex items-center justify-center">
-    <div class="bg-white w-full max-w-lg rounded-xl shadow p-6">
-      <h3 class="font-semibold mb-4">เพิ่มผลสอบภาษาอังกฤษ</h3>
-      <div class="grid grid-cols-1 gap-3">
-        <input id="engStudentId" class="border rounded-lg px-3 py-2" placeholder="รหัสนักศึกษา" />
-        <input id="engAcademicYear" class="border rounded-lg px-3 py-2" placeholder="ปีการศึกษา (เช่น 2568)" />
-        <input id="engAttempt" class="border rounded-lg px-3 py-2" placeholder="ครั้งที่สอบ" />
-        <input id="engScore" class="border rounded-lg px-3 py-2" placeholder="คะแนน" />
-        <input id="engStatus" class="border rounded-lg px-3 py-2" placeholder="สถานะ (ผ่าน/ไม่ผ่าน)" />
-        <input id="engExamDate" class="border rounded-lg px-3 py-2" placeholder="วันที่สอบ (YYYY-MM-DD)" />
-      </div>
-      <div class="mt-5 flex justify-end gap-2">
-        <button onclick="closeModal('modalAddEnglish')" class="px-4 py-2 rounded-lg border">ยกเลิก</button>
-        <button onclick="saveAddEnglish()" class="px-4 py-2 rounded-lg bg-blue-600 text-white">บันทึก</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Advisor Detail -->
-  <div id="modalAdvisorDetail" class="hidden fixed inset-0 z-50 flex items-center justify-center">
-    <div class="bg-white w-full max-w-4xl rounded-xl shadow p-6">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="font-semibold">รายละเอียดนักศึกษา</h3>
-        <button onclick="closeModal('modalAdvisorDetail')" class="px-3 py-1.5 rounded-lg border">ปิด</button>
-      </div>
-      <div id="advisorDetailContent"></div>
-    </div>
-  </div>
-
-  <!-- ================== SCRIPTS ================== -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="app.js"></script>
+
+  <!-- MODALS -->
+  <div id="modalBackdrop" class="fixed inset-0 bg-black/40 hidden z-40"></div>
+
+  <!-- Edit Student Modal -->
+  <div id="modalEditStudent" class="fixed inset-0 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
+      <h3 class="text-lg font-semibold mb-4">แก้ไขข้อมูลนักศึกษา</h3>
+      <div class="grid grid-cols-1 gap-4">
+        <input type="text" id="editStudentId" class="hidden">
+        <div><label class="text-sm">ชื่อ-สกุล</label><input id="editStudentName" class="w-full px-4 py-2 border rounded-lg"/></div>
+        <div><label class="text-sm">อาจารย์ที่ปรึกษา</label><input id="editStudentAdvisor" class="w-full px-4 py-2 border rounded-lg"/></div>
+        <div><label class="text-sm">ชั้นปี</label>
+          <select id="editStudentYear" class="w-full px-4 py-2 border rounded-lg">
+            <option value="1">ปี 1</option><option value="2">ปี 2</option><option value="3">ปี 3</option><option value="4">ปี 4</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-6">
+        <button class="px-4 py-2 rounded-lg border" onclick="closeModal('modalEditStudent')">ยกเลิก</button>
+        <button class="px-4 py-2 rounded-lg bg-blue-600 text-white" onclick="saveEditStudent()">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Grade Modal -->
+  <div id="modalAddGrade" class="fixed inset-0 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-xl p-6">
+      <h3 class="text-lg font-semibold mb-4">เพิ่มเกรดรายวิชา</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><label class="text-sm">รหัสนักศึกษา</label><input id="gradeStudentId" class="w-full px-4 py-2 border rounded-lg" readonly/></div>
+        <div><label class="text-sm">ภาคการศึกษา (เช่น 2568/1 หรือ 2568/ฤดูร้อน)</label><input id="gradeTerm" class="w-full px-4 py-2 border rounded-lg"/></div>
+        <div><label class="text-sm">รหัสวิชา</label><input id="gradeCourseCode" class="w-full px-4 py-2 border rounded-lg"/></div>
+        <div><label class="text-sm">รายวิชา</label><input id="gradeCourseTitle" class="w-full px-4 py-2 border rounded-lg"/></div>
+        <div><label class="text-sm">หน่วยกิต</label><input id="gradeCredits" type="number" class="w-full px-4 py-2 border rounded-lg"/></div>
+        <div><label class="text-sm">เกรด</label><input id="gradeGrade" class="w-full px-4 py-2 border rounded-lg"/></div>
+        <div class="md:col-span-2"><label class="text-sm">วันที่บันทึก (ว่าง=วันนี้)</label><input id="gradeRecordedAt" type="date" class="w-full px-4 py-2 border rounded-lg"/></div>
+      </div>
+      <div class="flex justify-end gap-2 mt-6">
+        <button class="px-4 py-2 rounded-lg border" onclick="closeModal('modalAddGrade')">ยกเลิก</button>
+        <button class="px-4 py-2 rounded-lg bg-blue-600 text-white" onclick="saveAddGrade()">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add English Test Modal -->
+  <div id="modalAddEnglish" class="fixed inset-0 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-xl p-6">
+      <h3 class="text-lg font-semibold mb-4">เพิ่มผลสอบภาษาอังกฤษ สบช.</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><label class="text-sm">รหัสนักศึกษา</label><input id="engStudentId" class="w-full px-4 py-2 border rounded-lg" readonly/></div>
+        <div><label class="text-sm">ปีการศึกษา</label><input id="engAcademicYear" class="w-full px-4 py-2 border rounded-lg"/></div>
+        <div><label class="text-sm">ครั้งที่สอบ</label><input id="engAttempt" class="w-full px-4 py-2 border rounded-lg"/></div>
+        <div><label class="text-sm">คะแนน</label><input id="engScore" class="w-full px-4 py-2 border rounded-lg"/></div>
+        <div><label class="text-sm">สถานะ</label><input id="engStatus" class="w-full px-4 py-2 border rounded-lg" placeholder="ผ่าน/ไม่ผ่าน"/></div>
+        <div class="md:col-span-2"><label class="text-sm">วันที่สอบ (ว่าง=วันนี้)</label><input id="engExamDate" type="date" class="w-full px-4 py-2 border rounded-lg"/></div>
+      </div>
+      <div class="flex justify-end gap-2 mt-6">
+        <button class="px-4 py-2 rounded-lg border" onclick="closeModal('modalAddEnglish')">ยกเลิก</button>
+        <button class="px-4 py-2 rounded-lg bg-blue-600 text-white" onclick="saveAddEnglish()">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Advisor Student Detail Modal -->
+  <div id="advisorDetailModal" class="fixed inset-0 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold">ข้อมูลนักศึกษา</h3>
+        <button class="text-gray-500" onclick="closeModal('advisorDetailModal')"><i class="fas fa-times"></i></button>
+      </div>
+      <div id="advisorDetailContent" class="space-y-4">
+        <!-- dynamic: profile + tables -->
+      </div>
+    </div>
+  </div>
 </body>
 </html>
-
