@@ -354,7 +354,7 @@ function buildAdminIndividual(){
     }
     renderGradesByYear();
 
-    yearSel?.onchange = renderGradesByYear;
+    if (yearSel) yearSel.addEventListener('change', () => renderGradesByYear());
 
     // buttons
     const btnEdit = qs('#btnEditStudent');
@@ -770,3 +770,4 @@ window.saveAddGrade = saveAddGrade;
 window.saveAddEnglish = saveAddEnglish;
 window.openChangePasswordModal = openChangePasswordModal;
 window.setActiveDashboard = setActiveDashboard;
+
