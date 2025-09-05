@@ -1,116 +1,148 @@
-/* ===== Base & Typography ===== */
-html { scroll-behavior: smooth; }
-body {
+/* ============ Base ============ */
+:root{
+  --card-shadow: 0 8px 24px rgba(2, 6, 23, 0.08);
+  --focus: 0 0 0 3px rgba(37, 99, 235, 0.35);
+}
+
+*,
+*::before,
+*::after{
+  box-sizing: border-box;
+}
+
+html, body{
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-  background-color: #f8fafc; /* fallback ถ้า tailwind load ไม่ทัน */
 }
 
-/* เพิ่ม tap-target ให้กดถนัดบนมือถือ */
-:root { --safe-tap: 44px; }
-button, .btn, input, select, textarea { min-height: var(--safe-tap); }
-
-/* ===== Background ===== */
-.gradient-bg {
-  background: linear-gradient(135deg, #e0f2fe 0%, #f5f3ff 100%);
+/* ============ Cards / Elevation ============ */
+.card-shadow{
+  box-shadow: var(--card-shadow);
 }
 
-/* ===== Cards & Hover ===== */
-.card-shadow {
-  box-shadow: 0 10px 25px rgba(0,0,0,.06), 0 4px 6px rgba(0,0,0,.04);
-}
-.hover-scale {
-  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
-}
-.hover-scale:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(0,0,0,.08), 0 6px 10px rgba(0,0,0,.05);
-  filter: saturate(1.02);
+/* ============ Tables ============ */
+table{
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
-/* ===== Admin Nav ===== */
-.admin-nav {
-  transition: color .15s ease, border-color .15s ease, background-color .15s ease;
-  white-space: nowrap;
-}
-
-/* ===== Tables ===== */
-table thead th {
+thead th{
+  font-weight: 600;
   letter-spacing: .02em;
-  white-space: nowrap;
 }
-table td, table th { vertical-align: middle; }
-table tbody tr:hover { background-color: #fafafa; }
 
-/* ป้องกันชื่อวิชายาวล้นจอมือถือ */
-table td { word-break: break-word; }
+tbody tr:hover{
+  background: #f8fafc; /* slate-50 */
+}
 
-/* ===== Inputs / Focus ===== */
-input[type="text"], input[type="email"], input[type="password"],
-input[type="date"], input[type="number"], select, textarea {
+th, td{
+  white-space: nowrap; /* ตารางกว้างออกด้านข้าง ให้ลากได้บนมือถือ */
+}
+
+/* แถบเลื่อนใน .overflow-x-auto บนมือถือ ให้ลื่น */
+.overflow-x-auto{
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ============ Inputs ============ */
+input, select, textarea, button{
+  font: inherit;
+}
+
+input:focus, select:focus, textarea:focus{
   outline: none;
-  background-color: #fff;
-}
-input:focus, select:focus, textarea:focus, button:focus {
-  box-shadow: 0 0 0 3px rgba(59,130,246,.35);
-  border-color: rgba(59,130,246,.8);
+  box-shadow: var(--focus);
+  border-color: #3b82f6; /* blue-500 */
 }
 
-/* iOS Safari: กัน auto-zoom เวลาแตะ input */
-@supports (-webkit-touch-callout: none) {
-  input, select, textarea { font-size: 16px; }
+/* เอาลูกศรขึ้นลงของ number ออก (ให้พิมพ์สะดวก) */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button{
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"]{
+  -moz-appearance: textfield;
 }
 
-/* ===== Modals ===== */
-#modalBackdrop { animation: fadeIn .12s ease; }
+/* ============ Buttons ============ */
+button{
+  transition: transform .08s ease, box-shadow .12s ease;
+}
+button:active{
+  transform: translateY(1px);
+}
+
+/* ปุ่มแท็บภาคการศึกษา ให้แตะง่ายขึ้น */
+.semester-tab{
+  padding: .5rem .8rem; /* ใหญ่ขึ้นนิดสำหรับมือถือ */
+  transition: background-color .12s ease, color .12s ease, border-color .12s ease;
+}
+.semester-tab:hover{
+  background: #f1f5f9; /* slate-100 */
+}
+
+/* ============ Modals ============ */
+/* ฉากหลัง */
+#modalBackdrop{
+  backdrop-filter: blur(1px);
+}
+
+/* กล่อง modal ให้มีเอฟเฟกต์โผล่เบา ๆ เมื่อแสดง */
 #modalEditStudent > div,
 #modalAddGrade > div,
 #modalAddEnglish > div,
-#advisorDetailModal > div {
-  animation: pop .12s ease;
+#modalAdvisorDetail > div{
+  animation: modalIn .15s ease-out;
+}
+@keyframes modalIn{
+  from{ transform: translateY(6px); opacity: 0; }
+  to{ transform: translateY(0); opacity: 1; }
 }
 
-@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-@keyframes pop    { from { transform: scale(.98); opacity: 0 } to { transform: scale(1); opacity: 1 } }
-
-/* ===== Clamp text ===== */
-.clamp-1 {
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-}
-.clamp-2 {
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+/* ============ Responsive tweaks ============ */
+@media (max-width: 1024px){
+  /* ระยะห่างในการ์ดบนแท็บเล็ตให้โปร่งขึ้นเล็กน้อย */
+  .card-shadow{
+    box-shadow: 0 6px 18px rgba(2, 6, 23, 0.08);
+  }
 }
 
-/* ===== Scrollbar (WebKit) ===== */
-*::-webkit-scrollbar { width: 10px; height: 10px; }
-*::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,.18); border-radius: 10px; }
-*::-webkit-scrollbar-track { background-color: transparent; }
+@media (max-width: 640px){
+  /* ตาราง: ตัวอักษรเล็กลงนิดบนจอเล็ก */
+  table th, table td{
+    font-size: .875rem; /* text-sm */
+  }
 
-/* ===== Responsive Tweaks ===== */
-/* มือถือ: ลด padding ตาราง/การ์ดให้พอดีจอ, ซ่อนข้อมูลจุกจิกที่ไม่จำเป็น */
-@media (max-width: 640px) {
-  .hide-on-xs { display: none !important; }
+  /* ป้าย/การ์ดสรุปให้เว้นช่วงใต้ ๆ */
+  .card-shadow{
+    margin-bottom: .75rem;
+  }
 
-  table th, table td { padding: .5rem .75rem !important; } /* ลดระยะห่างเซลล์ */
-  .card-shadow { border-radius: 0.9rem; }
-
-  /* ปุ่มบนแถวรายการให้กินพื้นที่กดง่ายขึ้น */
-  .row-action { padding: .375rem .75rem; border-radius: .5rem; }
+  /* ปุ่มป็อปในลิสต์ให้กดง่าย */
+  .px-3.py-1\.5{
+    padding: .5rem .9rem; /* เพิ่มพื้นที่กด */
+  }
 }
 
-/* แท็บเล็ตแนวตั้ง: ยืดพื้นที่ตาราง/กราฟให้อ่านง่าย */
-@media (min-width: 641px) and (max-width: 1024px) {
-  .chart-box { min-height: 280px; }
+/* ============ Utility เสริมเล็กน้อย ============ */
+/* กรณีต้องการครอบตารางให้เลื่อนในแนวนอนได้ (เผื่อหน้าอื่น ๆ) */
+.table-wrap{
+  width: 100%;
+  overflow-x: auto;
 }
 
-/* Desktop ใหญ่: จำกัดความกว้างบรรทัดข้อความยาว */
-@media (min-width: 1280px) {
-  .prose-max { max-width: 72ch; }
+/* เลื่อน scrollbar ให้บางลงเล็ก ๆ (เฉพาะ WebKit) */
+.table-wrap::-webkit-scrollbar,
+.overflow-x-auto::-webkit-scrollbar{
+  height: 8px;
+}
+.table-wrap::-webkit-scrollbar-thumb,
+.overflow-x-auto::-webkit-scrollbar-thumb{
+  background: #cbd5e1; /* slate-300 */
+  border-radius: 999px;
+}
+.table-wrap::-webkit-scrollbar-thumb:hover,
+.overflow-x-auto::-webkit-scrollbar-thumb:hover{
+  background: #94a3b8; /* slate-400 */
 }
