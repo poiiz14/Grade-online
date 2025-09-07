@@ -144,3 +144,31 @@ input:focus,select:focus,textarea:focus{
 /* โมดัล – คุมความสูงและเปิดสกรอลล์แนวตั้ง */
 .modal-panel{ max-height:85vh; overflow:hidden; }
 .modal-body-scroll{ max-height:60vh; overflow-y:auto; }
+/* ===== Loading Overlay ===== */
+.loading-overlay{
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.35);
+  animation: fadeIn .12s ease;
+}
+.loading-overlay.hidden{ display: none; }
+
+.loading-panel{
+  background: #fff;
+  padding: 1.25rem 1.5rem;
+  border-radius: .875rem;
+  box-shadow: 0 10px 30px rgba(2,6,23,.18);
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 200px;
+  animation: pop .12s ease;
+}
+
+.spinner{
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 3px solid #e5e7eb;           /* gray-200 */
+  border-top-color: #2563eb;            /* blue-600 */
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin{ to { transform: rotate(360deg);} }
+
