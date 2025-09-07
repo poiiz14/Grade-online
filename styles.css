@@ -138,3 +138,9 @@ input:focus,select:focus,textarea:focus{
 @supports (-webkit-touch-callout:none){
   input,select,textarea{ font-size:16px; }
 }
+/* กรอบคุมความสูงของกราฟ + ป้องกันล้น */
+.chart-box{ height:280px; position:relative; }
+.chart-box canvas{ width:100% !important; height:100% !important; display:block; }
+/* โมดัล – คุมความสูงและเปิดสกรอลล์แนวตั้ง */
+.modal-panel{ max-height:85vh; overflow:hidden; }
+.modal-body-scroll{ max-height:60vh; overflow-y:auto; }
