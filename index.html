@@ -112,7 +112,8 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- OVERVIEW -->
         <section id="adminOverview" class="admin-section">
-          <h2 class="text-2xl font-bold text-gray-900 mb-6">ภาพรวมระบบ</h2>
+          <h2 class="text-2xl font-bold text-gray-900 mb-6">ภาพรวม</h2>
+          
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
               <div class="flex items-center">
@@ -148,17 +149,26 @@
               <div class="flex items-center">
                 <div class="bg-amber-100 text-amber-600 w-10 h-10 rounded-full inline-flex items-center justify-center mr-3"><i class="fas fa-language"></i></div>
                 <div>
-                  <p class="text-sm text-gray-500">สรุปผลอังกฤษ (ผ่านล่าสุด)</p>
+                  <p class="text-sm text-gray-500">จำนวนนศ.ที่สอบภาษาอังกฤษ สบช. (ทั้งหมด)</p>
                   <p id="overviewEnglishLatestPass" class="text-xl font-bold text-gray-900">-</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div class="bg-white rounded-xl p-6 card-shadow">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">การกระจายเกรดรวม</h3>
+          <!-- Bar: จำนวนนักศึกษาแต่ละชั้นปี -->
+          <div class="bg-white rounded-xl p-6 card-shadow mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">จำนวนนักศึกษาแต่ละชั้นปี</h3>
             <div class="chart-box">
               <canvas id="gradeDistributionChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Pie: สรุปผลสอบภาษาอังกฤษ (ผ่าน/ไม่ผ่าน) -->
+          <div class="bg-white rounded-xl p-6 card-shadow">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">จำนวนนศ.ที่สอบภาษาอังกฤษ สบช (ผ่าน/ไม่ผ่าน)</h3>
+            <div class="chart-box">
+              <canvas id="englishPassPie"></canvas>
             </div>
           </div>
         </section>
@@ -231,11 +241,11 @@
                 <p id="adminIndGPAX" class="text-2xl font-bold text-indigo-800">-</p>
               </div>
               <div class="bg-blue-50 p-4 rounded-lg">
-                <p class="text-sm text-gray-600">GPA (ปีนี้)</p>
+                <p class="text-sm text-gray-600">GPA (ปีการศึกษาที่เลือก)</p>
                 <p id="adminIndYearGPA" class="text-2xl font-bold text-blue-800">-</p>
               </div>
               <div class="bg-green-50 p-4 rounded-lg">
-                <p class="text-sm text-gray-600">หน่วยกิต (ปีนี้)</p>
+                <p class="text-sm text-gray-600">หน่วยกิต (ปีการศึกษาที่เลือก)</p>
                 <p id="adminIndYearCredits" class="text-2xl font-bold text-green-800">-</p>
               </div>
             </div>
@@ -243,7 +253,7 @@
 
           <!-- Profile -->
           <div class="bg-white rounded-xl p-6 card-shadow mb-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">ข้อมูลส่วนตัว</h3>
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">ข้อมูลนักศึกษา</h3>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div><p class="text-sm text-gray-600">รหัสนักศึกษา</p><p id="detailStudentId" class="text-lg font-semibold">-</p></div>
               <div><p class="text-sm text-gray-600">ชื่อ-สกุล</p><p id="detailStudentName" class="text-lg font-semibold">-</p></div>
@@ -254,7 +264,7 @@
 
           <!-- English tests -->
           <div class="bg-white rounded-xl p-6 card-shadow mb-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">ผลสอบภาษาอังกฤษ</h3>
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">ผลสอบภาษาอังกฤษ สบช.</h3>
             <div class="overflow-x-auto">
               <table class="w-full">
                 <thead class="bg-gray-50">
@@ -304,7 +314,7 @@
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="bg-blue-50 p-4 rounded-lg"><p class="text-sm text-gray-600">GPAX (ตลอดหลักสูตร)</p><p id="studentGPAX" class="text-2xl font-bold text-blue-800">-</p></div>
             <div class="bg-green-50 p-4 rounded-lg"><p class="text-sm text-gray-600">หน่วยกิตสะสม</p><p id="studentCredits" class="text-2xl font-bold text-green-800">-</p></div>
-            <div class="bg-purple-50 p-4 rounded-lg"><p class="text-sm text-gray-600">ผลภาษาอังกฤษล่าสุด</p><p id="studentEnglishStatus" class="text-lg font-bold text-purple-800">-</p></div>
+            <div class="bg-purple-50 p-4 rounded-lg"><p class="text-sm text-gray-600">ผลภาษาอังกฤษ สบช. ล่าสุด</p><p id="studentEnglishStatus" class="text-lg font-bold text-purple-800">-</p></div>
           </div>
         </div>
 
@@ -344,7 +354,7 @@
         </div>
 
         <div class="bg-white rounded-xl p-6 card-shadow">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">ผลสอบภาษาอังกฤษ (ทุกปีการศึกษา)</h3>
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">ผลสอบภาษาอังกฤษ สบช. (ทุกปีการศึกษา)</h3>
           <div class="overflow-x-auto">
             <table class="w-full">
               <thead class="bg-gray-50">
@@ -367,7 +377,7 @@
     <!-- ADVISOR -->
     <div id="advisorDashboard" class="hidden">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h2 class="text-2xl font-bold text-gray-900 mb-6">ดูแลนักศึกษาในที่ปรึกษา</h2>
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">นักศึกษาในความดูแล (Advisee)</h2>
 
         <div class="bg-white rounded-xl p-6 card-shadow mb-6">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -394,7 +404,13 @@
           </div>
           <div class="divide-y divide-gray-200" id="advisorStudentsList"></div>
         </div>
-
+        <!-- สรุปผลอังกฤษเฉพาะนักศึกษาที่ดูแล (Pie) -->
+        <div class="bg-white rounded-xl p-6 card-shadow">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">สรุปผลสอบภาษาอังกฤษ (เฉพาะนักศึกษาที่ดูแล)</h3>
+          <div class="chart-box">
+            <canvas id="advisorEnglishPie"></canvas>
+          </div>
+        </div>
         <div class="bg-white rounded-xl card-shadow">
           <div class="p-6 border-b">
             <h3 class="text-lg font-semibold text-gray-900">สรุปผลสอบภาษาอังกฤษรายคน (ล่าสุด)</h3>
@@ -550,3 +566,4 @@
   </div>
 </body>
 </html>
+
