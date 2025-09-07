@@ -1,772 +1,884 @@
-/* ===================== CONFIG ===================== */
-/** ใส่ URL /exec ของ Apps Script ที่ deploy แล้ว (แก้เป็นของปอยเอง) */
-const API_BASE = 'https://script.google.com/macros/s/AKfycbz7edo925YsuHCE6cTHw7npL69olAvnBVILIDE1pbVkBpptBgG0Uz6zFhnaqbEEe4AY/exec';
+/***********************
+ * CONFIG & GLOBALS
+ ***********************/
+const GAS_URL = window.GAS_URL || 'https://script.google.com/macros/s/AKfycbz7edo925YsuHCE6cTHw7npL69olAvnBVILIDE1pbVkBpptBgG0Uz6zFhnaqbEEe4AY/exec'; // ใส่ URL ของ Apps Script Web App
+const JSONP = true; // บังคับใช้ JSONP ให้ทำงานได้ทุกโดเมน
+const GRADE_POINTS = { 'A': 4.0, 'B+': 3.5, 'B': 3.0, 'C+': 2.5, 'C': 2.0, 'D+': 1.5, 'D': 1.0, 'F': 0.0 };
+const NON_GPA_GRADES = new Set(['S','U','P','W','I','NP','NR','AU','TR']); // ไม่นำมาคิด GPAX/GPA
 
-/* ===================== STATE ===================== */
-let GLOBAL_DATA = { students: [], grades: [], englishTests: [], advisors: [] };
-let CURRENT_USER = null;
+const appState = {
+  user: null,             // {role, name, email, id}
+  students: [],           // [{id,citizenId,name,advisor,year}]
+  advisors: [],           // [{email,name}]
+  grades: [],             // [{studentId,term,courseCode,courseTitle,credits,grade,recordedAt, fileId, sheet}]
+  englishTests: [],       // [{studentId,academicYear,attempt,score,status,examDate,sheet}]
+  ui: {
+    semesterTab: '1',
+    adminSection: 'overview',
+    adminIndSelectedId: '',
+    adminIndYear: '',
+    advisorYear: '',
+    advisorSearch: '',
+  }
+};
 
-// charts
-let studentsChartInst = null;
-let englishChartInst = null;
+/***********************
+ * UTILITIES
+ ***********************/
+function byId(id){ return document.getElementById(id); }
+function qs(sel, root=document){ return root.querySelector(sel); }
+function qsa(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
 
-/* ===================== UTIL ===================== */
-const qs  = (sel, root=document) => root.querySelector(sel);
-const qsa = (sel, root=document) => Array.from(root.querySelectorAll(sel));
-const by  = (proj) => (a,b) => (proj(a) < proj(b) ? -1 : (proj(a) > proj(b) ? 1 : 0));
-const toInt = v => (v==null || v==='') ? 0 : parseInt(v,10);
+function toNumber(x, def=0){ const n = Number(x); return isNaN(n) ? def : n; }
+function cleanId(id){ return String(id||'').trim(); }
 
-function setText(id, v){ const el = document.getElementById(id); if (el) el.textContent = (v==null ? '' : String(v)); }
+function parseTerm(term){ // "2568/1" -> {year:"2568", sem:"1"}
+  const s = String(term||'').trim();
+  const parts = s.split('/');
+  if(parts.length===2){ return { year: parts[0], sem: parts[1] }; }
+  return { year: '', sem: '' };
+}
 
-/** JSONP call */
-function callAPI(action, data = {}, { timeoutMs = 30000 } = {}) {
-  return new Promise((resolve, reject) => {
-    const cb = 'cb_' + Date.now() + '_' + Math.floor(Math.random()*1e6);
-    const payloadStr = encodeURIComponent(JSON.stringify(data||{}));
-    const url = `${API_BASE}?action=${encodeURIComponent(action)}&payload=${payloadStr}&callback=${cb}&_ts=${Date.now()}`;
+function termSortKey(term){
+  const {year, sem} = parseTerm(term);
+  return `${year.padStart(4,'0')}-${sem.padStart(1,'0')}`;
+}
 
+function sortByStudentIdAsc(a,b){
+  const A = cleanId(a.id || a.value || a);
+  const B = cleanId(b.id || b.value || b);
+  if (A === B) return 0;
+  return A < B ? -1 : 1;
+}
+
+function gradeToPoint(grade){
+  const g = String(grade||'').toUpperCase().trim();
+  if (NON_GPA_GRADES.has(g)) return null; // ไม่นับเข้าเกรด
+  return GRADE_POINTS[g] ?? null;
+}
+
+function computeGPA(grades){ // [{credits,grade}]
+  let totalCredits = 0, totalPoints = 0;
+  grades.forEach(g=>{
+    const pts = gradeToPoint(g.grade);
+    const cr = toNumber(g.credits);
+    if(pts!=null && cr>0){
+      totalCredits += cr;
+      totalPoints  += pts * cr;
+    }
+  });
+  const gpa = (totalCredits>0) ? (totalPoints/totalCredits) : 0;
+  return { gpa: round2(gpa), credits: totalCredits };
+}
+
+function round2(n){ return Math.round((n + Number.EPSILON) * 100) / 100; }
+
+function latestBy(list, keyFn){ // คืนรายการที่ใหม่สุดตาม key (string/date)
+  if(!list || !list.length) return null;
+  let best = list[0], bestKey = keyFn(best) || '';
+  for (let i=1;i<list.length;i++){
+    const k = keyFn(list[i]) || '';
+    if (k > bestKey){ best = list[i]; bestKey = k; }
+  }
+  return best;
+}
+
+function unique(arr){ return Array.from(new Set(arr)); }
+
+/***********************
+ * JSON/JSONP CALLER
+ ***********************/
+function callAPI(params){
+  if(!GAS_URL) return Promise.reject('ยังไม่ได้ตั้งค่า GAS_URL');
+  if(!JSONP){
+    const url = GAS_URL + '?' + new URLSearchParams(params).toString();
+    return fetch(url).then(r=>r.json());
+  }
+  // JSONP
+  return new Promise((resolve,reject)=>{
+    const cb = 'cb_'+Date.now()+'_'+Math.floor(Math.random()*1e6);
+    params.callback = cb;
+    const url = GAS_URL + '?' + new URLSearchParams(params).toString();
     const s = document.createElement('script');
-    let done = false;
-    const cleanup = () => { try{ delete window[cb]; }catch{} try{s.remove();}catch{} };
-
-    const timer = setTimeout(()=>{ if(done) return; done=true; cleanup(); reject(new Error('API timeout')); }, timeoutMs);
-
-    window[cb] = (res) => {
-      if(done) return; done=true; clearTimeout(timer); cleanup();
-      if(!res || res.success===false){ reject(new Error(res?.message||'API error')); return; }
-      resolve(res);
-    };
-
+    window[cb] = (data)=>{ resolve(data); cleanup(); };
+    s.onerror = (e)=>{ reject(e); cleanup(); };
+    function cleanup(){ try{ delete window[cb]; }catch(_){ } document.body.removeChild(s); }
     s.src = url;
-    s.onerror = () => { if(done) return; done=true; clearTimeout(timer); cleanup(); reject(new Error('Network error')); };
     document.body.appendChild(s);
   });
 }
 
-/** Session helpers */
-function saveSession(data){ try{ localStorage.setItem('session', JSON.stringify(data||{})); }catch{} }
-function loadSession(){ try{ return JSON.parse(localStorage.getItem('session')||'null'); }catch{ return null; } }
-function clearSession(){ try{ localStorage.removeItem('session'); }catch{} }
-
-/** GPA helpers */
-function gradePoint(g){
-  const x = String(g||'').toUpperCase().trim();
-  if (x==='A') return 4;
-  if (x==='B+') return 3.5;
-  if (x==='B') return 3;
-  if (x==='C+') return 2.5;
-  if (x==='C') return 2;
-  if (x==='D+') return 1.5;
-  if (x==='D') return 1;
-  if (x==='F') return 0;
-  return null; // W/I/S/U etc.
+function apiAuthenticate(role, credentials){
+  return callAPI({action:'authenticate', payload: JSON.stringify({userType: role, credentials})});
 }
-function uniqueCreditsSum(grades){
-  const seen = new Map();
-  (grades||[]).forEach(g=>{
-    const key = (g.courseCode && String(g.courseCode).trim()) || (g.courseTitle && String(g.courseTitle).trim());
-    if(!key) return;
-    if(!seen.has(key)) seen.set(key, Number(g.credits||0));
+function apiBootstrap(){ return callAPI({action:'bootstrap'}); }
+function apiUpdateStudent(payload){ return callAPI({action:'updateStudent', payload: JSON.stringify(payload)}); }
+function apiAddGrade(payload){ return callAPI({action:'addGrade', payload: JSON.stringify(payload)}); }
+function apiAddEnglish(payload){ return callAPI({action:'addEnglishTest', payload: JSON.stringify(payload)}); }
+
+/***********************
+ * LOGIN FLOW
+ ***********************/
+function initLogin(){
+  const userTypeEl = byId('userType');
+  const adminLogin = byId('adminLogin');
+  const studentLogin = byId('studentLogin');
+  const advisorLogin = byId('advisorLogin');
+
+  userTypeEl.addEventListener('change', ()=>{
+    const role = userTypeEl.value;
+    adminLogin.classList.add('hidden');
+    studentLogin.classList.add('hidden');
+    advisorLogin.classList.add('hidden');
+    if(role==='admin') adminLogin.classList.remove('hidden');
+    if(role==='student') studentLogin.classList.remove('hidden');
+    if(role==='advisor') advisorLogin.classList.remove('hidden');
   });
-  let sum=0; for(const v of seen.values()) sum += Number(v||0);
-  return sum;
-}
-function computeGPAX(allGrades){
-  let totCred=0, totPts=0;
-  (allGrades||[]).forEach(g=>{
-    const gp = gradePoint(g.grade);
-    const cr = Number(g.credits||0);
-    if (gp==null || !cr) return;
-    totCred += cr;
-    totPts  += gp*cr;
-  });
-  return totCred ? (totPts/totCred) : 0;
-}
 
-/** term helpers */
-function academicYearOf(term){ if(!term) return ''; const s=String(term).split('/'); return s[0]||''; }
-function semesterOf(term){ if(!term) return ''; const s=String(term).split('/'); return s[1]||''; }
-
-/** english latest per student */
-function latestEnglishMap(tests){
-  const map = {};
-  (tests||[]).forEach(t=>{
-    const sid = String(t.studentId||'').trim();
-    if(!sid) return;
-    const cur = map[sid];
-    const curTime = cur && Date.parse(cur.examDate) ? Date.parse(cur.examDate) : -1;
-    const nowTime = Date.parse(t.examDate) ? Date.parse(t.examDate) : -1;
-    if (nowTime > curTime) { map[sid] = t; return; }
-    if (nowTime===-1 && curTime===-1) {
-      const ca = toInt(cur?.attempt||0), na = toInt(t.attempt||0);
-      if (na >= ca) map[sid] = t;
-    }
-  });
-  return map;
-}
-
-function gradesOf(grades, studentId){
-  const sid = String(studentId||'').trim();
-  return (grades||[]).filter(g => String(g.studentId||'').trim() === sid);
-}
-
-/* ===================== UI NAV ===================== */
-function goToDashboard(){ qs('#loginScreen')?.classList.add('hidden'); qs('#dashboard')?.classList.remove('hidden'); }
-function goToLogin(){ qs('#dashboard')?.classList.add('hidden'); qs('#loginScreen')?.classList.remove('hidden'); }
-function logout(){ clearSession(); CURRENT_USER=null; GLOBAL_DATA={ students:[], grades:[], englishTests:[], advisors:[] }; goToLogin(); }
-
-/** เปิด dashboard ตามบทบาท */
-function setActiveDashboard(role){
-  ['adminDashboard','studentDashboard','advisorDashboard'].forEach(id=>qs('#'+id)?.classList.add('hidden'));
-  if (role==='admin') qs('#adminDashboard')?.classList.remove('hidden');
-  else if (role==='advisor') qs('#advisorDashboard')?.classList.remove('hidden');
-  else qs('#studentDashboard')?.classList.remove('hidden');
-}
-
-/* ===================== AUTH ===================== */
-async function login(){
-  try{
-    const role = (qs('#userType')?.value || 'admin').toLowerCase();
-    let credentials = {};
-    if (role==='admin'){
-      const email = (qs('#adminEmail')?.value||'').trim();
-      const password = qs('#adminPassword')?.value||'';
-      if(!email||!password){ Swal.fire({icon:'warning',title:'กรอกอีเมลและรหัสผ่าน'}); return; }
-      credentials = { email, password };
-    } else if (role==='student'){
-      const citizenId = (qs('#studentCitizenId')?.value||'').replace(/\s|-/g,'');
-      if(!citizenId){ Swal.fire({icon:'warning',title:'กรอกเลขบัตรประชาชน'}); return; }
-      credentials = { citizenId };
-    } else if (role==='advisor'){
-      const email = (qs('#advisorEmail')?.value||'').trim();
-      const password = qs('#advisorPassword')?.value||'';
-      if(!email||!password){ Swal.fire({icon:'warning',title:'กรอกอีเมลและรหัสผ่าน'}); return; }
-      credentials = { email, password };
-    }
-
-    Swal.fire({title:'กำลังเข้าสู่ระบบ...', didOpen:()=>Swal.showLoading(), allowOutsideClick:false});
-    const auth = await callAPI('authenticate', { userType: role, credentials });
-    if(!auth?.success) throw new Error(auth?.message||'เข้าสู่ระบบไม่สำเร็จ');
-
-    const boot = await callAPI('bootstrap', {});
-    if(!boot?.success) throw new Error(boot?.message||'โหลดข้อมูลไม่สำเร็จ');
-
-    CURRENT_USER = auth.data;
-    GLOBAL_DATA  = boot.data || GLOBAL_DATA;
-    saveSession({ role: CURRENT_USER.role, id: CURRENT_USER.id, name: CURRENT_USER.name, email: CURRENT_USER.email||'' });
-
-    if (typeof window.updateRoleUI === 'function') window.updateRoleUI(CURRENT_USER.role, CURRENT_USER.name);
-
-    Swal.close();
-    goToDashboard();
-    setActiveDashboard(CURRENT_USER.role);
-
-    if (CURRENT_USER.role==='admin') showAdminDashboard();
-    else if (CURRENT_USER.role==='advisor') showAdvisorDashboard();
-    else showStudentDashboard();
-
-  }catch(err){
-    Swal.close();
-    Swal.fire({icon:'error',title:'เกิดข้อผิดพลาด',text:String(err?.message||err)});
-  }
-}
-
-/* ===================== ADMIN ===================== */
-function showAdminDashboard(){
-  showAdminSection('overview');
-  buildAdminOverview();
-  buildAdminStudents();
-  buildAdminIndividual();
-}
-
-function showAdminSection(name){
-  ['adminOverview','adminStudents','adminIndividual'].forEach(id=>qs('#'+id)?.classList.add('hidden'));
-  const map = { overview:'adminOverview', students:'adminStudents', individual:'adminIndividual' };
-  qs('#'+(map[name]||'adminOverview'))?.classList.remove('hidden');
-
-  // highlight nav buttons (ตามลำดับที่วางไว้ใน index.html)
-  const order = ['overview','students','individual'];
-  qsa('.admin-nav').forEach((btn,i)=>{
-    const active = (order[i]===name);
-    btn.classList.toggle('border-blue-500', active);
-    btn.classList.toggle('text-blue-600', active);
-    btn.classList.toggle('border-transparent', !active);
-    btn.classList.toggle('text-gray-600', !active);
-  });
-}
-
-function buildAdminOverview(){
-  const students = GLOBAL_DATA.students||[];
-  const grades   = GLOBAL_DATA.grades||[];
-
-  setText('totalStudents', students.length);
-
-  const engMap = latestEnglishMap(GLOBAL_DATA.englishTests||[]);
-  let pass=0, fail=0;
-  students.forEach(s=>{
-    const r = engMap[String(s.id)];
-    const st = String(r?.status||'').trim();
-    if (/^ผ่าน$/i.test(st) || /^pass(ed)?$/i.test(st)) pass++; else fail++;
-  });
-  setText('passedEnglish', pass);
-  setText('failedEnglish', fail);
-
-  const subj = new Set();
-  grades.forEach(g=>{
-    const key = (g.courseCode && String(g.courseCode).trim()) || (g.courseTitle && String(g.courseTitle).trim());
-    if(key) subj.add(key);
-  });
-  setText('totalSubjects', subj.size);
-
-  const perYear = [1,2,3,4].map(y => students.filter(s=>String(s.year||'')===String(y)).length);
-  if (studentsChartInst){ try{ studentsChartInst.destroy(); }catch{} }
-  if (qs('#studentsChart')){
-    studentsChartInst = new Chart(qs('#studentsChart'), {
-      type:'bar',
-      data:{ labels:['ปี 1','ปี 2','ปี 3','ปี 4'], datasets:[{ label:'จำนวนนักศึกษา', data:perYear }] },
-      options:{ responsive:true, maintainAspectRatio:false }
-    });
-  }
-
-  if (englishChartInst){ try{ englishChartInst.destroy(); }catch{} }
-  const c2 = document.getElementById('englishChart');
-  if (c2) {
-    englishChartInst = new Chart(c2, {
-      type: 'doughnut',
-      data: { labels: ['ผ่าน', 'ไม่ผ่าน'], datasets: [{ data: [pass, fail] }] },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        aspectRatio: 1,
-        plugins: { legend: { position: 'bottom' } }
+  byId('loginForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const role = userTypeEl.value;
+    try{
+      let res;
+      if(role==='admin'){
+        res = await apiAuthenticate('admin', {
+          email: byId('adminEmail').value,
+          password: byId('adminPassword').value
+        });
+      }else if(role==='student'){
+        res = await apiAuthenticate('student', {
+          citizenId: byId('studentCitizenId').value
+        });
+      }else{
+        res = await apiAuthenticate('advisor', {
+          email: byId('advisorEmail').value,
+          password: byId('advisorPassword').value
+        });
       }
-    });
+      if(!res.success) return Swal.fire('ไม่สำเร็จ', res.message || 'เข้าสู่ระบบล้มเหลว', 'error');
+
+      appState.user = res.data;
+      byId('currentUserLabel').textContent = `${appState.user.name || ''} (${appState.user.role})`;
+
+      const boot = await apiBootstrap();
+      if(!boot.success) return Swal.fire('ผิดพลาด', boot.message || 'โหลดข้อมูลล้มเหลว', 'error');
+
+      appState.students = boot.data.students || [];
+      appState.grades = boot.data.grades || [];
+      appState.englishTests = boot.data.englishTests || [];
+      appState.advisors = boot.data.advisors || [];
+
+      // UI switch
+      byId('loginScreen').classList.add('hidden');
+      byId('dashboard').classList.remove('hidden');
+
+      if(appState.user.role==='admin'){
+        byId('adminDashboard').classList.remove('hidden');
+        buildAdminOverview();
+        buildAdminStudents();
+        buildAdminIndividual();
+        showAdminSection('overview');
+      }else if(appState.user.role==='student'){
+        byId('studentDashboard').classList.remove('hidden');
+        buildStudentView();
+      }else{
+        byId('advisorDashboard').classList.remove('hidden');
+        buildAdvisorView();
+      }
+    }catch(err){
+      console.error(err);
+      Swal.fire('ผิดพลาด', String(err), 'error');
+    }
+  });
+
+  byId('btnLogout').addEventListener('click', ()=>{
+    location.reload();
+  });
+}
+
+/***********************
+ * ADMIN: NAV & SECTIONS
+ ***********************/
+function showAdminSection(key){
+  appState.ui.adminSection = key;
+  qsa('.admin-section').forEach(el=>el.classList.add('hidden'));
+  qsa('.tab-btn').forEach(el=>el.classList.remove('is-active'));
+
+  if(key==='overview'){
+    byId('adminOverview').classList.remove('hidden');
+    qsa('.tab-btn')[0].classList.add('is-active');
+  }else if(key==='students'){
+    byId('adminStudents').classList.remove('hidden');
+    qsa('.tab-btn')[1].classList.add('is-active');
+  }else{
+    byId('adminIndividual').classList.remove('hidden');
+    qsa('.tab-btn')[2].classList.add('is-active');
   }
 }
 
+/***********************
+ * ADMIN: OVERVIEW
+ ***********************/
+function buildAdminOverview(){
+  // จำนวน
+  byId('overviewTotalStudents').textContent = appState.students.length;
+  byId('overviewTotalAdvisors').textContent = appState.advisors.length;
+
+  // จำนวนวิชาทั้งหมด (unique courseCode)
+  const allCourses = unique(appState.grades.map(g=>String(g.courseCode||'').trim()).filter(Boolean));
+  byId('overviewTotalCourses').textContent = allCourses.length;
+
+  // อังกฤษผ่านล่าสุด (นับจำนวนคนที่มีสถานะ "ผ่าน" ล่าสุด)
+  const byStu = groupBy(appState.englishTests, t=>t.studentId);
+  let passCount = 0;
+  Object.keys(byStu).forEach(id=>{
+    const latest = latestBy(byStu[id], t=>`${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`);
+    if(latest && String(latest.status).includes('ผ่าน')) passCount++;
+  });
+  byId('overviewEnglishLatestPass').textContent = passCount;
+
+  // กราฟกระจายเกรดรวม
+  renderGradeDistributionChart();
+}
+
+function groupBy(arr, keyFn){
+  const m = {};
+  arr.forEach(x=>{
+    const k = keyFn(x);
+    if(!m[k]) m[k] = [];
+    m[k].push(x);
+  });
+  return m;
+}
+
+function renderGradeDistributionChart(){
+  const ctx = byId('gradeDistributionChart').getContext('2d');
+  const counts = {};
+  appState.grades.forEach(g=>{
+    const gr = String(g.grade||'').toUpperCase().trim();
+    if(!gr) return;
+    counts[gr] = (counts[gr]||0)+1;
+  });
+  const labels = Object.keys(counts).sort();
+  const data = labels.map(l=>counts[l]||0);
+  if(window._gradeChart) window._gradeChart.destroy();
+  window._gradeChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'จำนวน', data }] },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+}
+
+/***********************
+ * ADMIN: STUDENTS TABLE
+ ***********************/
 function buildAdminStudents(){
-  const input = qs('#adminStudentSearch');
-  const sel   = qs('#adminStudentYearFilter');
-  const tbody = qs('#studentsTable');
+  const tbody = byId('adminStudentsTable');
+  const yearFilter = byId('adminStudentYearFilter');
+  const searchEl = byId('adminStudentSearch');
 
   function render(){
-    if(!tbody) return;
-    tbody.innerHTML='';
-    const kw = (input?.value||'').trim().toLowerCase();
-    const yf = (sel?.value||'').trim();
-    const list = (GLOBAL_DATA.students||[])
-      .filter(s=>!kw || String(s.name||'').toLowerCase().includes(kw))
-      .filter(s=>!yf || String(s.year||'')===yf)
-      .sort(by(s=>s.id));
-    list.forEach(s=>{
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td class="px-6 py-3 text-sm text-gray-700">${s.id||'-'}</td>
-        <td class="px-6 py-3 text-sm text-gray-700">${s.name||'-'}</td>
-        <td class="px-6 py-3 text-sm text-gray-700">${s.year||'-'}</td>
-        <td class="px-6 py-3 text-sm text-gray-700">${s.advisor||'-'}</td>
-        <td class="px-6 py-3"><button class="text-blue-600 hover:underline" onclick="openIndividual('${s.id||''}')">ดู</button></td>`;
-      tbody.appendChild(tr);
-    });
+    const yearSel = yearFilter.value;
+    const q = searchEl.value.trim();
+    const rows = appState.students
+      .filter(s=>!yearSel || String(s.year)===yearSel)
+      .filter(s=>{
+        if(!q) return true;
+        const id = String(s.id||'').includes(q);
+        const nm = String(s.name||'').includes(q);
+        return id || nm;
+      })
+      .sort(sortByStudentIdAsc);
+
+    tbody.innerHTML = rows.map(s=>`
+      <tr>
+        <td class="px-4 py-2">${s.id||'-'}</td>
+        <td class="px-4 py-2">${s.name||'-'}</td>
+        <td class="px-4 py-2">${s.year||'-'}</td>
+        <td class="px-4 py-2">${s.advisor||'-'}</td>
+        <td class="px-4 py-2 text-right">
+          <button class="text-blue-600 hover:underline" data-id="${s.id}" onclick="gotoAdminIndividual('${s.id}')">ดูรายบุคคล</button>
+        </td>
+      </tr>
+    `).join('');
   }
-  input?.addEventListener('input', render);
-  sel?.addEventListener('change', render);
+
+  yearFilter.onchange = render;
+  searchEl.oninput = render;
   render();
 }
 
+window.gotoAdminIndividual = function(id){
+  showAdminSection('individual');
+  const sel = byId('adminIndSelect');
+  if(sel){
+    sel.value = id;
+    sel.dispatchEvent(new Event('change'));
+  }
+};
+
+/***********************
+ * ADMIN: INDIVIDUAL
+ ***********************/
 function buildAdminIndividual(){
-  const search = qs('#adminIndSearch');
-  const sel    = qs('#adminIndSelect');
-  const yearSel= qs('#adminIndYear');
+  const sel = byId('adminIndSelect');
+  const search = byId('adminIndSearch');
+  const yearSel = byId('adminIndYear');
 
-  function fillOptions(){
-    if(!sel) return;
-    const kw = (search?.value||'').trim().toLowerCase();
-    const list = (GLOBAL_DATA.students||[])
-      .filter(s=>!kw || String(s.name||'').toLowerCase().includes(kw))
-      .sort(by(s=>s.name||''));
-    sel.innerHTML = `<option value="">-- เลือกนักศึกษา --</option>`;
-    list.forEach(s=>{
-      const opt = document.createElement('option');
-      opt.value = s.id; opt.textContent = `[${s.id}] ${s.name}`;
-      sel.appendChild(opt);
-    });
+  // Year options from grades sheets (ชื่อชีต=ปีการศึกษา)
+  const allYears = unique(appState.grades.map(g=>parseTerm(g.term).year).filter(Boolean)).sort();
+  yearSel.innerHTML = `<option value="">ทุกปีการศึกษา</option>` + allYears.map(y=>`<option value="${y}">${y}</option>`).join('');
+
+  // Fill dropdown students sorted by ID
+  function fillSelect(){
+    const q = search.value.trim();
+    const list = appState.students
+      .filter(s=>{
+        if(!q) return true;
+        const idHit = String(s.id||'').includes(q);
+        const nmHit = String(s.name||'').includes(q);
+        return idHit||nmHit;
+      })
+      .sort(sortByStudentIdAsc);
+
+    sel.innerHTML = `<option value="">-- เลือกนักศึกษา --</option>` + list.map(s=>`<option value="${s.id}">${s.id} - ${s.name}</option>`).join('');
   }
+  fillSelect();
 
-  function fillYearOptions(studentId){
-    if(!yearSel) return;
-    const g = gradesOf(GLOBAL_DATA.grades||[], studentId);
-    const years = Array.from(new Set(g.map(x=>academicYearOf(x.term)).filter(Boolean))).sort();
-    yearSel.innerHTML = `<option value="">ทุกปีการศึกษา</option>` + years.map(y=>`<option value="${y}">${y}</option>`).join('');
-  }
+  search.addEventListener('input', fillSelect);
 
-  function renderDetail(studentId){
-    const s = (GLOBAL_DATA.students||[]).find(x=>String(x.id)===String(studentId));
-    const allG = gradesOf(GLOBAL_DATA.grades||[], studentId);
-    const allE = (GLOBAL_DATA.englishTests||[]).filter(t=>String(t.studentId)===String(studentId));
+  sel.addEventListener('change', ()=>{
+    appState.ui.adminIndSelectedId = sel.value;
+    renderAdminIndividual();
+  });
+  yearSel.addEventListener('change', ()=>{
+    appState.ui.adminIndYear = yearSel.value;
+    renderAdminIndividual();
+  });
 
-    setText('detailStudentId', s?.id||'-');
-    setText('detailStudentName', s?.name||'-');
-    setText('detailStudentYear', s?.year||'-');
-    setText('detailStudentAdvisor', s?.advisor||'-');
+  // Buttons
+  byId('btnEditStudent').onclick = openEditStudentModal;
+  byId('btnAddGrade').onclick = ()=>openModal('modalAddGrade');
+  byId('btnAddEnglish').onclick = ()=>openModal('modalAddEnglish');
+  byId('btnManageGrades').onclick = openManageGradesModal;
 
-    fillYearOptions(studentId);
-
-    const etb = qs('#englishTestTable'); if(etb){ etb.innerHTML='';
-      allE.sort((a,b)=>(Date.parse(b.examDate||'')||0)-(Date.parse(a.examDate||'')||0))
-          .forEach(r=>{
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-              <td class="px-4 py-2 text-sm">${r.academicYear||''}</td>
-              <td class="px-4 py-2 text-sm">${r.attempt||''}</td>
-              <td class="px-4 py-2 text-sm">${r.score||''}</td>
-              <td class="px-4 py-2 text-sm">${r.status||''}</td>
-              <td class="px-4 py-2 text-sm">${r.examDate||''}</td>`;
-            etb.appendChild(tr);
-          });
-    }
-
-    function renderGradesByYear(){
-      const yf = yearSel?.value || '';
-      const gtb = qs('#gradesDetailTable'); if(!gtb) return;
-      gtb.innerHTML='';
-      const rows = (yf ? allG.filter(g=>academicYearOf(g.term)===yf) : allG).sort(by(g=>g.term||''));
-      let cr=0, pts=0;
-      const seenKey=new Set();
-      rows.forEach(g=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="px-4 py-2 text-sm">${g.term||''}</td>
-          <td class="px-4 py-2 text-sm">${g.courseCode||''}</td>
-          <td class="px-4 py-2 text-sm">${g.courseTitle||''}</td>
-          <td class="px-4 py-2 text-sm">${g.credits||''}</td>
-          <td class="px-4 py-2 text-sm">${g.grade||''}</td>`;
-        gtb.appendChild(tr);
-
-        const gp = gradePoint(g.grade);
-        const c  = Number(g.credits||0);
-        if (gp!=null && c){ cr += c; pts += gp*c; }
-        const key=(g.courseCode||g.courseTitle||'').toString().trim(); if(key) seenKey.add(key);
-      });
-      setText('adminIndYearGPA', cr? (pts/cr).toFixed(2) : '-');
-      const creditsYear = (yf ? uniqueCreditsSum(allG.filter(g=>academicYearOf(g.term)===yf)) : uniqueCreditsSum(allG));
-      setText('adminIndYearCredits', creditsYear||0);
-    }
-    renderGradesByYear();
-
-    if (yearSel) yearSel.addEventListener('change', () => renderGradesByYear());
-
-    // buttons
-    const btnEdit = qs('#btnEditStudent');
-    const btnAddG = qs('#btnAddGrade');
-    const btnAddE = qs('#btnAddEnglish');
-
-    btnEdit && (btnEdit.onclick = () => {
-      if(!s) return;
-      qs('#editStudentId').value      = s.id||'';
-      qs('#editStudentName').value    = s.name||'';
-      qs('#editStudentAdvisor').value = s.advisor||'';
-      qs('#editStudentYear').value    = s.year||'1';
-      openModal('modalEditStudent');
-    });
-    btnAddG && (btnAddG.onclick = () => {
-      if(!s) return;
-      qs('#gradeStudentId').value   = s.id||'';
-      qs('#gradeTerm').value        = '';
-      qs('#gradeCourseCode').value  = '';
-      qs('#gradeCourseTitle').value = '';
-      qs('#gradeCredits').value     = '';
-      qs('#gradeGrade').value       = '';
-      qs('#gradeRecordedAt').value  = '';
-      openModal('modalAddGrade');
-    });
-    btnAddE && (btnAddE.onclick = () => {
-      if(!s) return;
-      qs('#engStudentId').value     = s.id||'';
-      qs('#engAcademicYear').value  = '';
-      qs('#engAttempt').value       = '';
-      qs('#engScore').value         = '';
-      qs('#engStatus').value        = '';
-      qs('#engExamDate').value      = '';
-      openModal('modalAddEnglish');
-    });
-  }
-
-  search?.addEventListener('input', fillOptions);
-  sel?.addEventListener('change', ()=> renderDetail(sel.value));
-  fillOptions();
-
-  window.openIndividual = function(studentId){
-    showAdminSection('individual');
-    fillOptions();
-    if (sel){
-      sel.value = studentId||'';
-      sel.dispatchEvent(new Event('change'));
-    }
-  };
+  // initial render
+  renderAdminIndividual();
 }
 
-/* ===== Admin Save ===== */
-async function saveEditStudent(){
+function renderAdminIndividual(){
+  const id = appState.ui.adminIndSelectedId;
+  const yearFilter = appState.ui.adminIndYear;
+  const std = appState.students.find(s=>cleanId(s.id)===cleanId(id));
+
+  // Profile fields
+  byId('detailStudentId').textContent = std ? (std.id||'-') : '-';
+  byId('detailStudentName').textContent = std ? (std.name||'-') : '-';
+  byId('detailStudentYear').textContent = std ? (std.year||'-') : '-';
+  byId('detailStudentAdvisor').textContent = std ? (std.advisor||'-') : '-';
+
+  // Grades section
+  const grades = appState.grades
+    .filter(g=>cleanId(g.studentId)===cleanId(id))
+    .sort((a,b)=> termSortKey(a.term).localeCompare(termSortKey(b.term)));
+
+  const filtered = (!yearFilter)
+    ? grades
+    : grades.filter(g=>parseTerm(g.term).year===yearFilter);
+
+  const { gpa, credits } = computeGPA(filtered);
+  byId('adminIndYearGPA').textContent = filtered.length ? gpa.toFixed(2) : '-';
+  byId('adminIndYearCredits').textContent = filtered.length ? credits : '-';
+
+  // GPAX over all
+  const overall = computeGPA(grades);
+  byId('adminIndGPAX').textContent = grades.length ? overall.gpa.toFixed(2) : '-';
+
+  // Render grades table
+  const tbody = byId('adminIndGradesTable');
+  tbody.innerHTML = filtered.map(g=>`
+    <tr>
+      <td class="px-4 py-2">${g.term||'-'}</td>
+      <td class="px-4 py-2">${g.courseCode||'-'}</td>
+      <td class="px-4 py-2">${g.courseTitle||'-'}</td>
+      <td class="px-4 py-2">${g.credits||'-'}</td>
+      <td class="px-4 py-2">${g.grade||'-'}</td>
+    </tr>
+  `).join('');
+
+  // English tests
+  const et = appState.englishTests
+    .filter(t=>cleanId(t.studentId)===cleanId(id))
+    .sort((a,b)=>{
+      const ka = `${a.academicYear}-${String(a.attempt).padStart(3,'0')}-${a.examDate||''}`;
+      const kb = `${b.academicYear}-${String(b.attempt).padStart(3,'0')}-${b.examDate||''}`;
+      return ka.localeCompare(kb);
+    });
+  const etTbody = byId('adminIndEnglishTable');
+  etTbody.innerHTML = et.map(t=>`
+    <tr>
+      <td class="px-4 py-2">${t.academicYear||'-'}</td>
+      <td class="px-4 py-2">${t.attempt||'-'}</td>
+      <td class="px-4 py-2">${t.score||'-'}</td>
+      <td class="px-4 py-2">${t.status||'-'}</td>
+      <td class="px-4 py-2">${t.examDate ? (String(t.examDate).substring(0,10)) : '-'}</td>
+    </tr>
+  `).join('');
+}
+
+/***********************
+ * ADMIN: EDIT STUDENT
+ ***********************/
+function openEditStudentModal(){
+  const id = appState.ui.adminIndSelectedId;
+  if(!id) return Swal.fire('แจ้งเตือน','กรุณาเลือกนักศึกษา','info');
+  const s = appState.students.find(x=>cleanId(x.id)===cleanId(id));
+  if(!s) return Swal.fire('ผิดพลาด','ไม่พบนักศึกษา','error');
+
+  byId('editStudentId').value = s.id||'';
+  byId('editStudentNewId').value = '';
+  byId('editStudentName').value = s.name||'';
+  byId('editStudentAdvisor').value = s.advisor||'';
+  byId('editStudentYear').value = s.year||'';
+
+  openModal('modalEditStudent');
+}
+
+window.saveEditStudent = async function(){
+  const id = byId('editStudentId').value;
+  const payload = {
+    id,
+    newId: cleanId(byId('editStudentNewId').value) || undefined,
+    name: byId('editStudentName').value,
+    advisor: byId('editStudentAdvisor').value,
+    year: byId('editStudentYear').value
+  };
   try{
-    const id = qs('#editStudentId').value;
-    const name = qs('#editStudentName').value;
-    const advisor = qs('#editStudentAdvisor').value;
-    const year = qs('#editStudentYear').value;
+    const res = await apiUpdateStudent(payload);
+    if(!res.success) return Swal.fire('ไม่สำเร็จ', res.message || 'บันทึกล้มเหลว', 'error');
 
-    Swal.fire({title:'กำลังบันทึก...', didOpen:()=>Swal.showLoading(), allowOutsideClick:false});
-    const res = await callAPI('updateStudent', { id, name, advisor, year });
-    if(!res?.success) throw new Error(res?.message||'บันทึกไม่สำเร็จ');
+    // อัปเดต state: ถ้าเปลี่ยนรหัส
+    const s = appState.students.find(x=>cleanId(x.id)===cleanId(id));
+    const newId = payload.newId && payload.newId!==id ? payload.newId : id;
+    if(s){
+      s.id = newId;
+      s.name = payload.name;
+      s.advisor = payload.advisor;
+      s.year = payload.year;
+    }
+    // ไล่แก้ใน grades / englishTests ตามที่ backend ก็แก้แล้ว
+    appState.grades.forEach(g=>{ if(cleanId(g.studentId)===cleanId(id)) g.studentId = newId; });
+    appState.englishTests.forEach(t=>{ if(cleanId(t.studentId)===cleanId(id)) t.studentId = newId; });
 
-    const s = (GLOBAL_DATA.students||[]).find(x=>String(x.id)===String(id));
-    if(s){ s.name=name; s.advisor=advisor; s.year=year; }
+    closeModal('modalEditStudent');
+    Swal.fire('สำเร็จ','บันทึกข้อมูลเรียบร้อย','success');
 
-    Swal.close(); closeModal('modalEditStudent');
-    Swal.fire({icon:'success',title:'บันทึกแล้ว'});
+    // รีเฟรช dropdown และหน้าจอ
     buildAdminStudents();
-    const sel = qs('#adminIndSelect'); if(sel?.value===id) sel.dispatchEvent(new Event('change'));
-    buildAdminOverview();
+    buildAdminIndividual();
+    byId('adminIndSelect').value = newId;
+    byId('adminIndSelect').dispatchEvent(new Event('change'));
   }catch(err){
-    Swal.close(); Swal.fire({icon:'error',title:'ผิดพลาด',text:String(err?.message||err)});
+    console.error(err);
+    Swal.fire('ผิดพลาด', String(err), 'error');
   }
-}
+};
 
-async function saveAddGrade(){
-  try{
-    const studentId = qs('#gradeStudentId').value;
-    const term = qs('#gradeTerm').value;
-    const courseCode = qs('#gradeCourseCode').value;
-    const courseTitle = qs('#gradeCourseTitle').value;
-    const credits = Number(qs('#gradeCredits').value||0);
-    const grade = qs('#gradeGrade').value;
-    const recordedAt = qs('#gradeRecordedAt').value || '';
+/***********************
+ * ADMIN: ADD GRADE / ENGLISH
+ ***********************/
+window.submitAddGrade = async function(){
+  const id = appState.ui.adminIndSelectedId;
+  if(!id) return Swal.fire('แจ้งเตือน','กรุณาเลือกนักศึกษา','info');
+  const std = appState.students.find(s=>cleanId(s.id)===cleanId(id));
+  if(!std) return Swal.fire('ผิดพลาด','ไม่พบนักศึกษา','error');
 
-    if(!studentId || !term || !courseTitle){ Swal.fire({icon:'warning',title:'กรอกข้อมูลให้ครบ'}); return; }
-
-    Swal.fire({title:'กำลังบันทึก...', didOpen:()=>Swal.showLoading(), allowOutsideClick:false});
-    const res = await callAPI('addGrade', { studentId, term, courseCode, courseTitle, credits, grade, recordedAt });
-    if(!res?.success) throw new Error(res?.message||'บันทึกไม่สำเร็จ');
-
-    (GLOBAL_DATA.grades||[]).push({ studentId, term, courseCode, courseTitle, credits, grade, recordedAt });
-
-    Swal.close(); closeModal('modalAddGrade');
-    Swal.fire({icon:'success',title:'เพิ่มเกรดแล้ว'});
-    const sel = qs('#adminIndSelect'); if(sel?.value===studentId) sel.dispatchEvent(new Event('change'));
-    buildAdminOverview();
-  }catch(err){
-    Swal.close(); Swal.fire({icon:'error',title:'ผิดพลาด',text:String(err?.message||err)});
-  }
-}
-
-async function saveAddEnglish(){
-  try{
-    const studentId    = qs('#engStudentId').value;
-    const academicYear = qs('#engAcademicYear').value;
-    const attempt      = qs('#engAttempt').value;
-    const score        = qs('#engScore').value;
-    const status       = qs('#engStatus').value;
-    const examDate     = qs('#engExamDate').value || '';
-
-    if(!studentId || !academicYear || !attempt || !score || !status){
-      Swal.fire({icon:'warning',title:'กรอกข้อมูลให้ครบ'}); return;
-    }
-
-    Swal.fire({title:'กำลังบันทึก...', didOpen:()=>Swal.showLoading(), allowOutsideClick:false});
-    const res = await callAPI('addEnglishTest', { studentId, academicYear, attempt, score, status, examDate });
-    if(!res?.success) throw new Error(res?.message||'บันทึกไม่สำเร็จ');
-
-    (GLOBAL_DATA.englishTests||[]).push({ studentId, academicYear, attempt, score, status, examDate });
-
-    Swal.close(); closeModal('modalAddEnglish');
-    Swal.fire({icon:'success',title:'เพิ่มผลสอบแล้ว'});
-    const sel = qs('#adminIndSelect'); if(sel?.value===studentId) sel.dispatchEvent(new Event('change'));
-    buildAdminOverview();
-  }catch(err){
-    Swal.close(); Swal.fire({icon:'error',title:'ผิดพลาด',text:String(err?.message||err)});
-  }
-}
-
-/* ===================== STUDENT ===================== */
-function showStudentDashboard(){
-  const me = CURRENT_USER || {};
-  const myGrades = gradesOf(GLOBAL_DATA.grades||[], me.id);
-  const myEng    = (GLOBAL_DATA.englishTests||[]).filter(t=>String(t.studentId)===String(me.id));
-
-  // GPAX & credits
-  setText('studentGPAX', (computeGPAX(myGrades)||0).toFixed(2));
-  setText('studentCredits', uniqueCreditsSum(myGrades)||0);
-
-  // English latest
-  const latest = latestEnglishMap(myEng||{});
-  const meLatest = latest[String(me.id)];
-  setText('studentEnglishStatus', meLatest ? `${meLatest.status||'-'} (${meLatest.score||'-'})` : '-');
-
-  // year dropdown (only years)
-  const aySel = qs('#studentAcademicYear');
-  if(aySel){
-    const years = Array.from(new Set((myGrades||[]).map(g=>academicYearOf(g.term)).filter(Boolean))).sort();
-    aySel.innerHTML = `<option value="">ทุกปีการศึกษา</option>` + years.map(y=>`<option value="${y}">${y}</option>`).join('');
-  }
-
-  const table = qs('#studentSemesterTable');
-  let currentSem = '1';
-
-  function updateStudentSemester(sem){
-    if(!table) return;
-    const yf = aySel?.value || '';
-    const rows = (myGrades||[])
-      .filter(g=>String(semesterOf(g.term))===String(sem))
-      .filter(g=>!yf || academicYearOf(g.term)===yf)
-      .sort(by(g=>g.courseCode||g.courseTitle||''));
-
-    table.innerHTML='';
-    let cr=0, pts=0;
-    rows.forEach(g=>{
-      const tr=document.createElement('tr');
-      tr.innerHTML = `
-        <td class="px-4 py-2 text-sm">${g.courseCode||''}</td>
-        <td class="px-4 py-2 text-sm">${g.courseTitle||''}</td>
-        <td class="px-4 py-2 text-sm">${g.credits||''}</td>
-        <td class="px-4 py-2 text-sm">${g.grade||''}</td>`;
-      table.appendChild(tr);
-
-      const gp=gradePoint(g.grade); const c=Number(g.credits||0);
-      if(gp!=null && c){ cr+=c; pts+=gp*c; }
-    });
-    const tr=document.createElement('tr');
-    tr.innerHTML = `<td class="px-4 py-2 text-sm font-semibold" colspan="2">สรุป GPA ภาคเรียน</td>
-                    <td class="px-4 py-2 text-sm font-semibold" colspan="2">${cr? (pts/cr).toFixed(2) : '-'}</td>`;
-    table.appendChild(tr);
-  }
-
-  window.showSemester = function(sem){
-    currentSem = String(sem||'1');
-    qsa('.semester-tab').forEach((btn,idx)=>{
-      const active = (idx===({ '1':0,'2':1,'3':2 }[currentSem]||0));
-      btn.classList.toggle('border-blue-500', active);
-      btn.classList.toggle('text-blue-600', active);
-      btn.classList.toggle('border-transparent', !active);
-      btn.classList.toggle('text-gray-700', !active);
-    });
-    updateStudentSemester(currentSem);
+  const payload = {
+    studentId: id,
+    term: byId('addGradeTerm').value,
+    courseCode: byId('addGradeCourseCode').value,
+    courseTitle: byId('addGradeCourseTitle').value,
+    credits: toNumber(byId('addGradeCredits').value),
+    grade: byId('addGradeGrade').value,
+    yearOfStudy: std.year
   };
-
-  aySel?.addEventListener('change', ()=> updateStudentSemester(currentSem));
-  window.showSemester('1');
-}
-
-/* ===================== ADVISOR ===================== */
-function showAdvisorDashboard(){
-  const meEmail = (CURRENT_USER?.email||'').toLowerCase().trim();
-  const advisees = (GLOBAL_DATA.students||[]).filter(s=>{
-    const adv = String(s.advisor||'').toLowerCase().trim();
-    return adv && (adv===meEmail || adv.includes(meEmail) || adv.includes(String(CURRENT_USER?.name||'').toLowerCase()));
-  });
-
-  setText('advTotal', advisees.length);
-  setText('advY1', advisees.filter(s=>String(s.year)==='1').length);
-  setText('advY2', advisees.filter(s=>String(s.year)==='2').length);
-  setText('advY3', advisees.filter(s=>String(s.year)==='3').length);
-  setText('advY4', advisees.filter(s=>String(s.year)==='4').length);
-
-  const latest = latestEnglishMap((GLOBAL_DATA.englishTests||[]).filter(e=>advisees.some(s=>String(s.id)===String(e.studentId))));
-  let pass=0; Object.keys(latest).forEach(k=>{
-    const st = String(latest[k]?.status||'').trim();
-    if (/^ผ่าน$/i.test(st) || /^pass(ed)?$/i.test(st)) pass++;
-  });
-  setText('advPassAll', pass);
-
-  const aySel = qs('#advisorAcademicYear');
-  if(aySel){
-    const years = Array.from(new Set((GLOBAL_DATA.grades||[])
-      .filter(g=>advisees.some(s=>String(s.id)===String(g.studentId)))
-      .map(g=>academicYearOf(g.term))
-      .filter(Boolean))).sort();
-    aySel.innerHTML = `<option value="">ทั้งหมด</option>` + years.map(y=>`<option value="${y}">${y}</option>`).join('');
-    aySel.onchange = renderAdvisorLists;
-  }
-
-  function renderAdvisorLists(){
-    const yearFilter = aySel?.value || '';
-
-    const list = qs('#advisorStudentsList'); if(list){ list.innerHTML='';
-      advisees.sort(by(s=>s.name||'')).forEach(s=>{
-        const div = document.createElement('div');
-        div.className = 'p-4 flex items-center justify-between';
-        div.innerHTML = `
-          <div>
-            <div class="font-medium">${s.name||''}</div>
-            <div class="text-xs text-gray-500">[${s.id||''}] ปี ${s.year||'-'}</div>
-          </div>
-          <button class="px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-            onclick="openAdvisorDetail('${s.id||''}')">ดูรายละเอียด</button>`;
-        list.appendChild(div);
-      });
-    }
-
-    const etb = qs('#advisorEnglishTable'); if(etb){ etb.innerHTML='';
-      advisees.forEach(s=>{
-        const le = latest[String(s.id)];
-        const tr=document.createElement('tr');
-        tr.innerHTML = `
-          <td class="px-4 py-2 text-sm">${s.id||''}</td>
-          <td class="px-4 py-2 text-sm">${s.name||''}</td>
-          <td class="px-4 py-2 text-sm">${s.year||''}</td>
-          <td class="px-4 py-2 text-sm">${le?.status||'-'}</td>
-          <td class="px-4 py-2 text-sm">${le?.score||'-'}</td>`;
-        etb.appendChild(tr);
-      });
-    }
-
-    window.openAdvisorDetail = function(studentId){
-      const s = advisees.find(x=>String(x.id)===String(studentId));
-      const g = (GLOBAL_DATA.grades||[]).filter(x=>String(x.studentId)===String(studentId));
-      const e = (GLOBAL_DATA.englishTests||[]).filter(x=>String(x.studentId)===String(studentId));
-
-      const yf = yearFilter;
-      const gY = yf ? g.filter(x=>academicYearOf(x.term)===yf) : g;
-      const eY = yf ? e.filter(x=>String(x.academicYear)===yf) : e;
-
-      function cleanTitle(x){
-        const t=(x?.courseTitle||'').trim();
-        const code=(x?.courseCode||'').trim();
-        if(!t) return '';
-        if (t===code) return '';
-        if (/^[A-Za-z]{2,}\d{2,}$/i.test(t)) return '';
-        return t;
-      }
-
-      const box = qs('#advisorDetailContent'); if(box){
-        box.innerHTML = `
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div><p class="text-xs text-gray-500">รหัส</p><p class="font-semibold">${s?.id||'-'}</p></div>
-            <div><p class="text-xs text-gray-500">ชื่อ</p><p class="font-semibold">${s?.name||'-'}</p></div>
-            <div><p class="text-xs text-gray-500">ชั้นปี</p><p class="font-semibold">${s?.year||'-'}</p></div>
-            <div><p class="text-xs text-gray-500">อาจารย์ที่ปรึกษา</p><p class="font-semibold">${s?.advisor||'-'}</p></div>
-          </div>
-
-          <div class="mt-4">
-            <h4 class="font-semibold mb-2">ผลการเรียน ${yf?`(ปี ${yf})`:''}</h4>
-            <div class="overflow-x-auto">
-              <table class="w-full">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-3 py-2 text-left text-xs text-gray-500 uppercase">ภาค</th>
-                    <th class="px-3 py-2 text-left text-xs text-gray-500 uppercase">รหัสวิชา</th>
-                    <th class="px-3 py-2 text-left text-xs text-gray-500 uppercase">รายวิชา</th>
-                    <th class="px-3 py-2 text-left text-xs text-gray-500 uppercase">หน่วยกิต</th>
-                    <th class="px-3 py-2 text-left text-xs text-gray-500 uppercase">เกรด</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${
-                    gY.sort(by(x=>x.term||'')).map(x=>`
-                      <tr>
-                        <td class="px-3 py-2 text-sm">${x.term||''}</td>
-                        <td class="px-3 py-2 text-sm">${x.courseCode||''}</td>
-                        <td class="px-3 py-2 text-sm">${cleanTitle(x)}</td>
-                        <td class="px-3 py-2 text-sm">${x.credits||''}</td>
-                        <td class="px-3 py-2 text-sm">${x.grade||''}</td>
-                      </tr>`).join('') || `<tr><td class="px-3 py-2 text-sm" colspan="5">-</td></tr>`
-                  }
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="mt-6">
-            <h4 class="font-semibold mb-2">ผลสอบภาษาอังกฤษ ${yf?`(ปี ${yf})`:''}</h4>
-            <div class="overflow-x-auto">
-              <table class="w-full">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-3 py-2 text-left text-xs text-gray-500 uppercase">ปีการศึกษา</th>
-                    <th class="px-3 py-2 text-left text-xs text-gray-500 uppercase">ครั้งที่สอบ</th>
-                    <th class="px-3 py-2 text-left text-xs text-gray-500 uppercase">คะแนน</th>
-                    <th class="px-3 py-2 text-left text-xs text-gray-500 uppercase">สถานะ</th>
-                    <th class="px-3 py-2 text-left text-xs text-gray-500 uppercase">วันที่สอบ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${
-                    eY.sort((a,b)=>(Date.parse(b.examDate||'')||0)-(Date.parse(a.examDate||'')||0))
-                      .map(x=>`
-                        <tr>
-                          <td class="px-3 py-2 text-sm">${x.academicYear||''}</td>
-                          <td class="px-3 py-2 text-sm">${x.attempt||''}</td>
-                          <td class="px-3 py-2 text-sm">${x.score||''}</td>
-                          <td class="px-3 py-2 text-sm">${x.status||''}</td>
-                          <td class="px-3 py-2 text-sm">${x.examDate||''}</td>
-                        </tr>`).join('') || `<tr><td class="px-3 py-2 text-sm" colspan="5">-</td></tr>`
-                  }
-                </tbody>
-              </table>
-            </div>
-          </div>
-        `;
-      }
-      openModal('advisorDetailModal');
-    };
-  }
-
-  renderAdvisorLists();
-}
-
-/* ===================== CHANGE PASSWORD (SweetAlert) ===================== */
-async function openChangePasswordModal(){
-  const { value: vals } = await Swal.fire({
-    title: 'เปลี่ยนรหัสผ่าน',
-    html: '<input id="swal-old" class="swal2-input" placeholder="รหัสผ่านเดิม" type="password">' +
-          '<input id="swal-new" class="swal2-input" placeholder="รหัสผ่านใหม่" type="password">',
-    focusConfirm: false,
-    preConfirm: () => [ document.getElementById('swal-old').value, document.getElementById('swal-new').value ],
-    confirmButtonText: 'บันทึก',
-    showCancelButton: true,
-    cancelButtonText: 'ยกเลิก'
-  });
-  if(!vals) return;
-  const [oldPass, newPass] = vals;
-  if(!oldPass || !newPass){ Swal.fire({icon:'warning',title:'กรอกข้อมูลให้ครบ'}); return; }
-
   try{
-    Swal.fire({title:'กำลังบันทึก...', didOpen:()=>Swal.showLoading(), allowOutsideClick:false});
-    const role = CURRENT_USER?.role || 'admin';
-    const res = await callAPI('changePassword', { role, oldPassword: oldPass, newPassword: newPass, email: CURRENT_USER?.email||'' });
-    if(!res?.success) throw new Error(res?.message||'เปลี่ยนรหัสผ่านไม่สำเร็จ');
-    Swal.close(); Swal.fire({icon:'success',title:'เปลี่ยนรหัสผ่านแล้ว'});
+    const res = await apiAddGrade(payload);
+    if(!res.success) return Swal.fire('ไม่สำเร็จ', res.message || 'บันทึกล้มเหลว', 'error');
+
+    // เติมเข้าหน่วยความจำ (ให้เห็นผลทันที)
+    appState.grades.push({
+      studentId: payload.studentId,
+      term: payload.term,
+      courseCode: payload.courseCode,
+      courseTitle: payload.courseTitle,
+      credits: payload.credits,
+      grade: payload.grade,
+      recordedAt: new Date().toISOString()
+    });
+
+    closeModal('modalAddGrade');
+    Swal.fire('สำเร็จ','เพิ่มผลการเรียนแล้ว','success');
+    renderAdminIndividual();
   }catch(err){
-    Swal.close(); Swal.fire({icon:'error',title:'ผิดพลาด',text:String(err?.message||err)});
+    console.error(err);
+    Swal.fire('ผิดพลาด', String(err), 'error');
   }
+};
+
+window.submitAddEnglish = async function(){
+  const id = appState.ui.adminIndSelectedId;
+  if(!id) return Swal.fire('แจ้งเตือน','กรุณาเลือกนักศึกษา','info');
+  const std = appState.students.find(s=>cleanId(s.id)===cleanId(id));
+  if(!std) return Swal.fire('ผิดพลาด','ไม่พบนักศึกษา','error');
+
+  const payload = {
+    studentId: id,
+    academicYear: byId('addEngAcademicYear').value,
+    attempt: byId('addEngAttempt').value,
+    score: byId('addEngScore').value,
+    status: byId('addEngStatus').value,
+    examDate: byId('addEngDate').value || undefined,
+    yearOfStudy: std.year
+  };
+  try{
+    const res = await apiAddEnglish(payload);
+    if(!res.success) return Swal.fire('ไม่สำเร็จ', res.message || 'บันทึกล้มเหลว', 'error');
+
+    appState.englishTests.push({
+      studentId: payload.studentId,
+      academicYear: payload.academicYear,
+      attempt: payload.attempt,
+      score: payload.score,
+      status: payload.status,
+      examDate: payload.examDate || new Date().toISOString()
+    });
+
+    closeModal('modalAddEnglish');
+    Swal.fire('สำเร็จ','เพิ่มผลสอบอังกฤษแล้ว','success');
+    renderAdminIndividual();
+  }catch(err){
+    console.error(err);
+    Swal.fire('ผิดพลาด', String(err), 'error');
+  }
+};
+
+/***********************
+ * ADMIN: MANAGE GRADES (READ-ONLY UI)
+ ***********************/
+function openManageGradesModal(){
+  const id = appState.ui.adminIndSelectedId;
+  if(!id) return Swal.fire('แจ้งเตือน','กรุณาเลือกนักศึกษา','info');
+
+  const rows = appState.grades
+    .filter(g=>cleanId(g.studentId)===cleanId(id))
+    .sort((a,b)=> termSortKey(a.term).localeCompare(termSortKey(b.term)));
+
+  const tbody = byId('manageGradesTable');
+  tbody.innerHTML = rows.map((g,idx)=>`
+    <tr>
+      <td class="px-3 py-2">${g.term||'-'}</td>
+      <td class="px-3 py-2">${g.courseCode||'-'}</td>
+      <td class="px-3 py-2">${g.courseTitle||'-'}</td>
+      <td class="px-3 py-2">${g.credits||'-'}</td>
+      <td class="px-3 py-2">${g.grade||'-'}</td>
+      <td class="px-3 py-2 text-right">
+        <button class="px-2 py-1 text-sm rounded border text-gray-500 cursor-not-allowed" title="ยังไม่เปิดใช้งาน">แก้ไข</button>
+      </td>
+    </tr>
+  `).join('');
+
+  openModal('modalManageGrades');
 }
 
-/* ===================== INIT ===================== */
-document.addEventListener('DOMContentLoaded', async () => {
-  const sess = loadSession();
-  if(!sess) return;
-  try{
-    const boot = await callAPI('bootstrap', {});
-    CURRENT_USER = { role:sess.role, id:sess.id, name:sess.name, email:sess.email };
-    GLOBAL_DATA  = boot?.data || GLOBAL_DATA;
-    if (typeof window.updateRoleUI === 'function') window.updateRoleUI(CURRENT_USER.role, CURRENT_USER.name);
-    goToDashboard(); setActiveDashboard(CURRENT_USER.role);
-    if (CURRENT_USER.role==='admin') showAdminDashboard();
-    else if (CURRENT_USER.role==='advisor') showAdvisorDashboard();
-    else showStudentDashboard();
-  }catch{
-    clearSession();
+/***********************
+ * STUDENT VIEW
+ ***********************/
+function buildStudentView(){
+  const meId = cleanId(appState.user.id);
+  const myGrades = appState.grades.filter(g=>cleanId(g.studentId)===meId);
+  const myEnglish = appState.englishTests.filter(t=>cleanId(t.studentId)===meId);
+
+  // GPAX
+  const overall = computeGPA(myGrades);
+  byId('studentGPAX').textContent = myGrades.length ? overall.gpa.toFixed(2) : '-';
+
+  // Credits (สะสมเฉพาะที่นับเกรด)
+  byId('studentCredits').textContent = overall.credits || 0;
+
+  // ผลอังกฤษล่าสุด
+  const latest = latestBy(myEnglish, t=>`${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`);
+  byId('studentEnglishStatus').textContent = latest ? `${latest.status} (${latest.score})` : '-';
+
+  // ปีการศึกษา options
+  const yearSel = byId('studentAcademicYear');
+  const years = unique(myGrades.map(g=>parseTerm(g.term).year).filter(Boolean)).sort();
+  yearSel.innerHTML = `<option value="">ทุกปีการศึกษา</option>` + years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  yearSel.onchange = renderStudentGrades;
+
+  // semester tabs
+  qsa('.semester-tab').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      qsa('.semester-tab').forEach(b=>b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      appState.ui.semesterTab = btn.textContent.includes('1') ? '1' : (btn.textContent.includes('2') ? '2' : '3');
+      renderStudentGrades();
+    });
+  });
+
+  // render tables
+  renderStudentGrades();
+
+  // english all years table
+  const tbody = byId('studentEnglishTable');
+  const sorted = myEnglish.sort((a,b)=>{
+    const ka = `${a.academicYear}-${String(a.attempt).padStart(3,'0')}-${a.examDate||''}`;
+    const kb = `${b.academicYear}-${String(b.attempt).padStart(3,'0')}-${b.examDate||''}`;
+    return ka.localeCompare(kb);
+  });
+  tbody.innerHTML = sorted.map(t=>`
+    <tr>
+      <td class="px-4 py-2">${t.academicYear||'-'}</td>
+      <td class="px-4 py-2">${t.attempt||'-'}</td>
+      <td class="px-4 py-2">${t.score||'-'}</td>
+      <td class="px-4 py-2">${t.status||'-'}</td>
+      <td class="px-4 py-2">${t.examDate ? String(t.examDate).substring(0,10) : '-'}</td>
+    </tr>
+  `).join('');
+}
+
+function renderStudentGrades(){
+  const meId = cleanId(appState.user.id);
+  const y = byId('studentAcademicYear').value;
+  const sem = appState.ui.semesterTab;
+
+  const rows = appState.grades
+    .filter(g=>cleanId(g.studentId)===meId)
+    .filter(g=>{
+      if(!y) return true;
+      return parseTerm(g.term).year === y;
+    })
+    .filter(g=>parseTerm(g.term).sem === sem)
+    .sort((a,b)=> termSortKey(a.term).localeCompare(termSortKey(b.term)));
+
+  byId('studentGradesTable').innerHTML = rows.map(g=>`
+    <tr>
+      <td class="px-4 py-2">${g.term||'-'}</td>
+      <td class="px-4 py-2">${g.courseCode||'-'}</td>
+      <td class="px-4 py-2">${g.courseTitle||'-'}</td>
+      <td class="px-4 py-2">${g.credits||'-'}</td>
+      <td class="px-4 py-2">${g.grade||'-'}</td>
+    </tr>
+  `).join('');
+}
+
+/***********************
+ * ADVISOR VIEW
+ ***********************/
+function buildAdvisorView(){
+  // กรองนักศึกษาที่อยู่ใต้ที่ปรึกษา (ตามชื่อที่ปรึกษา)
+  const myName = appState.user.name || '';
+  const list = appState.students.filter(s=> (String(s.advisor||'').trim() === String(myName).trim()) );
+  renderAdvisorFilters(list);
+  renderAdvisorStudents(list);
+  renderAdvisorEnglishLatest(list);
+}
+
+function renderAdvisorFilters(myStudents){
+  const yearFilter = byId('advisorYearFilter');
+  const searchEl = byId('advisorSearch');
+  const aySel = byId('advisorAcademicYear');
+
+  const years = unique(appState.grades.map(g=>parseTerm(g.term).year).filter(Boolean)).sort();
+  aySel.innerHTML = `<option value="">ทั้งหมด</option>` + years.map(y=>`<option value="${y}">${y}</option>`).join('');
+
+  yearFilter.onchange = ()=>renderAdvisorStudents(myStudents);
+  searchEl.oninput = ()=>renderAdvisorStudents(myStudents);
+  aySel.onchange = ()=>renderAdvisorStudents(myStudents);
+}
+
+function renderAdvisorStudents(myStudents){
+  const wrap = byId('advisorStudentsList');
+  const yearFilter = byId('advisorYearFilter').value;
+  const q = byId('advisorSearch').value.trim();
+  const ay = byId('advisorAcademicYear').value;
+
+  const rows = myStudents
+    .filter(s=>!yearFilter || String(s.year)===yearFilter)
+    .filter(s=>{
+      if(!q) return true;
+      return String(s.id||'').includes(q) || String(s.name||'').includes(q);
+    })
+    .sort(sortByStudentIdAsc);
+
+  wrap.innerHTML = rows.map(s=>{
+    const stuGrades = appState.grades.filter(g=>cleanId(g.studentId)===cleanId(s.id));
+    const filteredByAy = ay ? stuGrades.filter(g=>parseTerm(g.term).year===ay) : stuGrades;
+    const gpax = computeGPA(stuGrades).gpa || 0;
+    const gpaThisYear = computeGPA(filteredByAy).gpa || 0;
+
+    // อังกฤษ: แสดงเฉพาะล่าสุดบนแถวหลัก
+    const myEn = appState.englishTests.filter(t=>cleanId(t.studentId)===cleanId(s.id));
+    const latest = latestBy(myEn, t=>`${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`);
+    const latestStr = latest ? `${latest.status} (${latest.score})` : '-';
+
+    const detailId = `adv-detail-${s.id}`;
+    const btnId = `adv-toggle-${s.id}`;
+
+    return `
+      <div class="py-3">
+        <div class="flex items-center justify-between">
+          <div class="font-medium">${s.id} - ${s.name} <span class="text-sm text-gray-500">ชั้นปี ${s.year} · ที่ปรึกษา: ${s.advisor||'-'}</span></div>
+          <div class="flex items-center gap-3">
+            <div class="text-sm"><span class="text-gray-500">อังกฤษล่าสุด:</span> <span class="font-semibold">${latestStr}</span></div>
+            <button id="${btnId}" class="px-3 py-1 rounded border hover:bg-gray-50" onclick="toggleAdvisorDetail('${detailId}','${btnId}')">ขยาย</button>
+          </div>
+        </div>
+        <div id="${detailId}" class="hidden mt-3 bg-gray-50 rounded-lg p-4">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+            <div class="bg-indigo-50 p-3 rounded">
+              <div class="text-xs text-gray-600">GPAX (ตลอดหลักสูตร)</div>
+              <div class="text-xl font-semibold text-indigo-800">${gpax ? gpax.toFixed(2): '-'}</div>
+            </div>
+            <div class="bg-blue-50 p-3 rounded">
+              <div class="text-xs text-gray-600">GPA (ตามตัวกรองปี)</div>
+              <div class="text-xl font-semibold text-blue-800">${gpaThisYear ? gpaThisYear.toFixed(2): '-'}</div>
+            </div>
+            <div class="bg-green-50 p-3 rounded">
+              <div class="text-xs text-gray-600">หน่วยกิตรวม</div>
+              <div class="text-xl font-semibold text-green-800">${computeGPA(stuGrades).credits || 0}</div>
+            </div>
+            <div class="bg-purple-50 p-3 rounded">
+              <div class="text-xs text-gray-600">อังกฤษล่าสุด</div>
+              <div class="text-lg font-semibold text-purple-800">${latestStr}</div>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto mb-3">
+            <table class="w-full">
+              <thead class="bg-white">
+                <tr>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">ปี/ภาค</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัสวิชา</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">รายวิชา</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วยกิต</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">เกรด</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                ${stuGrades
+                  .sort((a,b)=> termSortKey(a.term).localeCompare(termSortKey(b.term)))
+                  .map(g=>`
+                    <tr>
+                      <td class="px-3 py-2">${g.term||'-'}</td>
+                      <td class="px-3 py-2">${g.courseCode||'-'}</td>
+                      <td class="px-3 py-2">${g.courseTitle||'-'}</td>
+                      <td class="px-3 py-2">${g.credits||'-'}</td>
+                      <td class="px-3 py-2">${g.grade||'-'}</td>
+                    </tr>
+                  `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="font-semibold">ผลสอบภาษาอังกฤษ</h4>
+              <button class="px-2 py-1 text-sm rounded border hover:bg-white" onclick="toggleEnglishAll('${detailId}-en')">แสดง/ซ่อน รายการที่เหลือ</button>
+            </div>
+            <div>
+              <!-- แสดงรายการล่าสุดเสมอ -->
+              ${latest ? `
+                <div class="p-3 rounded bg-white border mb-2">
+                  <div class="text-sm text-gray-600 mb-1">ล่าสุด</div>
+                  <div class="font-medium">ปี ${latest.academicYear} ครั้งที่ ${latest.attempt} คะแนน ${latest.score} (${latest.status})</div>
+                </div>
+              `: '<div class="text-sm text-gray-500">ไม่มีข้อมูล</div>'}
+              <!-- รายการที่เหลือ -->
+              <div id="${detailId}-en" class="hidden">
+                ${(myEn
+                  .filter(t=>t!==latest)
+                  .sort((a,b)=>{
+                    const ka = `${a.academicYear}-${String(a.attempt).padStart(3,'0')}-${a.examDate||''}`;
+                    const kb = `${b.academicYear}-${String(b.attempt).padStart(3,'0')}-${b.examDate||''}`;
+                    return kb.localeCompare(ka);
+                  })
+                  .map(t=>`
+                    <div class="p-3 rounded bg-white border mb-2">
+                      <div class="font-medium">ปี ${t.academicYear} ครั้งที่ ${t.attempt} คะแนน ${t.score} (${t.status})</div>
+                      <div class="text-sm text-gray-500">${t.examDate? String(t.examDate).substring(0,10): '-'}</div>
+                    </div>
+                  `).join('')) || ''
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+window.toggleAdvisorDetail = function(detailId, btnId){
+  const box = byId(detailId);
+  const btn = byId(btnId);
+  const isHidden = box.classList.contains('hidden');
+  qsa('#advisorStudentsList > div > div + div').forEach(el=>el.classList.add('hidden')); // ปิดตัวอื่น
+  box.classList.toggle('hidden', !isHidden ? true : false);
+  if(isHidden){
+    box.classList.remove('hidden');
+    btn.textContent = 'ย่อ';
+  }else{
+    box.classList.add('hidden');
+    btn.textContent = 'ขยาย';
   }
+};
+
+window.toggleEnglishAll = function(id){
+  const el = byId(id);
+  el.classList.toggle('hidden');
+};
+
+function renderAdvisorEnglishLatest(myStudents){
+  const tbody = byId('advisorEnglishTable');
+  const rows = myStudents
+    .slice().sort(sortByStudentIdAsc)
+    .map(s=>{
+      const en = appState.englishTests.filter(t=>cleanId(t.studentId)===cleanId(s.id));
+      const latest = latestBy(en, t=>`${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`);
+      return {
+        id: s.id, name: s.name, year: s.year,
+        status: latest ? latest.status : '-',
+        score: latest ? latest.score : '-'
+      };
+    });
+  tbody.innerHTML = rows.map(r=>`
+    <tr>
+      <td class="px-4 py-2">${r.id}</td>
+      <td class="px-4 py-2">${r.name}</td>
+      <td class="px-4 py-2">${r.year}</td>
+      <td class="px-4 py-2">${r.status}</td>
+      <td class="px-4 py-2">${r.score}</td>
+    </tr>
+  `).join('');
+}
+
+/***********************
+ * MODALS
+ ***********************/
+function openModal(id){
+  byId('modalBackdrop').classList.remove('hidden');
+  byId(id).classList.remove('hidden');
+}
+function closeModal(id){
+  byId('modalBackdrop').classList.add('hidden');
+  byId(id).classList.add('hidden');
+}
+window.closeModal = closeModal;
+
+/***********************
+ * STARTUP
+ ***********************/
+window.addEventListener('DOMContentLoaded', ()=>{
+  initLogin();
 });
-
-/* ===================== MODAL helpers (index.html uses) ===================== */
-function openModal(id){ qs('#modalBackdrop')?.classList.remove('hidden'); qs('#'+id)?.classList.remove('hidden'); }
-function closeModal(id){ qs('#'+id)?.classList.add('hidden'); qs('#modalBackdrop')?.classList.add('hidden'); }
-
-/* ===================== EXPORT GLOBAL ===================== */
-window.login = login;
-window.logout = logout;
-window.showAdminSection = showAdminSection;
-window.saveEditStudent = saveEditStudent;
-window.saveAddGrade = saveAddGrade;
-window.saveAddEnglish = saveAddEnglish;
-window.openChangePasswordModal = openChangePasswordModal;
-window.setActiveDashboard = setActiveDashboard;
