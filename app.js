@@ -84,7 +84,11 @@ function latestBy(list, keyFn){ // คืนรายการที่ใหม
 }
 
 function unique(arr){ return Array.from(new Set(arr)); }
-
+function showLoading(on=true){
+  const el = document.getElementById('loadingOverlay');
+  if(!el) return;
+  if(on){ el.classList.remove('hidden'); } else { el.classList.add('hidden'); }
+}
 /***********************
  * JSON/JSONP CALLER
  ***********************/
@@ -136,61 +140,60 @@ function initLogin(){
   });
 
   byId('loginForm').addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const role = userTypeEl.value;
-    try{
-      let res;
-      if(role==='admin'){
-        res = await apiAuthenticate('admin', {
-          email: byId('adminEmail').value,
-          password: byId('adminPassword').value
-        });
-      }else if(role==='student'){
-        res = await apiAuthenticate('student', {
-          citizenId: byId('studentCitizenId').value
-        });
-      }else{
-        res = await apiAuthenticate('advisor', {
-          email: byId('advisorEmail').value,
-          password: byId('advisorPassword').value
-        });
-      }
-      if(!res.success) return Swal.fire('ไม่สำเร็จ', res.message || 'เข้าสู่ระบบล้มเหลว', 'error');
-
-      appState.user = res.data;
-      byId('currentUserLabel').textContent = `${appState.user.name || ''} (${appState.user.role})`;
-
-      const boot = await apiBootstrap();
-      if(!boot.success) return Swal.fire('ผิดพลาด', boot.message || 'โหลดข้อมูลล้มเหลว', 'error');
-
-      appState.students = boot.data.students || [];
-      appState.grades = boot.data.grades || [];
-      appState.englishTests = boot.data.englishTests || [];
-      appState.advisors = boot.data.advisors || [];
-
-      // UI switch
-      byId('loginScreen').classList.add('hidden');
-      byId('dashboard').classList.remove('hidden');
-
-      if(appState.user.role==='admin'){
-        byId('adminDashboard').classList.remove('hidden');
-        buildAdminOverview();
-        buildAdminStudents();
-        buildAdminIndividual();
-        showAdminSection('overview');
-      }else if(appState.user.role==='student'){
-        byId('studentDashboard').classList.remove('hidden');
-        buildStudentView();
-      }else{
-        byId('advisorDashboard').classList.remove('hidden');
-        buildAdvisorView();
-      }
-    }catch(err){
-      console.error(err);
-      Swal.fire('ผิดพลาด', String(err), 'error');
+  e.preventDefault();
+  const role = userTypeEl.value;
+  try{
+    let res;
+    if(role==='admin'){
+      res = await apiAuthenticate('admin', {
+        email: byId('adminEmail').value,
+        password: byId('adminPassword').value
+      });
+    }else if(role==='student'){
+      res = await apiAuthenticate('student', {
+        citizenId: byId('studentCitizenId').value
+      });
+    }else{
+      res = await apiAuthenticate('advisor', {
+        email: byId('advisorEmail').value,
+        password: byId('advisorPassword').value
+      });
     }
-  });
+    if(!res.success) return Swal.fire('ไม่สำเร็จ', res.message || 'เข้าสู่ระบบล้มเหลว', 'error');
 
+    appState.user = res.data;
+    byId('currentUserLabel').textContent = `${appState.user.name || ''} (${appState.user.role})`;
+
+    const boot = await apiBootstrap();
+    if(!boot.success) return Swal.fire('ผิดพลาด', boot.message || 'โหลดข้อมูลล้มเหลว', 'error');
+
+    appState.students = boot.data.students || [];
+    appState.grades = boot.data.grades || [];
+    appState.englishTests = boot.data.englishTests || [];
+    appState.advisors = boot.data.advisors || [];
+
+    // UI switch
+    byId('loginScreen').classList.add('hidden');
+    byId('dashboard').classList.remove('hidden');
+
+    if(appState.user.role==='admin'){
+      byId('adminDashboard').classList.remove('hidden');
+      buildAdminOverview();
+      buildAdminStudents();
+      buildAdminIndividual();
+      showAdminSection('overview');
+    }else if(appState.user.role==='student'){
+      byId('studentDashboard').classList.remove('hidden');
+      buildStudentView();
+    }else{
+      byId('advisorDashboard').classList.remove('hidden');
+      buildAdvisorView();
+    }
+  }catch(err){
+    console.error(err);
+    Swal.fire('ผิดพลาด', String(err), 'error');
+  }
+});
   byId('btnLogout').addEventListener('click', ()=>{
     location.reload();
   });
@@ -882,3 +885,4 @@ window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{
   initLogin();
 });
+
