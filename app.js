@@ -142,6 +142,15 @@ function initLogin(){
   byId('loginForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const role = userTypeEl.value;
+
+  // กันกดซ้ำ + แสดงโหลด
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.classList.add('opacity-60','cursor-not-allowed');
+  }
+  showLoading(true);
+
   try{
     let res;
     if(role==='admin'){
@@ -159,13 +168,23 @@ function initLogin(){
         password: byId('advisorPassword').value
       });
     }
-    if(!res.success) return Swal.fire('ไม่สำเร็จ', res.message || 'เข้าสู่ระบบล้มเหลว', 'error');
+
+    if(!res.success){
+      showLoading(false);
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove('opacity-60','cursor-not-allowed'); }
+      return Swal.fire('ไม่สำเร็จ', res.message || 'เข้าสู่ระบบล้มเหลว', 'error');
+    }
 
     appState.user = res.data;
     byId('currentUserLabel').textContent = `${appState.user.name || ''} (${appState.user.role})`;
 
+    // โหลดข้อมูลก้อนใหญ่
     const boot = await apiBootstrap();
-    if(!boot.success) return Swal.fire('ผิดพลาด', boot.message || 'โหลดข้อมูลล้มเหลว', 'error');
+    if(!boot.success){
+      showLoading(false);
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove('opacity-60','cursor-not-allowed'); }
+      return Swal.fire('ผิดพลาด', boot.message || 'โหลดข้อมูลล้มเหลว', 'error');
+    }
 
     appState.students = boot.data.students || [];
     appState.grades = boot.data.grades || [];
@@ -189,15 +208,19 @@ function initLogin(){
       byId('advisorDashboard').classList.remove('hidden');
       buildAdvisorView();
     }
+
+    showLoading(false);
   }catch(err){
     console.error(err);
+    showLoading(false);
     Swal.fire('ผิดพลาด', String(err), 'error');
+  }finally{
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.classList.remove('opacity-60','cursor-not-allowed');
+    }
   }
 });
-  byId('btnLogout').addEventListener('click', ()=>{
-    location.reload();
-  });
-}
 
 /***********************
  * ADMIN: NAV & SECTIONS
@@ -885,4 +908,5 @@ window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{
   initLogin();
 });
+
 
