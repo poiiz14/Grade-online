@@ -185,7 +185,7 @@ function showAdminSection(key){
  * ADMIN: OVERVIEW
  ***********************/
 function buildAdminOverview(){
-  byId('overviewTotalStudents').textContent = appState.students.length;
+  byId('overviewStudentTotal').textContent = appState.students.length;
   byId('overviewTotalAdvisors').textContent = appState.advisors.length;
   const allCourses = unique(appState.grades.map(g=>String(g.courseCode||'').trim()).filter(Boolean));
   byId('overviewTotalCourses').textContent = allCourses.length;
@@ -205,46 +205,50 @@ function buildAdminOverview(){
 function groupBy(arr, keyFn){ const m={}; arr.forEach(x=>{ const k=keyFn(x); (m[k]||(m[k]=[])).push(x); }); return m; }
 /* Bar: จำนวนนักศึกษาแต่ละชั้นปี */
 function renderStudentByYearBar(){
-  const ctx = byId('gradeDistributionChart').getContext('2d');
-  const years = ['1','2','3','4'];
-  const counts = { '1':0, '2':0, '3':0, '4':0 };
-  appState.students.forEach(s=>{ const y=String(s.year||''); if(counts[y]!=null) counts[y]++; });
-
-  const labels = years.map(y=>`ปี ${y}`);
-  const data   = years.map(y=>counts[y]);
-
-  if(window._studentYearBar) window._studentYearBar.destroy();
-  window._studentYearBar = new Chart(ctx, {
-    type: 'bar',
-    data: { labels, datasets: [{ label: 'จำนวนนักศึกษา', data }] },
-    options: { responsive: true, maintainAspectRatio: false }
+  const ctx = byId('gradeDistributionChart')?.getContext('2d');
+  if(!ctx) return;
+  const yearCounts = { '1':0, '2':0, '3':0, '4':0 };
+  (appState.students||[]).forEach(s=>{
+    const y = String(s.year||'').trim();
+    if (yearCounts[y]!=null) yearCounts[y]++;
+  });
+  const labels = ['ปี 1','ปี 2','ปี 3','ปี 4'];
+  const data   = ['1','2','3','4'].map(y=>yearCounts[y]||0);
+  if(window._yearBar) window._yearBar.destroy();
+  window._yearBar = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'จำนวน', data, backgroundColor:'rgba(37,99,235,.25)', borderColor:'rgba(37,99,235,.8)', borderWidth:1 }]},
+    options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true, ticks:{ precision:0 }}}}
   });
 }
 /* Pie: สรุปผลสอบอังกฤษ (ผ่าน/ไม่ผ่าน) – รวมทั้งระบบ */
 function renderEnglishPassPie(){
-  const el = byId('englishPassPie');
-  if(!el) return;
+  const el = byId('englishPassPie'); if(!el) return;
   const ctx = el.getContext('2d');
-
-  // เอารายการ “ล่าสุด” ของแต่ละคนมาตัดสินผ่าน/ไม่ผ่าน
-  const byStu = groupBy(appState.englishTests, t=>t.studentId);
+  // group ผลสอบตาม studentId แล้วเลือก “ล่าสุด” ต่อคน
+  const byStu = {};
+  (appState.englishTests||[]).forEach(t=>{
+    const k = String(t.studentId||'').trim();
+    if(!byStu[k]) byStu[k] = [];
+    byStu[k].push(t);
+  });
   let pass=0, fail=0;
   Object.keys(byStu).forEach(id=>{
     const latest = latestBy(byStu[id], t=>`${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`);
     if(!latest) return;
-    if(String(latest.status).includes('ผ่าน')) pass++; else fail++;
+    const st = String(latest.status||'').trim();
+    if (/^ผ่าน$/i.test(st) || /^pass(ed)?$/i.test(st)) pass++;
+    else fail++;
   });
-
-  if(window._englishPie) window._englishPie.destroy();
-  window._englishPie = new Chart(ctx, {
-    type: 'pie',
-    data: {
-      labels: ['ผ่าน','ไม่ผ่าน'],
-      datasets: [{ data: [pass, fail] }]
-    },
-    options: { responsive: true, maintainAspectRatio: false }
+  if(window._enPie) window._enPie.destroy();
+  window._enPie = new Chart(ctx, {
+    type:'pie',
+    data:{ labels:['ผ่าน','ไม่ผ่าน'], datasets:[{ data:[pass, fail] }] },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ tooltip:{ callbacks:{ label:(c)=>`${c.label}: ${c.parsed} คน (${((c.parsed/(pass+fail||1))*100).toFixed(1)}%)` }}}}
   });
 }
+
 /***********************
  * ADMIN: STUDENTS
  ***********************/
@@ -545,12 +549,27 @@ function buildStudentView(){
     </tr>
   `).join('');
 }
+/* ให้ปุ่มแท็บใน index.html เรียกได้เสมอ */
+window.showSemester = function(sem){
+  appState.ui = appState.ui || {};
+  appState.ui.semesterTab = String(sem||'1');
+
+  // ไฮไลท์แท็บเฉพาะใน studentDashboard
+  const tabs = qsa('#studentDashboard .semester-tab');
+  tabs.forEach(t=>t.classList.remove('is-active'));
+  const idx = appState.ui.semesterTab==='1' ? 0 : appState.ui.semesterTab==='2' ? 1 : 2;
+  if (tabs[idx]) tabs[idx].classList.add('is-active');
+
+  // ถ้ามีตารางของนักศึกษาอยู่แล้ว ให้ render ใหม่
+  if (typeof renderStudentGrades === 'function') renderStudentGrades();
+};
+
 function renderStudentGrades(){
   const meId = cleanId(appState.user.id);
-  const y = byId('studentAcademicYear').value;
-  const sem = appState.ui.semesterTab;
+  const y    = byId('studentAcademicYear')?.value || '';
+  const sem  = appState.ui?.semesterTab || '1';
 
-  const rows = appState.grades
+  const rows = (appState.grades||[])
     .filter(g=>cleanId(g.studentId)===meId)
     .filter(g=>!y || parseTerm(g.term).year === y)
     .filter(g=>parseTerm(g.term).sem === sem)
@@ -566,16 +585,6 @@ function renderStudentGrades(){
     </tr>
   `).join('');
 }
-/* ให้ปุ่มใน HTML เรียกได้โดยตรง */
-window.showSemester = function(sem){
-  appState.ui.semesterTab = String(sem||'1');
-  // toggle active เฉพาะภายใน studentDashboard
-  const tabs = qsa('#studentDashboard .semester-tab');
-  tabs.forEach(t=>t.classList.remove('is-active'));
-  const idx = appState.ui.semesterTab==='1'?0:appState.ui.semesterTab==='2'?1:2;
-  if(tabs[idx]) tabs[idx].classList.add('is-active');
-  renderStudentGrades();
-};
 /***********************
  * ADVISOR VIEW
  ***********************/
@@ -731,22 +740,21 @@ function renderAdvisorEnglishSummary(myStudents){
   const ctx = el.getContext('2d');
   const myIds = new Set(myStudents.map(s=>cleanId(s.id)));
 
-  const byStu = groupBy(appState.englishTests.filter(t=>myIds.has(cleanId(t.studentId))), t=>t.studentId);
+  const byStu = groupBy((appState.englishTests||[]).filter(t=>myIds.has(cleanId(t.studentId))), t=>t.studentId);
   let pass=0, fail=0;
   Object.keys(byStu).forEach(id=>{
     const latest = latestBy(byStu[id], t=>`${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`);
     if(!latest) return;
-    if(String(latest.status).includes('ผ่าน')) pass++; else fail++;
+    if(String(latest.status||'').includes('ผ่าน')) pass++; else fail++;
   });
 
   if(window._advisorPie) window._advisorPie.destroy();
   window._advisorPie = new Chart(ctx, {
-    type: 'pie',
-    data: { labels: ['ผ่าน','ไม่ผ่าน'], datasets: [{ data: [pass, fail] }] },
-    options: { responsive: true, maintainAspectRatio: false }
+    type:'pie',
+    data:{ labels:['ผ่าน','ไม่ผ่าน'], datasets:[{ data:[pass, fail] }] },
+    options:{ responsive:true, maintainAspectRatio:false }
   });
 }
-
 /***********************
  * MODALS & STARTUP
  ***********************/
