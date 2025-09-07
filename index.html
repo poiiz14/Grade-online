@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -111,9 +112,9 @@
 
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- OVERVIEW -->
-        <section id="adminOverview" class="bg-white rounded-xl p-6 card-shadow mb-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">ภาพรวม</h3>
-   
+        <section id="adminOverview" class="admin-section">
+          <h2 class="text-2xl font-bold text-gray-900 mb-6">ภาพรวม</h2>
+          
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
               <div class="flex items-center">
@@ -134,6 +135,7 @@
                 </div>
               </div>
             </div>
+
             <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
               <div class="flex items-center">
                 <div class="bg-purple-100 text-purple-600 w-10 h-10 rounded-full inline-flex items-center justify-center mr-3"><i class="fas fa-book"></i></div>
@@ -143,6 +145,7 @@
                 </div>
               </div>
             </div>
+
             <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
               <div class="flex items-center">
                 <div class="bg-amber-100 text-amber-600 w-10 h-10 rounded-full inline-flex items-center justify-center mr-3"><i class="fas fa-language"></i></div>
@@ -153,13 +156,15 @@
               </div>
             </div>
           </div>
-         <!-- Bar: จำนวนนักศึกษาแต่ละชั้นปี -->
+
+          <!-- Bar: จำนวนนักศึกษาแต่ละชั้นปี -->
           <div class="bg-white rounded-xl p-6 card-shadow mb-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">จำนวนนักศึกษาแต่ละชั้นปี</h3>
             <div class="chart-box">
               <canvas id="gradeDistributionChart"></canvas>
             </div>
           </div>
+
           <!-- Pie: สรุปผลสอบภาษาอังกฤษ (ผ่าน/ไม่ผ่าน) -->
           <div class="bg-white rounded-xl p-6 card-shadow">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">จำนวนนศ.ที่สอบภาษาอังกฤษ สบช (ผ่าน/ไม่ผ่าน)</h3>
@@ -562,5 +567,3 @@
   </div>
 </body>
 </html>
-
-
