@@ -497,12 +497,13 @@
   </div>
 
   <!-- Manage Grades Modal -->
-  <div id="modalManageGrades" class="fixed inset-0 hidden z-50 flex items-center justify-center">
-    <div class="bg-white rounded-xl shadow-xl w-full max-w-4xl p-6">
+   <div id="modalManageGrades" class="fixed inset-0 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-4xl p-6 modal-panel">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-semibold">จัดการผลการเรียน</h3>
         <button class="text-gray-500" onclick="closeModal('modalManageGrades')"><i class="fas fa-times"></i></button>
       </div>
+      <div class="modal-body-scroll">
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead class="bg-gray-50">
@@ -519,8 +520,8 @@
         </table>
       </div>
       <div class="flex justify-end gap-2 mt-6">
-        <button class="px-4 py-2 rounded-lg border" onclick="closeModal('modalManageGrades')">ปิด</button>
-      </div>
+      <button class="px-4 py-2 rounded-lg border" onclick="closeModal('modalManageGrades')">ปิด</button>
+    </div>
     </div>
   </div>
 
@@ -540,4 +541,5 @@
   <script src="app.js"></script>
 </body>
 </html>
+
 
