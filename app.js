@@ -190,6 +190,7 @@ function buildAdminOverview(){
   const allCourses = unique(appState.grades.map(g=>String(g.courseCode||'').trim()).filter(Boolean));
   byId('overviewTotalCourses').textContent = allCourses.length;
 
+  // นับ “ผ่านมาแล้ว (จากรายการล่าสุดของแต่ละคน)”
   const byStu = groupBy(appState.englishTests, t=>t.studentId);
   let passCount = 0;
   Object.keys(byStu).forEach(id=>{
@@ -198,23 +199,52 @@ function buildAdminOverview(){
   });
   byId('overviewEnglishLatestPass').textContent = passCount;
 
-  renderGradeDistributionChart();
+  renderStudentByYearBar();
+  renderEnglishPassPie();   // << กราฟวงกลม อังกฤษ ผ่าน/ไม่ผ่าน (รวมทุกคน)
 }
 function groupBy(arr, keyFn){ const m={}; arr.forEach(x=>{ const k=keyFn(x); (m[k]||(m[k]=[])).push(x); }); return m; }
-function renderGradeDistributionChart(){
+/* Bar: จำนวนนักศึกษาแต่ละชั้นปี */
+function renderStudentByYearBar(){
   const ctx = byId('gradeDistributionChart').getContext('2d');
-  const counts = {};
-  appState.grades.forEach(g=>{ const gr=String(g.grade||'').toUpperCase().trim(); if(!gr) return; counts[gr]=(counts[gr]||0)+1; });
-  const labels = Object.keys(counts).sort();
-  const data = labels.map(l=>counts[l]||0);
-  if(window._gradeChart) window._gradeChart.destroy();
-  window._gradeChart = new Chart(ctx, {
+  const years = ['1','2','3','4'];
+  const counts = { '1':0, '2':0, '3':0, '4':0 };
+  appState.students.forEach(s=>{ const y=String(s.year||''); if(counts[y]!=null) counts[y]++; });
+
+  const labels = years.map(y=>`ปี ${y}`);
+  const data   = years.map(y=>counts[y]);
+
+  if(window._studentYearBar) window._studentYearBar.destroy();
+  window._studentYearBar = new Chart(ctx, {
     type: 'bar',
-    data: { labels, datasets: [{ label: 'จำนวน', data }] },
+    data: { labels, datasets: [{ label: 'จำนวนนักศึกษา', data }] },
     options: { responsive: true, maintainAspectRatio: false }
   });
 }
+/* Pie: สรุปผลสอบอังกฤษ (ผ่าน/ไม่ผ่าน) – รวมทั้งระบบ */
+function renderEnglishPassPie(){
+  const el = byId('englishPassPie');
+  if(!el) return;
+  const ctx = el.getContext('2d');
 
+  // เอารายการ “ล่าสุด” ของแต่ละคนมาตัดสินผ่าน/ไม่ผ่าน
+  const byStu = groupBy(appState.englishTests, t=>t.studentId);
+  let pass=0, fail=0;
+  Object.keys(byStu).forEach(id=>{
+    const latest = latestBy(byStu[id], t=>`${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`);
+    if(!latest) return;
+    if(String(latest.status).includes('ผ่าน')) pass++; else fail++;
+  });
+
+  if(window._englishPie) window._englishPie.destroy();
+  window._englishPie = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: ['ผ่าน','ไม่ผ่าน'],
+      datasets: [{ data: [pass, fail] }]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+}
 /***********************
  * ADMIN: STUDENTS
  ***********************/
@@ -493,17 +523,12 @@ function buildStudentView(){
   yearSel.innerHTML = `<option value="">ทุกปีการศึกษา</option>` + years.map(y=>`<option value="${y}">${y}</option>`).join('');
   yearSel.onchange = renderStudentGrades;
 
-  qsa('.semester-tab').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      qsa('.semester-tab').forEach(b=>b.classList.remove('is-active'));
-      btn.classList.add('is-active');
-      appState.ui.semesterTab = btn.textContent.includes('1') ? '1' : (btn.textContent.includes('2') ? '2' : '3');
-      renderStudentGrades();
-    });
-  });
-
+  // ปุ่มแท็บใน HTML ใช้ onclick="showSemester('1')" ฯลฯ → สร้างฟังก์ชันให้เรียกได้
+  // (เผื่อผู้ใช้ไม่กด ปรับค่าเริ่มต้นเป็น '1')
+  appState.ui.semesterTab = '1';
   renderStudentGrades();
 
+  // ตารางอังกฤษรวมทุกปี
   const tbody = byId('studentEnglishTable');
   const sorted = myEnglish.sort((a,b)=>{
     const ka = `${a.academicYear}-${String(a.attempt).padStart(3,'0')}-${a.examDate||''}`;
@@ -541,7 +566,16 @@ function renderStudentGrades(){
     </tr>
   `).join('');
 }
-
+/* ให้ปุ่มใน HTML เรียกได้โดยตรง */
+window.showSemester = function(sem){
+  appState.ui.semesterTab = String(sem||'1');
+  // toggle active เฉพาะภายใน studentDashboard
+  const tabs = qsa('#studentDashboard .semester-tab');
+  tabs.forEach(t=>t.classList.remove('is-active'));
+  const idx = appState.ui.semesterTab==='1'?0:appState.ui.semesterTab==='2'?1:2;
+  if(tabs[idx]) tabs[idx].classList.add('is-active');
+  renderStudentGrades();
+};
 /***********************
  * ADVISOR VIEW
  ***********************/
@@ -550,7 +584,7 @@ function buildAdvisorView(){
   const list = appState.students.filter(s=> (String(s.advisor||'').trim() === String(myName).trim()) );
   renderAdvisorFilters(list);
   renderAdvisorStudents(list);
-  renderAdvisorEnglishLatest(list);
+  renderAdvisorEnglishSummary(list); // << สรุป Pie เฉพาะนักศึกษาที่ดูแล
 }
 function renderAdvisorFilters(myStudents){
   const yearFilter = byId('advisorYearFilter');
@@ -598,6 +632,7 @@ function renderAdvisorStudents(myStudents){
           </div>
         </div>
         <div id="${detailId}" class="hidden mt-3 bg-gray-50 rounded-lg p-4">
+          <!-- กล่องสรุป + ตารางผลการเรียน (เหมือนเดิม) -->
           <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
             <div class="bg-indigo-50 p-3 rounded">
               <div class="text-xs text-gray-600">GPAX (ตลอดหลักสูตร)</div>
@@ -644,6 +679,7 @@ function renderAdvisorStudents(myStudents){
             </table>
           </div>
 
+          <!-- อังกฤษ: ล่าสุด + ปุ่มเลื่อนลง (เดิมคงไว้) -->
           <div>
             <div class="flex items-center justify-between mb-2">
               <h4 class="font-semibold">ผลสอบภาษาอังกฤษ</h4>
@@ -689,22 +725,26 @@ window.toggleAdvisorDetail = function(detailId, btnId){
   else { box.classList.add('hidden'); btn.textContent='ขยาย'; }
 };
 window.toggleEnglishAll = function(id){ byId(id).classList.toggle('hidden'); };
-function renderAdvisorEnglishLatest(myStudents){
-  const tbody = byId('advisorEnglishTable');
-  const rows = myStudents.slice().sort(sortByStudentIdAsc).map(s=>{
-    const en = appState.englishTests.filter(t=>cleanId(t.studentId)===cleanId(s.id));
-    const latest = latestBy(en, t=>`${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`);
-    return { id:s.id, name:s.name, year:s.year, status: latest?latest.status:'-', score: latest?latest.score:'-' };
+/* Summary Pie เฉพาะนักศึกษาที่ดูแล */
+function renderAdvisorEnglishSummary(myStudents){
+  const el = byId('advisorEnglishPie'); if(!el) return;
+  const ctx = el.getContext('2d');
+  const myIds = new Set(myStudents.map(s=>cleanId(s.id)));
+
+  const byStu = groupBy(appState.englishTests.filter(t=>myIds.has(cleanId(t.studentId))), t=>t.studentId);
+  let pass=0, fail=0;
+  Object.keys(byStu).forEach(id=>{
+    const latest = latestBy(byStu[id], t=>`${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`);
+    if(!latest) return;
+    if(String(latest.status).includes('ผ่าน')) pass++; else fail++;
   });
-  tbody.innerHTML = rows.map(r=>`
-    <tr>
-      <td class="px-4 py-2">${r.id}</td>
-      <td class="px-4 py-2">${r.name}</td>
-      <td class="px-4 py-2">${r.year}</td>
-      <td class="px-4 py-2">${r.status}</td>
-      <td class="px-4 py-2">${r.score}</td>
-    </tr>
-  `).join('');
+
+  if(window._advisorPie) window._advisorPie.destroy();
+  window._advisorPie = new Chart(ctx, {
+    type: 'pie',
+    data: { labels: ['ผ่าน','ไม่ผ่าน'], datasets: [{ data: [pass, fail] }] },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
 }
 
 /***********************
