@@ -1,120 +1,116 @@
-/* ============ Base Reset (ปลอดภัยกับ Tailwind) ============ */
-*,
-*::before,
-*::after { box-sizing: border-box; }
-html, body { height: 100%; }
-img, svg, video, canvas { display: block; max-width: 100%; }
+/* ===== Base & Typography ===== */
+html { scroll-behavior: smooth; }
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  background-color: #f8fafc; /* fallback ถ้า tailwind load ไม่ทัน */
+}
 
-/* ============ Utilities เพิ่มเติม ============ */
+/* เพิ่ม tap-target ให้กดถนัดบนมือถือ */
+:root { --safe-tap: 44px; }
+button, .btn, input, select, textarea { min-height: var(--safe-tap); }
+
+/* ===== Background ===== */
+.gradient-bg {
+  background: linear-gradient(135deg, #e0f2fe 0%, #f5f3ff 100%);
+}
+
+/* ===== Cards & Hover ===== */
 .card-shadow {
-  box-shadow: 0 6px 20px rgba(2, 6, 23, 0.06), 0 2px 6px rgba(2, 6, 23, 0.03);
+  box-shadow: 0 10px 25px rgba(0,0,0,.06), 0 4px 6px rgba(0,0,0,.04);
 }
-.hover-scale { transition: transform .15s ease, box-shadow .2s ease; }
-.hover-scale:hover { transform: translateY(-2px); }
-
-.th { /* ใช้กับ <th> ที่กำหนดใน index.html */
-  @apply px-4 py-2 text-left text-xs font-medium uppercase text-gray-500;
+.hover-scale {
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
 }
-/* ถ้าโปรเจกต์ไม่ได้เปิด JIT/Apply ของ Tailwind ให้ fallback ธรรมดาไว้ด้วย */
-.th {
-  padding: 0.5rem 1rem;
-  text-align: left;
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #6b7280; /* gray-500 */
+.hover-scale:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0,0,0,.08), 0 6px 10px rgba(0,0,0,.05);
+  filter: saturate(1.02);
 }
 
-/* ============ Nav Tabs (admin) ============ */
-.navtab {
-  padding: 0.75rem 1rem;
-  border-bottom: 2px solid transparent;
-  color: #374151;           /* gray-700 */
-  font-weight: 600;
-  white-space: nowrap;
+/* ===== Admin Nav ===== */
+.admin-nav {
   transition: color .15s ease, border-color .15s ease, background-color .15s ease;
-}
-.navtab:hover {
-  background: #f9fafb;     /* gray-50 */
-}
-.navtab.active {
-  border-color: #2563eb;   /* blue-600 */
-  color: #111827;          /* gray-900 */
+  white-space: nowrap;
 }
 
-/* ============ ตารางทั่วไป ============ */
-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-thead tr { background: #f9fafb; } /* gray-50 */
-tbody tr:hover { background: #f8fafc; } /* slate-50 */
-td, th { border-bottom: 1px solid #e5e7eb; } /* gray-200 */
-td { padding: 0.5rem 1rem; font-size: 0.925rem; color: #111827; }
-
-/* เลขคอลัมน์แคบ ๆ */
-td.text-right, th.text-right { text-align: right; }
-
-/* ============ ปุ่มพื้นฐาน (เสริมให้ปุ่มมีฟีลเดียวกัน) ============ */
-button {
-  transition: transform .08s ease, box-shadow .12s ease, background-color .12s ease, color .12s ease;
+/* ===== Tables ===== */
+table thead th {
+  letter-spacing: .02em;
+  white-space: nowrap;
 }
-button:active { transform: translateY(1px); }
-button[disabled]{
-  opacity: .6; cursor: not-allowed;
-}
+table td, table th { vertical-align: middle; }
+table tbody tr:hover { background-color: #fafafa; }
 
-/* ปุ่มขอบ */
-button.border {
-  border: 1px solid #e5e7eb;
-  background: white;
+/* ป้องกันชื่อวิชายาวล้นจอมือถือ */
+table td { word-break: break-word; }
+
+/* ===== Inputs / Focus ===== */
+input[type="text"], input[type="email"], input[type="password"],
+input[type="date"], input[type="number"], select, textarea {
+  outline: none;
+  background-color: #fff;
 }
-button.border:hover {
-  background: #f9fafb;
+input:focus, select:focus, textarea:focus, button:focus {
+  box-shadow: 0 0 0 3px rgba(59,130,246,.35);
+  border-color: rgba(59,130,246,.8);
 }
 
-/* ============ Modal Overlay (ใช้กับ modal ทั้งสาม) ============ */
-#modalEditStudent,
-#modalAddGrade,
-#modalAddEnglish,
-#advisorDetailModal {
-  background: rgba(2, 6, 23, .45); /* dark overlay */
-  padding: 1rem;
+/* iOS Safari: กัน auto-zoom เวลาแตะ input */
+@supports (-webkit-touch-callout: none) {
+  input, select, textarea { font-size: 16px; }
 }
 
-/* ============ Advisor: collapsible row ============ */
-.advisor-student-row { background: #ffffff; }
-.advisor-student-row + .advisor-student-row { border-top: 1px solid #e5e7eb; }
-.advisor-student-row .toggle-detail {
-  transition: transform .12s ease, background-color .12s ease, color .12s ease;
-}
-.advisor-student-row .toggle-detail:hover { background: #f3f4f6; } /* gray-100 */
-
-/* ============ Scrollbar (เบา ๆ ไม่รบกวนธีม) ============ */
-*::-webkit-scrollbar { height: 10px; width: 10px; }
-*::-webkit-scrollbar-track { background: #f3f4f6; border-radius: 10px; }
-*::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-*::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-/* ============ Small helpers ============ */
-.text-clip {
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.badge {
-  display: inline-block;
-  padding: 0.125rem 0.5rem;
-  font-size: 0.75rem;
-  border-radius: 9999px;
-  background: #eef2ff;   /* indigo-50 */
-  color: #3730a3;        /* indigo-800 */
+/* ===== Modals ===== */
+#modalBackdrop { animation: fadeIn .12s ease; }
+#modalEditStudent > div,
+#modalAddGrade > div,
+#modalAddEnglish > div,
+#advisorDetailModal > div {
+  animation: pop .12s ease;
 }
 
-/* ============ Responsive tweaks ============ */
-@media (max-width: 768px){
-  .navtab { padding: 0.5rem 0.75rem; font-size: 0.9rem; }
-  td { font-size: 0.9rem; }
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+@keyframes pop    { from { transform: scale(.98); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+
+/* ===== Clamp text ===== */
+.clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+.clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
-/* ============ Animation (นิ่ม ๆ) ============ */
-.fade-in { animation: fadein .18s ease; }
-@keyframes fadein {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* ===== Scrollbar (WebKit) ===== */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,.18); border-radius: 10px; }
+*::-webkit-scrollbar-track { background-color: transparent; }
+
+/* ===== Responsive Tweaks ===== */
+/* มือถือ: ลด padding ตาราง/การ์ดให้พอดีจอ, ซ่อนข้อมูลจุกจิกที่ไม่จำเป็น */
+@media (max-width: 640px) {
+  .hide-on-xs { display: none !important; }
+
+  table th, table td { padding: .5rem .75rem !important; } /* ลดระยะห่างเซลล์ */
+  .card-shadow { border-radius: 0.9rem; }
+
+  /* ปุ่มบนแถวรายการให้กินพื้นที่กดง่ายขึ้น */
+  .row-action { padding: .375rem .75rem; border-radius: .5rem; }
+}
+
+/* แท็บเล็ตแนวตั้ง: ยืดพื้นที่ตาราง/กราฟให้อ่านง่าย */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .chart-box { min-height: 280px; }
+}
+
+/* Desktop ใหญ่: จำกัดความกว้างบรรทัดข้อความยาว */
+@media (min-width: 1280px) {
+  .prose-max { max-width: 72ch; }
 }
