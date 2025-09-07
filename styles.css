@@ -51,30 +51,16 @@ button,.btn,input,select,textarea{ min-height:var(--safe-tap); }
 
 /* ===== Tables ===== */
 table{ border-collapse:separate; border-spacing:0; }
-thead th{
-  letter-spacing:.02em;
-  font-weight:600;
-}
-th,td{
-  font-size:.95rem;
-}
-tbody tr:hover td{
-  background:#fafafa;
-}
+thead th{ letter-spacing:.02em; font-weight:600; }
+th,td{ font-size:.95rem; }
+tbody tr:hover td{ background:#fafafa; }
 
 /* ปุ่มเล็กในแถวตาราง */
-.row-action{
-  padding:.375rem .75rem;
-  border-radius:.5rem;
-}
+.row-action{ padding:.375rem .75rem; border-radius:.5rem; }
 
 /* ===== Forms ===== */
-input,select,textarea{
-  outline:none;
-}
-input:focus,select:focus,textarea:focus{
-  box-shadow:0 0 0 3px rgba(37,99,235,.2); /* blue-600/20 */
-}
+input,select,textarea{ outline:none; }
+input:focus,select:focus,textarea:focus{ box-shadow:0 0 0 3px rgba(37,99,235,.2); }
 
 /* ===== Modals ===== */
 #modalBackdrop{ animation:fadeIn .12s ease; }
@@ -82,68 +68,30 @@ input:focus,select:focus,textarea:focus{
 #modalAddGrade>div,
 #modalAddEnglish>div,
 #advisorDetailModal>div,
-#modalManageGrades>div{
-  animation:pop .12s ease;
-}
+#modalManageGrades>div{ animation:pop .12s ease; }
 
 /* Keyframes */
-@keyframes fadeIn{
-  from{opacity:0}
-  to{opacity:1}
-}
-@keyframes pop{
-  0%{ transform:scale(.98); opacity:0 }
-  100%{ transform:scale(1); opacity:1 }
-}
+@keyframes fadeIn{ from{opacity:0} to{opacity:1} }
+@keyframes pop{ 0%{ transform:scale(.98); opacity:0 } 100%{ transform:scale(1); opacity:1 } }
 
 /* ===== Advisor expandable row ===== */
 #advisorStudentsList .hidden{ display:none; }
 #advisorStudentsList .expander-enter{ animation:expander .16s ease; }
-@keyframes expander{
-  from{ transform:translateY(-2px); opacity:.0 }
-  to{ transform:translateY(0); opacity:1 }
-}
+@keyframes expander{ from{ transform:translateY(-2px); opacity:.0 } to{ transform:translateY(0); opacity:1 } }
 
 /* ===== Chart container helper ===== */
 .chart-box{ min-height:220px; }
-
-/* ===== Utility Helpers (เฉพาะจุดที่ใช้ในโปรเจกต์) ===== */
-.prose-max{ max-width: 70ch; }
-
-/* ===== Responsive tweaks ===== */
-
-/* มือถือ: เพิ่มมุม/เงาเพื่อคลิกง่าย */
-@media (max-width:640px){
-  .card-shadow{ border-radius:.9rem; }
-  .tab-btn,.semester-tab{ padding:.75rem .25rem; }
-  th,td{ font-size:.92rem; }
-}
-
-/* แท็บเล็ตแนวตั้ง: ขยายพื้นที่กราฟ/ตารางเล็กน้อย */
-@media (min-width:641px) and (max-width:1024px){
-  .chart-box{ min-height:280px; }
-}
-
-/* Desktop ใหญ่: จำกัดความกว้างบรรทัดข้อความยาว */
-@media (min-width:1280px){
-  .prose-max{ max-width:72ch; }
-}
-
-/* ===== Accessibility ===== */
-@media (prefers-reduced-motion:reduce){
-  *{ animation:none!important; transition:none!important; }
-}
-
-/* iOS Safari: กัน auto-zoom เวลาแตะ input */
-@supports (-webkit-touch-callout:none){
-  input,select,textarea{ font-size:16px; }
-}
 /* กรอบคุมความสูงของกราฟ + ป้องกันล้น */
 .chart-box{ height:280px; position:relative; }
 .chart-box canvas{ width:100% !important; height:100% !important; display:block; }
-/* โมดัล – คุมความสูงและเปิดสกรอลล์แนวตั้ง */
+
+/* ===== Utility Helpers ===== */
+.prose-max{ max-width: 70ch; }
+
+/* ===== Modal scroll control ===== */
 .modal-panel{ max-height:85vh; overflow:hidden; }
 .modal-body-scroll{ max-height:60vh; overflow-y:auto; }
+
 /* ===== Loading Overlay ===== */
 .loading-overlay{
   position: fixed; inset: 0; z-index: 60;
@@ -152,23 +100,37 @@ input:focus,select:focus,textarea:focus{
   animation: fadeIn .12s ease;
 }
 .loading-overlay.hidden{ display: none; }
-
 .loading-panel{
   background: #fff;
   padding: 1.25rem 1.5rem;
   border-radius: .875rem;
   box-shadow: 0 10px 30px rgba(2,6,23,.18);
   display: flex; flex-direction: column; align-items: center;
-  min-width: 200px;
-  animation: pop .12s ease;
+  min-width: 200px; animation: pop .12s ease;
 }
-
 .spinner{
   width: 28px; height: 28px;
   border-radius: 50%;
-  border: 3px solid #e5e7eb;           /* gray-200 */
-  border-top-color: #2563eb;            /* blue-600 */
+  border: 3px solid #e5e7eb; border-top-color: #2563eb;
   animation: spin 0.9s linear infinite;
 }
 @keyframes spin{ to { transform: rotate(360deg);} }
 
+/* ===== Responsive ===== */
+@media (max-width:640px){
+  .card-shadow{ border-radius:.9rem; }
+  .tab-btn,.semester-tab{ padding:.75rem .25rem; }
+  th,td{ font-size:.92rem; }
+}
+@media (min-width:641px) and (max-width:1024px){
+  .chart-box{ min-height:280px; }
+}
+@media (min-width:1280px){
+  .prose-max{ max-width:72ch; }
+}
+@media (prefers-reduced-motion:reduce){
+  *{ animation:none!important; transition:none!important; }
+}
+@supports (-webkit-touch-callout:none){
+  input,select,textarea{ font-size:16px; }
+}
