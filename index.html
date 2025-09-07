@@ -526,20 +526,22 @@
     </div>
   </div>
 
-  <!-- Advisor Student Detail Modal (ยังคงไว้) -->
+  <!-- Advisor Detail Modal (ยังคงไว้) -->
   <div id="advisorDetailModal" class="fixed inset-0 hidden z-50 flex items-center justify-center">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl p-6">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-semibold">ข้อมูลนักศึกษา</h3>
         <button class="text-gray-500" onclick="closeModal('advisorDetailModal')"><i class="fas fa-times"></i></button>
       </div>
-      <div id="advisorDetailContent" class="space-y-4"></div>
+      <div id="advisorDetailContent" class="space-y-4">
+        <!-- dynamic -->
+      </div>
     </div>
   </div>
 
   <script src="app.js"></script>
 
-  <!-- Loading Overlay (วางนอกทุกจอ) -->
+  <!-- Loading Overlay (อยู่นอก login/dashboard) -->
   <div id="loadingOverlay" class="loading-overlay hidden">
     <div class="loading-panel">
       <div class="spinner" aria-hidden="true"></div>
