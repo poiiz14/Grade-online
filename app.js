@@ -356,15 +356,18 @@ function renderAdminIndividual(){
   byId('adminIndGPAX').textContent = grades.length ? overall.gpa.toFixed(2) : '-';
 
   const tbody = byId('adminIndGradesTable');
-  tbody.innerHTML = filtered.length ? filtered.map(g=>`
-    <tr>
-      <td class="px-4 py-2">${g.term||'-'}</td>
-      <td class="px-4 py-2">${g.courseCode||'-'}</td>
-      <td class="px-4 py-2">${g.courseTitle||'-'}</td>
-      <td class="px-4 py-2">${g.credits||'-'}</td>
-      <td class="px-4 py-2">${g.grade||'-'}</td>
-    </tr>
-  `).join('') : `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">ยังไม่มีข้อมูลในปีที่เลือก</td></tr>`;
+  tbody.innerHTML = filtered.length 
+  ? filtered.map(g => `
+      <tr>
+        <td class="px-4 py-2">${g.term||'-'}</td>
+        <td class="px-4 py-2">${g.courseCode||'-'}</td>
+        <td class="px-4 py-2">${g.courseTitle||'-'}</td>
+        <td class="px-4 py-2">${g.credits||'-'}</td>
+        <td class="px-4 py-2">${g.grade||'-'}</td>
+      </tr>
+    `).join('')
+  : `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">ยังไม่มีข้อมูลในปีที่เลือก</td></tr>`;
+
 
   const et = appState.englishTests
     .filter(t=>cleanId(t.studentId)===id)
@@ -776,4 +779,5 @@ function openModal(id){ byId('modalBackdrop').classList.remove('hidden'); byId(i
 function closeModal(id){ byId('modalBackdrop').classList.add('hidden'); byId(id).classList.add('hidden'); }
 window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{ initLogin(); });
+
 
