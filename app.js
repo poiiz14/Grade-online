@@ -727,6 +727,7 @@ function renderAdvisorStudents(myStudents){
   wrap.innerHTML = rows.map(s=>{
     const stuGrades = appState.grades.filter(g=>cleanId(g.studentId)===cleanId(s.id));
     const filteredByAy = ay ? stuGrades.filter(g=>parseTerm(g.term).year===ay) : stuGrades;
+
     const gpax = computeGPA(stuGrades).gpa || 0;
     const gpaThisYear = computeGPA(filteredByAy).gpa || 0;
 
@@ -738,17 +739,24 @@ function renderAdvisorStudents(myStudents){
     const btnId = `adv-toggle-${s.id}`;
 
     return `
-         <div class="py-3">
+      <div class="py-3">
         <div class="flex items-center justify-between">
-          <div class="font-medium">${s.id} - ${s.name} <span class="text-sm text-gray-500">ชั้นปี ${s.year} · ที่ปรึกษา: ${s.advisor||'-'}</span></div>
+          <div class="font-medium">
+            ${s.id} - ${s.name}
+            <span class="text-sm text-gray-500">ชั้นปี ${s.year} · ที่ปรึกษา: ${s.advisor||'-'}</span>
+          </div>
           <div class="flex items-center gap-3">
-            <div class="text-sm"><span class="text-gray-500">อังกฤษล่าสุด:</span> <span class="font-semibold">${latestStr}</span></div>
-            <button id="${btnId}" class="px-3 py-1 rounded border hover:bg-gray-50" onclick="toggleAdvisorDetail('${detailId}','${btnId}')">ขยาย</button>
+            <div class="text-sm">
+              <span class="text-gray-500">อังกฤษล่าสุด:</span>
+              <span class="font-semibold">${latestStr}</span>
+            </div>
+            <button id="${btnId}" class="px-3 py-1 rounded border hover:bg-gray-50"
+              onclick="toggleAdvisorDetail('${detailId}','${btnId}')">ขยาย</button>
           </div>
         </div>
-    
+
         <div id="${detailId}" class="hidden mt-3 bg-gray-50 rounded-lg p-4">
-          <!-- สรุป -->
+          <!-- กล่องสรุป 4 ใบ (โทนเดิม) -->
           <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
             <div class="bg-indigo-50 p-3 rounded">
               <div class="text-xs text-gray-600">GPAX (ตลอดหลักสูตร)</div>
@@ -767,7 +775,7 @@ function renderAdvisorStudents(myStudents){
               <div class="text-lg font-semibold text-purple-800">${latestStr}</div>
             </div>
           </div>
-    
+
           <!-- ตารางผลการเรียน -->
           <div class="overflow-x-auto">
             <table class="w-full">
@@ -781,58 +789,28 @@ function renderAdvisorStudents(myStudents){
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-200">
-                ${stuGrades
-                  .sort((a,b)=> termSortKey(a.term).localeCompare(termSortKey(b.term)))
-                  .map(g=>`
-                    <tr>
-                      <td class="px-3 py-2">${g.term||'-'}</td>
-                      <td class="px-3 py-2">${g.courseCode||'-'}</td>
-                      <td class="px-3 py-2">${g.courseTitle||'-'}</td>
-                      <td class="px-3 py-2">${g.credits||'-'}</td>
-                      <td class="px-3 py-2">${g.grade||'-'}</td>
-                    </tr>
-                  `).join('')}
+                ${
+                  stuGrades
+                    .sort((a,b)=> termSortKey(a.term).localeCompare(termSortKey(b.term)))
+                    .map(g=>`
+                      <tr>
+                        <td class="px-3 py-2">${g.term||'-'}</td>
+                        <td class="px-3 py-2">${g.courseCode||'-'}</td>
+                        <td class="px-3 py-2">${g.courseTitle||'-'}</td>
+                        <td class="px-3 py-2">${g.credits||'-'}</td>
+                        <td class="px-3 py-2">${g.grade||'-'}</td>
+                      </tr>
+                    `).join('')
+                }
               </tbody>
             </table>
-          </div>
-        </div>
-      </div>
-          <!-- อังกฤษ: ล่าสุด + ปุ่มเลื่อนลง (เดิมคงไว้) -->
-          <div>
-            <div class="flex items-center justify-between mb-2">
-              <h4 class="font-semibold">ผลสอบภาษาอังกฤษ</h4>
-              <button class="px-2 py-1 text-sm rounded border hover:bg-white" onclick="toggleEnglishAll('${detailId}-en')">แสดง/ซ่อน รายการที่เหลือ</button>
-            </div>
-            <div>
-              ${latest ? `
-                <div class="p-3 rounded bg-white border mb-2">
-                  <div class="text-sm text-gray-600 mb-1">ล่าสุด</div>
-                  <div class="font-medium">ปี ${latest.academicYear} ครั้งที่ ${latest.attempt} คะแนน ${latest.score} (${latest.status})</div>
-                </div>
-              `: '<div class="text-sm text-gray-500">ไม่มีข้อมูล</div>'}
-              <div id="${detailId}-en" class="hidden">
-                ${(myEn
-                  .filter(t=>t!==latest)
-                  .sort((a,b)=>{
-                    const ka = `${a.academicYear}-${String(a.attempt).padStart(3,'0')}-${a.examDate||''}`;
-                    const kb = `${b.academicYear}-${String(b.attempt).padStart(3,'0')}-${b.examDate||''}`;
-                    return kb.localeCompare(ka);
-                  })
-                  .map(t=>`
-                    <div class="p-3 rounded bg-white border mb-2">
-                      <div class="font-medium">ปี ${t.academicYear} ครั้งที่ ${t.attempt} คะแนน ${t.score} (${t.status})</div>
-                      <div class="text-sm text-gray-500">${t.examDate? String(t.examDate).substring(0,10): '-'}</div>
-                    </div>
-                  `).join('')) || ''
-                }
-              </div>
-            </div>
           </div>
         </div>
       </div>
     `;
   }).join('');
 }
+
       window.toggleAdvisorDetail = function(detailId, btnId){
         const box = byId(detailId);
         const btn = byId(btnId);
@@ -883,6 +861,7 @@ function openModal(id){ byId('modalBackdrop').classList.remove('hidden'); byId(i
 function closeModal(id){ byId('modalBackdrop').classList.add('hidden'); byId(id).classList.add('hidden'); }
 window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{ initLogin(); });
+
 
 
 
