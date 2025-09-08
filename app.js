@@ -599,20 +599,25 @@ function buildStudentView(){
 }
 function renderStudentGrades() {
   const meId = cleanId(appState.user.id);
-  const y = byId('studentAcademicYear').value;
-  const sem = appState.ui.semesterTab;
+  const y = byId('studentAcademicYear').value; // ปีที่กรอง (ว่าง = ทุกปี)
+  const sem = appState.ui.semesterTab; // '1' | '2' | '3'
 
+  // เคลียร์ทุกภาคด้วยข้อความเริ่มต้น
   ['studentGradesSem1','studentGradesSem2','studentGradesSem3'].forEach(id=>{
     const el = byId(id);
     if (el) el.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400">ยังไม่มีข้อมูล</td></tr>';
   });
 
-  const rows = appState.grades
-    .filter(g => cleanId(g.studentId) === meId)
+  // เกรดทั้งหมดของฉัน (ไว้คำนวณ GPAX)
+  const allMy = appState.grades.filter(g => cleanId(g.studentId) === meId);
+
+  // กรองตามปี (ถ้าเลือก) แล้วจัดเรียง
+  const myRows = allMy
     .filter(g => !y || parseTerm(g.term).year === y)
     .sort((a,b)=> termSortKey(a.term).localeCompare(termSortKey(b.term)));
 
-  rows.forEach(g=>{
+  // กระจายลง 3 ภาค
+  myRows.forEach(g=>{
     const t = parseTerm(g.term);
     const tb = byId(`studentGradesSem${t.sem}`);
     if (!tb || !t.sem) return;
@@ -624,16 +629,36 @@ function renderStudentGrades() {
         <td class="px-4 py-2">${g.courseTitle || '-'}</td>
         <td class="px-4 py-2">${g.credits || '-'}</td>
         <td class="px-4 py-2">${g.grade || '-'}</td>
-      </tr>`;
+      </tr>
+    `;
   });
 
+  // โชว์เฉพาะภาคที่เลือก
   ['1','2','3'].forEach(s=>{
     const el = byId(`studentGradesSem${s}`);
     if (!el) return;
     (s === sem) ? el.classList.remove('hidden') : el.classList.add('hidden');
   });
-}
 
+  // ── สรุปบนหัวแท็บ ──
+  // 1) GPA/เครดิตของภาคที่เลือก (ตามตัวกรองปี)
+  const rowsThisSem = myRows.filter(g => parseTerm(g.term).sem === sem);
+  const { gpa: semGPA, credits: semCredits } = computeGPA(rowsThisSem);
+  byId('studentSemGPA').textContent = rowsThisSem.length ? semGPA.toFixed(2) : '-';
+  byId('studentSemCredits').textContent = rowsThisSem.length ? semCredits : '-';
+
+  // 2) GPAX ตลอดหลักสูตร
+  const overall = computeGPA(allMy);
+  byId('studentSemGPAX').textContent = allMy.length ? overall.gpa.toFixed(2) : '-';
+
+  // 3) GPA ทั้งปีที่เลือก (รวมทุกภาคในปีนั้น)
+  if (y) {
+    const yearAgg = computeGPA(myRows); // myRows ถูกกรองปีแล้ว
+    byId('studentYearGPA').textContent = myRows.length ? yearAgg.gpa.toFixed(2) : '-';
+  } else {
+    byId('studentYearGPA').textContent = '-';
+  }
+}
 window.showSemester = function(sem){
   appState.ui.semesterTab = String(sem || '1');
   const tabs = qsa('#studentDashboard .semester-tab');
@@ -820,6 +845,7 @@ function openModal(id){ byId('modalBackdrop').classList.remove('hidden'); byId(i
 function closeModal(id){ byId('modalBackdrop').classList.add('hidden'); byId(id).classList.add('hidden'); }
 window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{ initLogin(); });
+
 
 
 
