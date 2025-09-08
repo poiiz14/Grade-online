@@ -301,8 +301,8 @@ function buildAdminIndividual(){
   fillSelect();
   search.addEventListener('input', fillSelect);
 
-  sel.addEventListener('change', ()=>{ appState.ui.adminIndSelectedId = sel.value; renderAdminIndividual(); });
-  yearSel.addEventListener('change', ()=>{ appState.ui.adminIndYear = yearSel.value; renderAdminIndividual(); });
+  sel.addEventListener('change', ()=>{ appState.ui.adminIndSelectedId = sel.value; (); });
+  yearSel.addEventListener('change', ()=>{ appState.ui.adminIndYear = yearSel.value; (); });
 
   byId('btnEditStudent').onclick = openEditStudentModal;
   byId('btnAddGrade').onclick = ()=>openModal('modalAddGrade');
@@ -312,17 +312,38 @@ function buildAdminIndividual(){
   renderAdminIndividual();
 }
 function renderAdminIndividual(){
-  const id = appState.ui.adminIndSelectedId;
+  const id = cleanId(appState.ui.adminIndSelectedId);
   const yearFilter = appState.ui.adminIndYear;
-  const std = appState.students.find(s=>cleanId(s.id)===cleanId(id));
+
+  // ถ้ายังไม่ได้เลือกนักศึกษา => โชว์หน้าว่างๆ (ไม่คำนวณ ไม่ดึงข้อมูล)
+  if(!id){
+    byId('detailStudentId').textContent = '';
+    byId('detailStudentName').textContent = '';
+    byId('detailStudentYear').textContent = '';
+    byId('detailStudentAdvisor').textContent = '';
+
+    byId('adminIndYearGPA').textContent = '';
+    byId('adminIndYearCredits').textContent = '';
+    byId('adminIndGPAX').textContent = '';
+
+    // ตารางว่าง + ข้อความแนะนำ
+    byId('adminIndGradesTable').innerHTML =
+      `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">โปรดเลือกนักศึกษา</td></tr>`;
+    byId('adminIndEnglishTable').innerHTML =
+      `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">โปรดเลือกนักศึกษา</td></tr>`;
+    return;
+  }
+
+  const std = appState.students.find(s=>cleanId(s.id)===id);
 
   byId('detailStudentId').textContent = std ? (std.id||'-') : '-';
   byId('detailStudentName').textContent = std ? (std.name||'-') : '-';
   byId('detailStudentYear').textContent = std ? (std.year||'-') : '-';
   byId('detailStudentAdvisor').textContent = std ? (std.advisor||'-') : '-';
 
+  // ดึงเฉพาะเกรดของนักศึกษาที่เลือกเท่านั้น
   const grades = appState.grades
-    .filter(g=>cleanId(g.studentId)===cleanId(id))
+    .filter(g=>cleanId(g.studentId)===id)
     .sort((a,b)=> termSortKey(a.term).localeCompare(termSortKey(b.term)));
 
   const filtered = (!yearFilter) ? grades : grades.filter(g=>parseTerm(g.term).year===yearFilter);
@@ -335,7 +356,7 @@ function renderAdminIndividual(){
   byId('adminIndGPAX').textContent = grades.length ? overall.gpa.toFixed(2) : '-';
 
   const tbody = byId('adminIndGradesTable');
-  tbody.innerHTML = filtered.map(g=>`
+  tbody.innerHTML = filtered.length ? filtered.map(g=>`
     <tr>
       <td class="px-4 py-2">${g.term||'-'}</td>
       <td class="px-4 py-2">${g.courseCode||'-'}</td>
@@ -343,17 +364,18 @@ function renderAdminIndividual(){
       <td class="px-4 py-2">${g.credits||'-'}</td>
       <td class="px-4 py-2">${g.grade||'-'}</td>
     </tr>
-  `).join('');
+  `).join('') : `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">ยังไม่มีข้อมูลในปีที่เลือก</td></tr>`;
 
   const et = appState.englishTests
-    .filter(t=>cleanId(t.studentId)===cleanId(id))
+    .filter(t=>cleanId(t.studentId)===id)
     .sort((a,b)=>{
       const ka = `${a.academicYear}-${String(a.attempt).padStart(3,'0')}-${a.examDate||''}`;
       const kb = `${b.academicYear}-${String(b.attempt).padStart(3,'0')}-${b.examDate||''}`;
       return ka.localeCompare(kb);
     });
+
   const etTbody = byId('adminIndEnglishTable');
-  etTbody.innerHTML = et.map(t=>`
+  etTbody.innerHTML = et.length ? et.map(t=>`
     <tr>
       <td class="px-4 py-2">${t.academicYear||'-'}</td>
       <td class="px-4 py-2">${t.attempt||'-'}</td>
@@ -361,7 +383,7 @@ function renderAdminIndividual(){
       <td class="px-4 py-2">${t.status||'-'}</td>
       <td class="px-4 py-2">${t.examDate ? (String(t.examDate).substring(0,10)) : '-'}</td>
     </tr>
-  `).join('');
+  `).join('') : `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">ยังไม่มีข้อมูล</td></tr>`;
 }
 
 /***********************
@@ -754,3 +776,4 @@ function openModal(id){ byId('modalBackdrop').classList.remove('hidden'); byId(i
 function closeModal(id){ byId('modalBackdrop').classList.add('hidden'); byId(id).classList.add('hidden'); }
 window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{ initLogin(); });
+
