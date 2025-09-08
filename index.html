@@ -327,17 +327,7 @@
             </select>
           </div>
         </div>
-
-        <div class="bg-white rounded-xl card-shadow mb-6">
-          <div class="border-b">
-            <nav class="flex space-x-8 px-6 overflow-x-auto">
-              <button onclick="showSemester('1')" class="semester-tab is-active px-1 text-sm font-medium whitespace-nowrap">ภาคการศึกษาที่ 1</button>
-              <button onclick="showSemester('2')" class="semester-tab px-1 text-sm font-medium whitespace-nowrap">ภาคการศึกษาที่ 2</button>
-              <button onclick="showSemester('3')" class="semester-tab px-1 text-sm font-medium whitespace-nowrap">ภาคฤดูร้อน</button>
-            </nav>
-          </div>
-          <div class="p-6">
-            <!-- ⬇️ กล่องสรุปใหม่ 4 การ์ด -->
+        <!-- ⬇️ กล่องสรุปใหม่ 4 การ์ด -->
             <div id="studentSemSummary" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
               <div class="bg-blue-50 p-4 rounded-lg">
                 <p class="text-sm text-gray-600">GPA (ภาคที่เลือก)</p>
@@ -357,7 +347,15 @@
               </div>
             </div>
             <!-- ⬆️ กล่องสรุปใหม่ -->
-          
+        <div class="bg-white rounded-xl card-shadow mb-6">
+          <div class="border-b">
+            <nav class="flex space-x-8 px-6 overflow-x-auto">
+              <button onclick="showSemester('1')" class="semester-tab is-active px-1 text-sm font-medium whitespace-nowrap">ภาคการศึกษาที่ 1</button>
+              <button onclick="showSemester('2')" class="semester-tab px-1 text-sm font-medium whitespace-nowrap">ภาคการศึกษาที่ 2</button>
+              <button onclick="showSemester('3')" class="semester-tab px-1 text-sm font-medium whitespace-nowrap">ภาคฤดูร้อน</button>
+            </nav>
+          </div>
+          <div class="p-6">         
             <div class="overflow-x-auto">
               <table class="w-full">
                 <thead class="bg-gray-50">...</thead>
@@ -599,5 +597,6 @@
   </div>
 </body>
 </html>
+
 
 
