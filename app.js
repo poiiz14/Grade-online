@@ -738,7 +738,7 @@ function renderAdvisorStudents(myStudents){
     const btnId = `adv-toggle-${s.id}`;
 
     return `
-      <div class="py-3">
+         <div class="py-3">
         <div class="flex items-center justify-between">
           <div class="font-medium">${s.id} - ${s.name} <span class="text-sm text-gray-500">ชั้นปี ${s.year} · ที่ปรึกษา: ${s.advisor||'-'}</span></div>
           <div class="flex items-center gap-3">
@@ -746,8 +746,9 @@ function renderAdvisorStudents(myStudents){
             <button id="${btnId}" class="px-3 py-1 rounded border hover:bg-gray-50" onclick="toggleAdvisorDetail('${detailId}','${btnId}')">ขยาย</button>
           </div>
         </div>
+    
         <div id="${detailId}" class="hidden mt-3 bg-gray-50 rounded-lg p-4">
-          <!-- กล่องสรุป + ตารางผลการเรียน (เหมือนเดิม) -->
+          <!-- สรุป -->
           <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
             <div class="bg-indigo-50 p-3 rounded">
               <div class="text-xs text-gray-600">GPAX (ตลอดหลักสูตร)</div>
@@ -766,8 +767,9 @@ function renderAdvisorStudents(myStudents){
               <div class="text-lg font-semibold text-purple-800">${latestStr}</div>
             </div>
           </div>
-
-          <div class="overflow-x-auto mb-3">
+    
+          <!-- ตารางผลการเรียน -->
+          <div class="overflow-x-auto">
             <table class="w-full">
               <thead class="bg-white">
                 <tr>
@@ -793,7 +795,8 @@ function renderAdvisorStudents(myStudents){
               </tbody>
             </table>
           </div>
-
+        </div>
+      </div>
           <!-- อังกฤษ: ล่าสุด + ปุ่มเลื่อนลง (เดิมคงไว้) -->
           <div>
             <div class="flex items-center justify-between mb-2">
@@ -830,38 +833,49 @@ function renderAdvisorStudents(myStudents){
     `;
   }).join('');
 }
-window.toggleAdvisorDetail = function(detailId, btnId){
-  const box = byId(detailId);
-  const btn = byId(btnId);
-  const isHidden = box.classList.contains('hidden');
-  qsa('#advisorStudentsList > div > div + div').forEach(el=>el.classList.add('hidden'));
-  box.classList.toggle('hidden', !isHidden ? true : false);
-  if(isHidden){ box.classList.remove('hidden'); btn.textContent='ย่อ'; }
-  else { box.classList.add('hidden'); btn.textContent='ขยาย'; }
-};
-window.toggleEnglishAll = function(id){ byId(id).classList.toggle('hidden'); };
-/* Summary Pie เฉพาะนักศึกษาที่ดูแล */
-function renderAdvisorEnglishSummary(myStudents){
-  const el = byId('advisorEnglishPie'); if(!el) return;
-  const ctx = el.getContext('2d');
-  const myIds = new Set(myStudents.map(s=>cleanId(s.id)));
-
-  const byStu = groupBy(appState.englishTests.filter(t=>myIds.has(cleanId(t.studentId))), t=>t.studentId);
-  let pass=0, fail=0;
-  Object.keys(byStu).forEach(id=>{
-    const latest = latestBy(byStu[id], t=>`${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`);
-    if(!latest) return;
-    if(String(latest.status).includes('ผ่าน')) pass++; else fail++;
-  });
-
-  if(window._advisorPie) window._advisorPie.destroy();
-  window._advisorPie = new Chart(ctx, {
-    type: 'pie',
-    data: { labels: ['ผ่าน','ไม่ผ่าน'], datasets: [{ data: [pass, fail] }] },
-    options: { responsive: true, maintainAspectRatio: false }
-  });
-}
-
+      window.toggleAdvisorDetail = function(detailId, btnId){
+        const box = byId(detailId);
+        const btn = byId(btnId);
+        const isHidden = box.classList.contains('hidden');
+        qsa('#advisorStudentsList > div > div + div').forEach(el=>el.classList.add('hidden'));
+        box.classList.toggle('hidden', !isHidden ? true : false);
+        if(isHidden){ box.classList.remove('hidden'); btn.textContent='ย่อ'; }
+        else { box.classList.add('hidden'); btn.textContent='ขยาย'; }
+      };
+      window.toggleEnglishAll = function(id){ byId(id).classList.toggle('hidden'); };
+      /* Summary Pie เฉพาะนักศึกษาที่ดูแล */
+      function renderAdvisorEnglishSummary(myStudents){
+        // เก็บ studentIds ที่อาจารย์ดูแล
+        const myIds = new Set(myStudents.map(s => cleanId(s.id)));
+      
+        // group ข้อมูลสอบเฉพาะนักศึกษาที่ดูแล
+        const myTests = appState.englishTests.filter(t => myIds.has(cleanId(t.studentId)));
+        const byStu = groupBy(myTests, t => cleanId(t.studentId));
+      
+        let pass = 0, fail = 0;
+      
+        Object.keys(byStu).forEach(id => {
+          const latest = latestBy(
+            byStu[id],
+            t => `${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate || ''}`
+          );
+          if(!latest) return;
+      
+          const status = String(latest.status || '').trim();
+          if (status === 'ผ่าน') pass++;
+          else if (status === 'ไม่ผ่าน') fail++;
+          // อื่นๆ เช่น '' 'ยังไม่สอบ' ไม่นับ
+        });
+      
+        const total = pass + fail;
+      
+        const elP = byId('advEngPass');
+        const elF = byId('advEngFail');
+        const elT = byId('advEngTotal');
+        if (elP) elP.textContent = pass;
+        if (elF) elF.textContent = fail;
+        if (elT) elT.textContent = total;
+      }
 /***********************
  * MODALS & STARTUP
  ***********************/
@@ -869,6 +883,7 @@ function openModal(id){ byId('modalBackdrop').classList.remove('hidden'); byId(i
 function closeModal(id){ byId('modalBackdrop').classList.add('hidden'); byId(id).classList.add('hidden'); }
 window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{ initLogin(); });
+
 
 
 
