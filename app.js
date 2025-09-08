@@ -953,10 +953,49 @@ function renderAdvisorStudents(myStudents){
 /***********************
  * MODALS & STARTUP
  ***********************/
-function openModal(id){ byId('modalBackdrop').classList.remove('hidden'); byId(id).classList.remove('hidden'); }
-function closeModal(id){ byId('modalBackdrop').classList.add('hidden'); byId(id).classList.add('hidden'); }
+function openModal(id){
+  const el = byId(id);
+  if(!el) return console.warn('modal not found:', id);
+  el.classList.remove('hidden');
+}
+function closeModal(id){
+  const el = byId(id);
+  if(!el) return;
+  el.classList.add('hidden');
+}
+function openChangePassword(){
+  openModal('modalChangePassword');
+}
+
 window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{ initLogin(); });
+
+async function handleChangePasswordSubmit(e){
+  e.preventDefault();
+  const oldPw = byId('cp-old').value.trim();
+  const newPw = byId('cp-new').value.trim();
+  const cfmPw = byId('cp-confirm').value.trim();
+
+  if(newPw.length < 6) return Swal.fire('เตือน', 'รหัสผ่านใหม่อย่างน้อย 6 ตัวอักษร', 'warning');
+  if(newPw !== cfmPw) return Swal.fire('เตือน', 'ยืนยันรหัสผ่านไม่ตรงกัน', 'warning');
+
+  try{
+    showLoading(true);
+    // TODO: เรียก API hash+salt ที่ปอยจะปรับใน changePassword_()
+    const res = await callAPI({ action:'changePassword', payload: JSON.stringify({
+      userId: appState.user?.id, oldPassword: oldPw, newPassword: newPw
+    })});
+    if(!res.success) return Swal.fire('ไม่สำเร็จ', res.message || 'เปลี่ยนรหัสผ่านล้มเหลว','error');
+    Swal.fire('สำเร็จ','เปลี่ยนรหัสผ่านเรียบร้อย','success');
+    closeModal('modalChangePassword');
+    e.target.reset();
+  }catch(err){
+    console.error(err);
+    Swal.fire('ผิดพลาด', String(err),'error');
+  }finally{
+    showLoading(false);
+  }
+}
 
 
 
