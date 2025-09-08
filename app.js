@@ -295,31 +295,41 @@ function buildAdminIndividual(){
 
   const allYears = unique(appState.grades.map(g=>parseTerm(g.term).year).filter(Boolean)).sort();
   yearSel.innerHTML =
-  '<option value="">ทุกปีการศึกษา</option>' +
-  allYears.map(y => `<option value="${y}">${y}</option>`).join('');
+    '<option value="">ทุกปีการศึกษา</option>' +
+    allYears.map(y => `<option value="${y}">${y}</option>`).join('');
 
   function fillSelect(){
     const q = search.value.trim();
     const list = appState.students
       .filter(s=>!q || String(s.id||'').includes(q) || String(s.name||'').includes(q))
       .sort(sortByStudentIdAsc);
-  sel.innerHTML =
-  '<option value="">-- เลือกนักศึกษา --</option>' +
-  list.map(s => `<option value="${s.id}">${s.id} - ${s.name}</option>`).join('');
+
+    sel.innerHTML =
+      '<option value="">-- เลือกนักศึกษา --</option>' +
+      list.map(s => `<option value="${s.id}">${s.id} - ${s.name}</option>`).join('');
   }
   fillSelect();
   search.addEventListener('input', fillSelect);
 
-  sel.addEventListener('change', ()=>{ appState.ui.adminIndSelectedId = sel.value; (); });
-  yearSel.addEventListener('change', ()=>{ appState.ui.adminIndYear = yearSel.value; (); });
+  // ⬇️ เรียก render เมื่อมีการเปลี่ยนค่า
+  sel.addEventListener('change', ()=>{
+    appState.ui.adminIndSelectedId = sel.value;
+    renderAdminIndividual();
+  });
+  yearSel.addEventListener('change', ()=>{
+    appState.ui.adminIndYear = yearSel.value;
+    renderAdminIndividual();
+  });
 
   byId('btnEditStudent').onclick = openEditStudentModal;
   byId('btnAddGrade').onclick = ()=>openModal('modalAddGrade');
   byId('btnAddEnglish').onclick = ()=>openModal('modalAddEnglish');
   byId('btnManageGrades').onclick = openManageGradesModal;
 
-  ();
+  // ⬇️ เรียกครั้งแรกให้ขึ้น placeholder
+  renderAdminIndividual();
 }
+
 function renderAdminIndividual() {
   const id = cleanId(appState.ui.adminIndSelectedId);
   const yearFilter = appState.ui.adminIndYear;
@@ -787,6 +797,7 @@ function openModal(id){ byId('modalBackdrop').classList.remove('hidden'); byId(i
 function closeModal(id){ byId('modalBackdrop').classList.add('hidden'); byId(id).classList.add('hidden'); }
 window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{ initLogin(); });
+
 
 
 
