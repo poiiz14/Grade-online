@@ -199,17 +199,29 @@ function buildAdminOverview(){
   const allCourses = unique(appState.grades.map(g=>String(g.courseCode||'').trim()).filter(Boolean));
   byId('overviewTotalCourses').textContent = allCourses.length;
 
-  // นับ “ผ่านมาแล้ว (จากรายการล่าสุดของแต่ละคน)”
+  // นับ “ผ่าน/ไม่ผ่าน (จากรายการล่าสุดของแต่ละคน)”
   const byStu = groupBy(appState.englishTests, t=>t.studentId);
   let passCount = 0;
+  let failCount = 0;
+  
   Object.keys(byStu).forEach(id=>{
-    const latest = latestBy(byStu[id], t=>`${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`);
-    if(latest && String(latest.status).includes('ผ่าน')) passCount++;
+    const latest = latestBy(
+      byStu[id],
+      t=>`${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`
+    );
+    if(!latest) return;
+    const status = String(latest.status || '');
+    if (status.includes('ผ่าน')) passCount++;
+    else failCount++;
   });
+  
   byId('overviewEnglishLatestPass').textContent = passCount;
-
+  const elFail = byId('overviewEnglishLatestFail');
+  if (elFail) elFail.textContent = failCount;
+  
+  // วาดกราฟ
   renderStudentByYearBar();
-  renderEnglishPassPie();   // << กราฟวงกลม อังกฤษ ผ่าน/ไม่ผ่าน (รวมทุกคน)
+  renderEnglishPassPie();
 }
 function groupBy(arr, keyFn){ const m={}; arr.forEach(x=>{ const k=keyFn(x); (m[k]||(m[k]=[])).push(x); }); return m; }
 /* Bar: จำนวนนักศึกษาแต่ละชั้นปี */
@@ -849,6 +861,7 @@ function openModal(id){ byId('modalBackdrop').classList.remove('hidden'); byId(i
 function closeModal(id){ byId('modalBackdrop').classList.add('hidden'); byId(id).classList.add('hidden'); }
 window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{ initLogin(); });
+
 
 
 
