@@ -296,28 +296,62 @@ function renderEnglishPassPie(){
   if(!el) return;
   const ctx = el.getContext('2d');
 
-  const byStu = groupBy(appState.englishTests, t=>t.studentId);
+  // นับผลล่าสุด (ผ่าน/ไม่ผ่าน) ต่อคน
+  const byStu = groupBy(appState.englishTests, t=>cleanId(t.studentId));
   let pass = 0, fail = 0;
-
   Object.keys(byStu).forEach(id=>{
-    const latest = latestBy(byStu[id], t=>`${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`);
+    const latest = latestBy(byStu[id], t=>`${t.academicYear}-${String(t.attempt||0).padStart(3,'0')}-${t.examDate||''}`);
     if(!latest) return;
-
-    const status = String(latest.status || '').trim();
-    if (status === 'ผ่าน') pass++;
-    else if (status === 'ไม่ผ่าน') fail++;
+    const s = String(latest.status||'').trim();
+    if (s === 'ผ่าน') pass++;
+    else if (s === 'ไม่ผ่าน') fail++;
   });
 
-  if(window._englishPie) window._englishPie.destroy();
+  const dataArr = [pass, fail];
+  const total = dataArr.reduce((a,b)=>a+b,0);
+
+  // ทำลายกราฟเก่า (ถ้ามี)
+  if (window._englishPie) window._englishPie.destroy();
+
+  // สร้างกราฟใหม่ + tooltip แสดง จำนวน และ %
   window._englishPie = new Chart(ctx, {
     type: 'pie',
     data: {
-      labels: ['ผ่าน','ไม่ผ่าน'],
-      datasets: [{ data: [pass, fail] }]
+      labels: ['ผ่าน', 'ไม่ผ่าน'],
+      datasets: [{ data: dataArr }]
     },
-    options: { responsive: true, maintainAspectRatio: false }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (context) => {
+              const label = context.label || '';
+              const val = context.parsed || 0;
+              const pct = total ? ((val / total) * 100).toFixed(1) : 0;
+              return `${label}: ${val.toLocaleString()} คน (${pct}%)`;
+            }
+          }
+        },
+        legend: {
+          labels: { // ให้ legend คงสั้นๆ
+            generateLabels: (chart) => {
+              const {labels} = chart.data;
+              return labels.map((l, i)=>({
+                text: l,
+                fillStyle: chart.data.datasets[0].backgroundColor?.[i] || undefined,
+                strokeStyle: 'transparent',
+                index: i
+              }));
+            }
+          }
+        }
+      }
+    }
   });
 }
+
 /***********************
  * ADMIN: STUDENTS
  ***********************/
@@ -996,6 +1030,7 @@ async function handleChangePasswordSubmit(e){
     showLoading(false);
   }
 }
+
 
 
 
