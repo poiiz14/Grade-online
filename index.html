@@ -74,7 +74,12 @@
         </div>
       </form>
     </div>
-  </div>
+    <!-- ปุ่มช่วยเหลือ ? มุมล่างขวาหน้าล็อกอิน -->
+    <button type="button"
+            class="fixed bottom-4 right-4 w-10 h-10 rounded-full border bg-white/90 shadow hover:bg-gray-50"
+            onclick="openLoginHelp()"
+            aria-label="Help">?</button>
+   </div>
 
   <!-- APP -->
   <div id="dashboard" class="hidden min-h-screen bg-gray-50">
@@ -90,6 +95,11 @@
           </div>
           <div class="flex items-center gap-3">
             <span id="currentUserLabel" class="text-sm text-gray-600"></span>
+            <button type="button"
+                    class="px-4 py-2 rounded-lg border hover:bg-gray-50"
+                    onclick="openChangePassword()">
+              เปลี่ยนรหัสผ่าน
+            </button>
             <button id="btnLogout" class="px-4 py-2 rounded-lg border hover:bg-gray-50">
               ออกจากระบบ
             </button>
@@ -622,8 +632,26 @@
       <div class="mt-3 text-sm text-gray-700">กำลังโหลดข้อมูล…</div>
     </div>
   </div>
+    <!-- Modal: Login Help -->
+    <div id="modalLoginHelp" class="fixed inset-0 z-50 hidden">
+      <div class="absolute inset-0 bg-black/40" onclick="closeModal('modalLoginHelp')"></div>
+      <div class="relative max-w-lg mx-auto mt-24 bg-white rounded-xl shadow-xl overflow-hidden">
+        <div class="px-6 py-4 border-b">
+          <h3 class="text-lg font-semibold">ติดต่อสอบถาม</h3>
+        </div>
+        <div class="p-6 space-y-2">
+          <p>หากมีข้อสงสัย โปรดติดต่อได้ที่ <b>งานทะเบียน</b> หรือ <b>งานวิชาการ</b></p>
+          <p>โทร. <b>0 2354 2320 ต่อ 340 หรือ 310</b></p>
+        </div>
+        <div class="px-6 py-4 border-t text-right">
+          <button class="px-4 py-2 rounded border hover:bg-gray-50"
+                  onclick="closeModal('modalLoginHelp')">เข้าใจแล้ว</button>
+        </div>
+      </div>
+    </div>
 </body>
 </html>
+
 
 
 
