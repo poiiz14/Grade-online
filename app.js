@@ -177,7 +177,51 @@ function initLogin(){
 
   byId('btnLogout').addEventListener('click', ()=>{ location.reload(); });
 }
+// เปิดโมดัลช่วยเหลือหน้า Login
+window.openLoginHelp = function(){
+  openModal('modalLoginHelp');
+};
 
+// เปิดโมดัลเปลี่ยนรหัสผ่าน (รีเซ็ตฟอร์มก่อน)
+window.openChangePassword = function(){
+  const o = byId('cp-old'), n = byId('cp-new'), c = byId('cp-confirm');
+  if (o) o.value = ''; if (n) n.value = ''; if (c) c.value = '';
+  openModal('modalChangePassword');
+};
+
+// ส่งฟอร์มเปลี่ยนรหัสผ่าน
+window.handleChangePasswordSubmit = async function(e){
+  e.preventDefault();
+  const oldPw = (byId('cp-old')?.value || '').trim();
+  const newPw = (byId('cp-new')?.value || '').trim();
+  const cfPw  = (byId('cp-confirm')?.value || '').trim();
+
+  if (!oldPw || !newPw || !cfPw) return false;
+  if (newPw.length < 6){ Swal.fire('แจ้งเตือน','รหัสผ่านใหม่อย่างน้อย 6 ตัวอักษร','info'); return false; }
+  if (newPw !== cfPw){ Swal.fire('แจ้งเตือน','รหัสผ่านใหม่และยืนยันไม่ตรงกัน','info'); return false; }
+
+  const username = (appState?.user?.email || appState?.user?.id || '').trim();
+  if (!username){ Swal.fire('ผิดพลาด','ไม่พบข้อมูลผู้ใช้ในระบบ','error'); return false; }
+
+  try{
+    // เรียก GAS route: changepassword (มีใน Router ของปอยแล้ว)
+    const res = await callAPI({
+      action: 'changePassword',
+      payload: JSON.stringify({ username, old: oldPw, 'new': newPw })
+    });
+    if (!res?.success){
+      Swal.fire('ไม่สำเร็จ', res?.message || 'เปลี่ยนรหัสผ่านไม่สำเร็จ', 'error');
+      return false;
+    }
+    Swal.fire('สำเร็จ','เปลี่ยนรหัสผ่านเรียบร้อย','success');
+    closeModal('modalChangePassword');
+    return false;
+  }catch(err){
+    console.error(err);
+    Swal.fire('ผิดพลาด', String(err), 'error');
+    return false;
+  }
+};
 /***********************
  * ADMIN: NAV & SECTIONS
  ***********************/
@@ -913,6 +957,7 @@ function openModal(id){ byId('modalBackdrop').classList.remove('hidden'); byId(i
 function closeModal(id){ byId('modalBackdrop').classList.add('hidden'); byId(id).classList.add('hidden'); }
 window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{ initLogin(); });
+
 
 
 
