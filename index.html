@@ -146,17 +146,30 @@
               </div>
             </div>
 
+             <!-- ผ่าน (ผลล่าสุด) -->
             <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
               <div class="flex items-center">
-                <div class="bg-amber-100 text-amber-600 w-10 h-10 rounded-full inline-flex items-center justify-center mr-3"><i class="fas fa-language"></i></div>
+                <div class="bg-amber-100 text-amber-600 w-10 h-10 rounded-full inline-flex items-center justify-center mr-3">
+                  <i class="fas fa-language"></i>
+                </div>
                 <div>
-                  <p class="text-sm text-gray-500">นศ.ที่สอบผ่านภาษาอังกฤษ สบช.</p>
+                  <p class="text-sm text-gray-500">นักศึกษาที่สอบผ่านภาษาอังกฤษ สบช.: ผ่าน</p>
                   <p id="overviewEnglishLatestPass" class="text-xl font-bold text-gray-900">-</p>
                 </div>
               </div>
             </div>
-          </div>
-
+            <!-- ✅ ใหม่: ไม่ผ่าน (ผลล่าสุด) -->
+              <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
+                <div class="flex items-center">
+                  <div class="bg-rose-100 text-rose-600 w-10 h-10 rounded-full inline-flex items-center justify-center mr-3">
+                    <i class="fas fa-language"></i>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-500">นักศึกษาที่สอบผ่านภาษาอังกฤษ สบช.: ไม่ผ่าน</p>
+                    <p id="overviewEnglishLatestFail" class="text-xl font-bold text-gray-900">-</p>
+                  </div>
+                </div>
+              </div>
           <!-- Bar: จำนวนนักศึกษาแต่ละชั้นปี -->
           <div class="bg-white rounded-xl p-6 card-shadow mb-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">จำนวนนักศึกษาแต่ละชั้นปี</h3>
@@ -586,6 +599,7 @@
   </div>
 </body>
 </html>
+
 
 
 
