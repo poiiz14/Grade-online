@@ -30,7 +30,24 @@ function qs(sel, root=document){ return root.querySelector(sel); }
 function qsa(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
 function toNumber(x, def=0){ const n = Number(x); return isNaN(n) ? def : n; }
 function cleanId(id){ return String(id||'').trim(); }
-function parseTerm(term){ const parts = String(term||'').trim().split('/'); return parts.length===2?{year:parts[0],sem:parts[1]}:{year:'',sem:''}; }
+function parseTerm(term){
+  const raw = String(term || '').trim();
+  if(!raw) return { year:'', sem:'' };
+  // 2568/1 หรือ 2568-1
+  const m1 = raw.match(/^(\d{4})\s*[/\-]\s*(\d{1,2})$/);
+  if(m1) return { year: m1[1], sem: String(parseInt(m1[2],10)) };
+  // 1/2568 หรือ 1-2568
+  const m2 = raw.match(/^(\d{1,2})\s*[/\-]\s*(\d{4})$/);
+  if(m2) return { year: m2[2], sem: String(parseInt(m2[1],10)) };
+  // เผื่อกรณีอื่นๆ ที่คั่นด้วย / หรือ -
+  const parts = raw.split(/[\/\-]/).map(s=>s.trim());
+  if(parts.length === 2){
+    const [a,b] = parts;
+    if(a.length === 4) return { year: a, sem: String(parseInt(b,10) || '') };
+    if(b.length === 4) return { year: b, sem: String(parseInt(a,10) || '') };
+  }
+  return { year:'', sem:'' };
+}
 function termSortKey(term){ const {year,sem}=parseTerm(term); return `${year.padStart(4,'0')}-${sem.padStart(1,'0')}`; }
 function sortByStudentIdAsc(a,b){ const A=cleanId(a.id||a.value||a); const B=cleanId(b.id||b.value||b); return A<B?-1:A>B?1:0; }
 function gradeToPoint(grade){ const g=String(grade||'').toUpperCase().trim(); if(NON_GPA_GRADES.has(g)) return null; return GRADE_POINTS[g] ?? null; }
@@ -591,58 +608,60 @@ function buildStudentView(){
 function renderStudentGrades() {
   const meId = cleanId(appState.user.id);
   const y = byId('studentAcademicYear').value;
-  const sem = appState.ui.semesterTab;
+  const sem = appState.ui.semesterTab; // '1' | '2' | '3'
 
-  // ล้างข้อมูลทุกภาค
-  ['studentGradesSem1', 'studentGradesSem2', 'studentGradesSem3'].forEach(id => {
+  // เคลียร์ทุกภาคด้วยข้อความเริ่มต้น
+  ['studentGradesSem1','studentGradesSem2','studentGradesSem3'].forEach(id=>{
     const el = byId(id);
     if (el) el.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400">ยังไม่มีข้อมูล</td></tr>';
   });
 
-  const rows = appState.grades
+  // ดึงเกรดของฉัน + กรองปี (ถ้าเลือก)
+  const myRows = appState.grades
     .filter(g => cleanId(g.studentId) === meId)
     .filter(g => !y || parseTerm(g.term).year === y)
-    .sort((a, b) => termSortKey(a.term).localeCompare(termSortKey(b.term)));
+    .sort((a,b)=> termSortKey(a.term).localeCompare(termSortKey(b.term)));
 
-  rows.forEach(g => {
-    const term = parseTerm(g.term);
-    if (!term.sem) return;
-    const targetId = `studentGradesSem${term.sem}`;
-    const tbody = byId(targetId);
-    if (tbody) {
-      // ถ้ามีข้อความ default → ลบออกก่อน
-      if (tbody.innerHTML.includes('ยังไม่มีข้อมูล')) tbody.innerHTML = '';
-      tbody.innerHTML += `
-        <tr>
-          <td class="px-4 py-2">${g.term || '-'}</td>
-          <td class="px-4 py-2">${g.courseCode || '-'}</td>
-          <td class="px-4 py-2">${g.courseTitle || '-'}</td>
-          <td class="px-4 py-2">${g.credits || '-'}</td>
-          <td class="px-4 py-2">${g.grade || '-'}</td>
-        </tr>
-      `;
-    }
+  // กระจายลงภาค 1/2/3 ตาม parseTerm().sem
+  myRows.forEach(g=>{
+    const t = parseTerm(g.term);
+    const targetId = `studentGradesSem${t.sem}`;
+    const tb = byId(targetId);
+    if (!tb || !t.sem) return;
+    if (tb.innerHTML.includes('ยังไม่มีข้อมูล')) tb.innerHTML = '';
+    tb.innerHTML += `
+      <tr>
+        <td class="px-4 py-2">${g.term || '-'}</td>
+        <td class="px-4 py-2">${g.courseCode || '-'}</td>
+        <td class="px-4 py-2">${g.courseTitle || '-'}</td>
+        <td class="px-4 py-2">${g.credits || '-'}</td>
+        <td class="px-4 py-2">${g.grade || '-'}</td>
+      </tr>
+    `;
   });
-  // toggle แสดงเฉพาะภาคที่เลือก
-  ['1','2','3'].forEach(s => {
+
+  // โชว์เฉพาะ tbody ของแท็บที่เลือก
+  ['1','2','3'].forEach(s=>{
     const el = byId(`studentGradesSem${s}`);
-    if (el) {
-      if (s === sem) el.classList.remove('hidden');
-      else el.classList.add('hidden');
-    }
+    if (!el) return;
+    if (s === sem) el.classList.remove('hidden');
+    else el.classList.add('hidden');
   });
 }
 
-window.showSemester = function(sem) {
+// ให้ปุ่มแท็บเรียกได้ตรง ๆ
+window.showSemester = function(sem){
   appState.ui.semesterTab = String(sem || '1');
-  // toggle ปุ่ม active
+
+  // toggle active เฉพาะใน studentDashboard
   const tabs = qsa('#studentDashboard .semester-tab');
-  tabs.forEach(t => t.classList.remove('is-active'));
-  const idx = appState.ui.semesterTab === '1' ? 0 : appState.ui.semesterTab === '2' ? 1 : 2;
+  tabs.forEach(t=>t.classList.remove('is-active'));
+  const idx = appState.ui.semesterTab==='1' ? 0 : appState.ui.semesterTab==='2' ? 1 : 2;
   if (tabs[idx]) tabs[idx].classList.add('is-active');
 
   renderStudentGrades();
 };
+
 
 /***********************
  * ADVISOR VIEW
@@ -822,6 +841,7 @@ function openModal(id){ byId('modalBackdrop').classList.remove('hidden'); byId(i
 function closeModal(id){ byId('modalBackdrop').classList.add('hidden'); byId(id).classList.add('hidden'); }
 window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{ initLogin(); });
+
 
 
 
