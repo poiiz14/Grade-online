@@ -770,9 +770,11 @@ function renderAdvisorStudents(myStudents){
               <div class="text-xs text-gray-600">หน่วยกิตรวม</div>
               <div class="text-xl font-semibold text-green-800">${computeGPA(stuGrades).credits || 0}</div>
             </div>
-            <div class="bg-purple-50 p-3 rounded">
+            <div class="bg-purple-50 p-3 rounded cursor-pointer hover:bg-purple-100 transition"
+                 onclick="openAdvisorEnglishModal('${s.id}')" role="button" tabindex="0">
               <div class="text-xs text-gray-600">อังกฤษล่าสุด</div>
-              <div class="text-lg font-semibold text-purple-800">${latestStr}</div>
+              <div class="text-lg font-semibold text-purple-800 underline decoration-dotted">${latestStr}</div>
+              <div class="text-xs text-purple-700 mt-1">คลิกเพื่อดูรายละเอียด</div>
             </div>
           </div>
 
@@ -820,6 +822,57 @@ function renderAdvisorStudents(myStudents){
         else { box.classList.add('hidden'); btn.textContent='ขยาย'; }
       };
       window.toggleEnglishAll = function(id){ byId(id).classList.toggle('hidden'); };
+
+      window.openAdvisorEnglishModal = function(studentId){
+        const sid = cleanId(studentId);
+        const stu = appState.students.find(s => cleanId(s.id) === sid);
+        const header = byId('advEngDetailHeader');
+        if (header) header.textContent = stu ? `${stu.id || '-'} - ${stu.name || '-'}` : sid;
+      
+        // ดึงและเรียงรายการสอบของนักศึกษาคนนี้ (เก่า -> ใหม่)
+        const rows = appState.englishTests
+          .filter(t => cleanId(t.studentId) === sid)
+          .sort((a,b)=>{
+            const ka = `${a.academicYear || ''}-${String(a.attempt||0).padStart(3,'0')}-${a.examDate || ''}`;
+            const kb = `${b.academicYear || ''}-${String(b.attempt||0).padStart(3,'0')}-${b.examDate || ''}`;
+            return ka.localeCompare(kb);
+          });
+      
+        const tb = byId('advEnglishDetailTable');
+        if (!tb) return openModal('modalAdvisorEnglish');
+      
+        if(!rows.length){
+          tb.innerHTML = `<tr><td colspan="6" class="px-3 py-6 text-center text-gray-400">ยังไม่มีข้อมูล</td></tr>`;
+          return openModal('modalAdvisorEnglish');
+        }
+      
+        const latest = rows[rows.length - 1]; // แถวล่าสุด
+        tb.innerHTML = rows.map(t=>{
+          const isLatest = t === latest;
+          const badge = isLatest ? `<span class="ml-2 text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">ล่าสุด</span>` : '';
+          const status = String(t.status||'').trim();
+          const statusCls = status === 'ผ่าน' ? 'text-emerald-700 bg-emerald-50'
+                          : status === 'ไม่ผ่าน' ? 'text-rose-700 bg-rose-50'
+                          : 'text-slate-700 bg-slate-50';
+          return `
+            <tr class="${isLatest ? 'bg-indigo-50/40' : ''}">
+              <td class="px-3 py-2">${t.academicYear || '-'}</td>
+              <td class="px-3 py-2">${t.attempt || '-'}</td>
+              <td class="px-3 py-2">${t.score || '-'}</td>
+              <td class="px-3 py-2">
+                <span class="inline-block px-2 py-0.5 rounded ${statusCls}">${status || '-'}</span>
+                ${badge}
+              </td>
+              <td class="px-3 py-2">${t.examDate ? String(t.examDate).substring(0,10) : '-'}</td>
+              <td class="px-3 py-2">${t.note || ''}</td>
+            </tr>
+          `;
+        }).join('');
+      
+        openModal('modalAdvisorEnglish');
+      };
+
+
       /* Summary Pie เฉพาะนักศึกษาที่ดูแล */
       function renderAdvisorEnglishSummary(myStudents){
         // เก็บ studentIds ที่อาจารย์ดูแล
@@ -860,6 +913,7 @@ function openModal(id){ byId('modalBackdrop').classList.remove('hidden'); byId(i
 function closeModal(id){ byId('modalBackdrop').classList.add('hidden'); byId(id).classList.add('hidden'); }
 window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{ initLogin(); });
+
 
 
 
