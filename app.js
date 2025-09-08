@@ -200,19 +200,24 @@ function buildAdminOverview(){
   byId('overviewTotalCourses').textContent = allCourses.length;
 
   // นับ “ผ่าน/ไม่ผ่าน (จากรายการล่าสุดของแต่ละคน)”
-  const byStu = groupBy(appState.englishTests, t=>t.studentId);
+  const byStu = groupBy(appState.englishTests, t => t.studentId);
   let passCount = 0;
   let failCount = 0;
   
-  Object.keys(byStu).forEach(id=>{
+  Object.keys(byStu).forEach(id => {
     const latest = latestBy(
       byStu[id],
-      t=>`${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`
+      t => `${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`
     );
-    if(!latest) return;
-    const status = String(latest.status || '');
-    if (status.includes('ผ่าน')) passCount++;
-    else failCount++;
+    if (!latest) return;
+  
+    const status = String(latest.status || '').trim();
+    if (status === 'ผ่าน') {
+      passCount++;
+    } else if (status === 'ไม่ผ่าน') {
+      failCount++;
+    }
+    // ถ้าเป็นค่าอื่น เช่น '' หรือ 'ยังไม่สอบ' → ไม่เอามานับ
   });
   
   byId('overviewEnglishLatestPass').textContent = passCount;
@@ -247,13 +252,16 @@ function renderEnglishPassPie(){
   if(!el) return;
   const ctx = el.getContext('2d');
 
-  // เอารายการ “ล่าสุด” ของแต่ละคนมาตัดสินผ่าน/ไม่ผ่าน
   const byStu = groupBy(appState.englishTests, t=>t.studentId);
-  let pass=0, fail=0;
+  let pass = 0, fail = 0;
+
   Object.keys(byStu).forEach(id=>{
     const latest = latestBy(byStu[id], t=>`${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`);
     if(!latest) return;
-    if(String(latest.status).includes('ผ่าน')) pass++; else fail++;
+
+    const status = String(latest.status || '').trim();
+    if (status === 'ผ่าน') pass++;
+    else if (status === 'ไม่ผ่าน') fail++;
   });
 
   if(window._englishPie) window._englishPie.destroy();
@@ -861,6 +869,7 @@ function openModal(id){ byId('modalBackdrop').classList.remove('hidden'); byId(i
 function closeModal(id){ byId('modalBackdrop').classList.add('hidden'); byId(id).classList.add('hidden'); }
 window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{ initLogin(); });
+
 
 
 
