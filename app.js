@@ -698,7 +698,7 @@ function buildAdvisorView(){
   const myName = appState.user.name || '';
   const list = appState.students.filter(s=> (String(s.advisor||'').trim() === String(myName).trim()) );
   renderAdvisorFilters(list);
-  renderAdvisorStudents(list);
+  (list);
   renderAdvisorEnglishSummary(list); // << สรุป Pie เฉพาะนักศึกษาที่ดูแล
 }
 function renderAdvisorFilters(myStudents){
@@ -756,7 +756,7 @@ function renderAdvisorStudents(myStudents){
         </div>
 
         <div id="${detailId}" class="hidden mt-3 bg-gray-50 rounded-lg p-4">
-          <!-- กล่องสรุป 4 ใบ (โทนเดิม) -->
+          <!-- ✅ กล่องสรุป 4 ใบ -->
           <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
             <div class="bg-indigo-50 p-3 rounded">
               <div class="text-xs text-gray-600">GPAX (ตลอดหลักสูตร)</div>
@@ -810,7 +810,6 @@ function renderAdvisorStudents(myStudents){
     `;
   }).join('');
 }
-
       window.toggleAdvisorDetail = function(detailId, btnId){
         const box = byId(detailId);
         const btn = byId(btnId);
@@ -861,6 +860,7 @@ function openModal(id){ byId('modalBackdrop').classList.remove('hidden'); byId(i
 function closeModal(id){ byId('modalBackdrop').classList.add('hidden'); byId(id).classList.add('hidden'); }
 window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{ initLogin(); });
+
 
 
 
