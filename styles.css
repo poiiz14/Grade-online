@@ -134,3 +134,16 @@ input:focus,select:focus,textarea:focus{ box-shadow:0 0 0 3px rgba(37,99,235,.2)
 @supports (-webkit-touch-callout:none){
   input,select,textarea{ font-size:16px; }
 }
+/* FAB enter pop */
+@keyframes pop {
+  0%   { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+.animate-pop {
+  animation: pop 200ms ease-out;
+}
+
+/* เคารพผู้ใช้ที่ปิด motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop { animation: none; }
+}
