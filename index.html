@@ -622,16 +622,47 @@
       </div>
     </div>
   </div>
-
-  <script src="app.js"></script>
-
-  <!-- Loading Overlay (อยู่นอก login/dashboard) -->
-  <div id="loadingOverlay" class="loading-overlay hidden">
-    <div class="loading-panel">
-      <div class="spinner" aria-hidden="true"></div>
-      <div class="mt-3 text-sm text-gray-700">กำลังโหลดข้อมูล…</div>
+  <!-- Change Password Modal -->
+  <div id="modalChangePassword" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/40" onclick="closeModal('modalChangePassword')"></div>
+  
+    <div class="relative max-w-md mx-auto mt-24 bg-white rounded-xl shadow-xl overflow-hidden">
+      <div class="px-6 py-4 border-b">
+        <h3 class="text-lg font-semibold">เปลี่ยนรหัสผ่าน</h3>
+      </div>
+  
+      <form class="p-6 space-y-4" onsubmit="return handleChangePasswordSubmit(event)">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">รหัสผ่านเดิม</label>
+          <input id="cp-old" type="password" class="w-full border rounded px-3 py-2" required>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">รหัสผ่านใหม่</label>
+          <input id="cp-new" type="password" class="w-full border rounded px-3 py-2" required minlength="6">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">ยืนยันรหัสผ่านใหม่</label>
+          <input id="cp-confirm" type="password" class="w-full border rounded px-3 py-2" required minlength="6">
+        </div>
+  
+        <div class="flex items-center justify-end gap-2 pt-2 border-t">
+          <button type="button" class="px-4 py-2 rounded border hover:bg-gray-50"
+                  onclick="closeModal('modalChangePassword')">ยกเลิก</button>
+          <button type="submit" class="px-4 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-700">
+            บันทึก
+          </button>
+        </div>
+      </form>
     </div>
   </div>
+  <script src="app.js"></script>
+    <!-- Loading Overlay (อยู่นอก login/dashboard) -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+      <div class="loading-panel">
+        <div class="spinner" aria-hidden="true"></div>
+        <div class="mt-3 text-sm text-gray-700">กำลังโหลดข้อมูล…</div>
+      </div>
+    </div>
     <!-- Modal: Login Help -->
     <div id="modalLoginHelp" class="fixed inset-0 z-50 hidden">
       <div class="absolute inset-0 bg-black/40" onclick="closeModal('modalLoginHelp')"></div>
@@ -651,6 +682,7 @@
     </div>
 </body>
 </html>
+
 
 
 
