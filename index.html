@@ -124,8 +124,8 @@
       <nav class="bg-white shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div class="flex space-x-8 overflow-x-auto">
-            <button onclick="showAdminSection('overview')"  class="tab-btn is-active whitespace-nowrap"><i class="fas fa-chart-pie mr-2"></i>ภาพรวม</button>
-            <button onclick="showAdminSection('students')"  class="tab-btn whitespace-nowrap"><i class="fas fa-users mr-2"></i>รายชื่อนักศึกษา</button>
+            <button onclick="showAdminSection('overview')"  class="tab-btn is-active whitespace-nowrap"><i class="fas fa-chart-pie mr-2"></i>หน้าหลัก</button>
+            <button onclick="showAdminSection('students')"  class="tab-btn whitespace-nowrap"><i class="fas fa-users mr-2"></i>รายชื่อนักศึกษาทั้งหมด</button>
             <button onclick="showAdminSection('individual')" class="tab-btn whitespace-nowrap"><i class="fas fa-user-graduate mr-2"></i>ข้อมูลรายบุคคล</button>
           </div>
         </div>
@@ -134,14 +134,14 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- OVERVIEW -->
         <section id="adminOverview" class="admin-section">
-          <h2 class="text-2xl font-bold text-gray-900 mb-6">ภาพรวม</h2>
+          <h2 class="text-2xl font-bold text-gray-900 mb-6">หน้าหลัก</h2>
           
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
               <div class="flex items-center">
                 <div class="bg-blue-100 text-blue-600 w-10 h-10 rounded-full inline-flex items-center justify-center mr-3"><i class="fas fa-users"></i></div>
                 <div>
-                  <p class="text-sm text-gray-500">จำนวนนักศึกษา</p>
+                  <p class="text-sm text-gray-500">จำนวนนักศึกษาทั้งหมด</p>
                   <p id="overviewTotalStudents" class="text-xl font-bold text-gray-900">-</p>
                 </div>
               </div>
@@ -161,7 +161,7 @@
               <div class="flex items-center">
                 <div class="bg-purple-100 text-purple-600 w-10 h-10 rounded-full inline-flex items-center justify-center mr-3"><i class="fas fa-book"></i></div>
                 <div>
-                  <p class="text-sm text-gray-500">จำนวนวิชาทั้งหมด</p>
+                  <p class="text-sm text-gray-500">จำนวนรายวิชาทั้งหมด</p>
                   <p id="overviewTotalCourses" class="text-xl font-bold text-gray-900">-</p>
                 </div>
               </div>
@@ -174,7 +174,7 @@
                   <i class="fas fa-language"></i>
                 </div>
                 <div>
-                  <p class="text-sm text-gray-500">นักศึกษาที่สอบผ่านภาษาอังกฤษ สบช.: ผ่าน</p>
+                  <p class="text-sm text-gray-500">นักศึกษาที่สอบผ่านภาษาอังกฤษ สบช.</p>
                   <p id="overviewEnglishLatestPass" class="text-xl font-bold text-gray-900">-</p>
                 </div>
               </div>
@@ -186,7 +186,7 @@
                     <i class="fas fa-language"></i>
                   </div>
                   <div>
-                    <p class="text-sm text-gray-500">นักศึกษาที่สอบผ่านภาษาอังกฤษ สบช.: ไม่ผ่าน</p>
+                    <p class="text-sm text-gray-500">นักศึกษาที่ไม่สอบผ่านภาษาอังกฤษ สบช.</p>
                     <p id="overviewEnglishLatestFail" class="text-xl font-bold text-gray-900">-</p>
                   </div>
                 </div>
@@ -201,7 +201,7 @@
 
           <!-- Pie: สรุปผลสอบภาษาอังกฤษ (ผ่าน/ไม่ผ่าน) -->
           <div class="bg-white rounded-xl p-6 card-shadow">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">นศ.ที่สอบภาษาอังกฤษ สบช (ผ่าน/ไม่ผ่าน)</h3>
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">นักศึกษาสอบภาษาอังกฤษ สบช.</h3>
             <div class="chart-box">
               <canvas id="englishPassPie"></canvas>
             </div>
@@ -232,8 +232,8 @@
               <table class="w-full">
                 <thead class="bg-gray-50">
                   <tr>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัส</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อ</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัสนักศึกษา</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อ-สกุล</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชั้นปี</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">อาจารย์ที่ปรึกษา</th>
                     <th class="px-4 py-2"></th>
@@ -257,7 +257,7 @@
             <div class="flex items-center gap-2 lg:justify-end">
               <button id="btnEditStudent" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg"><i class="fas fa-edit mr-2"></i>แก้ไขข้อมูล</button>
               <button id="btnManageGrades" class="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg"><i class="fas fa-tools mr-2"></i>จัดการผลการเรียน</button>
-              <button id="btnAddGrade" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"><i class="fas fa-plus mr-2"></i>เพิ่มเกรด</button>
+              <button id="btnAddGrade" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"><i class="fas fa-plus mr-2"></i>เพิ่มผลการเรียน</button>
               <button id="btnAddEnglish" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg"><i class="fas fa-language mr-2"></i>เพิ่มผลสอบอังกฤษ</button>
             </div>
           </div>
@@ -349,7 +349,7 @@
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="bg-blue-50 p-4 rounded-lg"><p class="text-sm text-gray-600">GPAX (ตลอดหลักสูตร)</p><p id="studentGPAX" class="text-2xl font-bold text-blue-800">-</p></div>
             <div class="bg-green-50 p-4 rounded-lg"><p class="text-sm text-gray-600">หน่วยกิตสะสม</p><p id="studentCredits" class="text-2xl font-bold text-green-800">-</p></div>
-            <div class="bg-purple-50 p-4 rounded-lg"><p class="text-sm text-gray-600">ผลภาษาอังกฤษ สบช. ล่าสุด</p><p id="studentEnglishStatus" class="text-lg font-bold text-purple-800">-</p></div>
+            <div class="bg-purple-50 p-4 rounded-lg"><p class="text-sm text-gray-600">ผลภาษาอังกฤษ สบช. (ล่าสุด)</p><p id="studentEnglishStatus" class="text-lg font-bold text-purple-800">-</p></div>
           </div>
         </div>
 
@@ -382,7 +382,7 @@
             <nav class="flex space-x-8 px-6 overflow-x-auto">
               <button onclick="showSemester('1')" class="semester-tab is-active px-1 text-sm font-medium whitespace-nowrap">ภาคการศึกษาที่ 1</button>
               <button onclick="showSemester('2')" class="semester-tab px-1 text-sm font-medium whitespace-nowrap">ภาคการศึกษาที่ 2</button>
-              <button onclick="showSemester('3')" class="semester-tab px-1 text-sm font-medium whitespace-nowrap">ภาคฤดูร้อน</button>
+              <button onclick="showSemester('3')" class="semester-tab px-1 text-sm font-medium whitespace-nowrap">ภาคศึกษาฤดูร้อน</button>
             </nav>
           </div>
           <div class="p-6">                      
@@ -391,7 +391,7 @@
                 <!-- หัวตารางอยู่ข้างบนเท่านั้น -->
                 <thead class="bg-gray-50 sticky top-0">
                   <tr>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ปี/ภาค</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ภาคการศึกษา</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัสวิชา</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">รายวิชา</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วยกิต</th>
@@ -461,15 +461,15 @@
        <!-- สรุปผลสอบภาษาอังกฤษ (ที่ปรึกษา) แบบการ์ด -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div class="bg-emerald-50 p-4 rounded">
-            <div class="text-xs text-gray-600">อังกฤษ (ผลล่าสุด): ผ่าน</div>
+            <div class="text-xs text-gray-600">จำนวนนักศึกษาที่สอบอังกฤษ (ผ่าน)</div>
             <div id="advEngPass" class="text-2xl font-bold text-emerald-700">-</div>
           </div>
           <div class="bg-rose-50 p-4 rounded">
-            <div class="text-xs text-gray-600">อังกฤษ (ผลล่าสุด): ไม่ผ่าน</div>
+            <div class="text-xs text-gray-600">จำนวนนักศึกษาที่สอบอังกฤษ (ผ่าน)</div>
             <div id="advEngFail" class="text-2xl font-bold text-rose-700">-</div>
           </div>
           <div class="bg-slate-50 p-4 rounded">
-            <div class="text-xs text-gray-600">มีผลล่าสุด (ผ่าน+ไม่ผ่าน)</div>
+            <div class="text-xs text-gray-600">จำนวนนักศึกษาทั้งหมด (ที่สอบภาษาอังกฤษ)</div>
             <div id="advEngTotal" class="text-2xl font-bold text-slate-800">-</div>
           </div>
         </div>
@@ -511,7 +511,7 @@
     <div class="bg-white rounded-xl shadow-xl w-full max-w-xl p-6">
       <h3 class="text-lg font-semibold mb-4">เพิ่มผลการเรียน</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div><label class="text-sm">ปี/ภาค (เช่น 2568/1)</label><input id="addGradeTerm" class="w-full px-4 py-2 border rounded-lg"/></div>
+        <div><label class="text-sm">ภาคการศึกษา (เช่น 1/2/ฤดูร้อน)</label><input id="addGradeTerm" class="w-full px-4 py-2 border rounded-lg"/></div>
         <div><label class="text-sm">รหัสวิชา</label><input id="addGradeCourseCode" class="w-full px-4 py-2 border rounded-lg"/></div>
         <div class="md:col-span-2"><label class="text-sm">รายวิชา</label><input id="addGradeCourseTitle" class="w-full px-4 py-2 border rounded-lg"/></div>
         <div><label class="text-sm">หน่วยกิต</label><input id="addGradeCredits" type="number" step="0.5" class="w-full px-4 py-2 border rounded-lg"/></div>
@@ -534,7 +534,7 @@
   <!-- Add English Modal -->
   <div id="modalAddEnglish" class="fixed inset-0 hidden z-50 flex items-center justify-center">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-xl p-6">
-      <h3 class="text-lg font-semibold mb-4">เพิ่มผลสอบภาษาอังกฤษ</h3>
+      <h3 class="text-lg font-semibold mb-4">เพิ่มผลสอบภาษาอังกฤษ สบช.</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div><label class="text-sm">ปีการศึกษา</label><input id="addEngAcademicYear" class="w-full px-4 py-2 border rounded-lg" placeholder="เช่น 2568"/></div>
         <div><label class="text-sm">ครั้งที่สอบ</label><input id="addEngAttempt" class="w-full px-4 py-2 border rounded-lg" placeholder="เช่น 1"/></div>
@@ -559,7 +559,7 @@
       <div class="absolute inset-0 bg-black/40" onclick="closeModal('modalAdvisorEnglish')"></div>
       <div class="relative max-w-3xl mx-auto mt-16 bg-white rounded-xl shadow-xl overflow-hidden">
         <div class="px-6 py-4 border-b flex items-center justify-between">
-          <h3 class="text-lg font-semibold">รายละเอียดผลสอบภาษาอังกฤษ</h3>
+          <h3 class="text-lg font-semibold">ผลสอบภาษาอังกฤษ สบช.</h3>
           <button class="text-gray-500 hover:text-gray-700" onclick="closeModal('modalAdvisorEnglish')">✕</button>
         </div>
         <div class="p-6">
@@ -603,7 +603,7 @@
           <table class="w-full">
             <thead class="bg-gray-50">
               <tr>
-                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">ปี/ภาค</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">ภาคการศึกษา</th>
                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัสวิชา</th>
                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">รายวิชา</th>
                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">หน่วยกิต</th>
@@ -671,7 +671,7 @@
     <div id="loadingOverlay" class="loading-overlay hidden">
       <div class="loading-panel">
         <div class="spinner" aria-hidden="true"></div>
-        <div class="mt-3 text-sm text-gray-700">กำลังโหลดข้อมูล…</div>
+        <div class="mt-3 text-sm text-gray-700">กำลังโหลดข้อมูล…กรุณารอสักครู่</div>
       </div>
     </div>
     <!-- Modal: Login Help -->
@@ -682,7 +682,7 @@
           <h3 class="text-lg font-semibold">ติดต่อสอบถาม</h3>
         </div>
         <div class="p-6 space-y-2">
-          <p>หากมีข้อสงสัย โปรดติดต่อได้ที่ <b>งานทะเบียน</b> หรือ <b>งานวิชาการ</b></p>
+          <p>หากมีข้อสงสัยโปรดติดต่อได้ที่ <b>งานทะเบียน</b> หรือ <b>งานวิชาการ</b></p>
           <p>โทร. <b>0 2354 2320 ต่อ 340 หรือ 310</b></p>
         </div>
         <div class="px-6 py-4 border-t text-right">
@@ -693,6 +693,7 @@
     </div>
 </body>
 </html>
+
 
 
 
