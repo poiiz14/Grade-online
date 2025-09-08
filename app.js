@@ -309,14 +309,13 @@ function buildAdminIndividual(){
   byId('btnAddEnglish').onclick = ()=>openModal('modalAddEnglish');
   byId('btnManageGrades').onclick = openManageGradesModal;
 
-  renderAdminIndividual();
+  ();
 }
-function renderAdminIndividual(){
+function renderAdminIndividual() {
   const id = cleanId(appState.ui.adminIndSelectedId);
   const yearFilter = appState.ui.adminIndYear;
-
-  // ถ้ายังไม่ได้เลือกนักศึกษา => โชว์หน้าว่างๆ (ไม่คำนวณ ไม่ดึงข้อมูล)
-  if(!id){
+  // ยังไม่เลือกนักศึกษา -> เคลียร์ทุกช่องและขึ้นข้อความแนะให้เลือกก่อน
+  if (!id) {
     byId('detailStudentId').textContent = '';
     byId('detailStudentName').textContent = '';
     byId('detailStudentYear').textContent = '';
@@ -326,69 +325,69 @@ function renderAdminIndividual(){
     byId('adminIndYearCredits').textContent = '';
     byId('adminIndGPAX').textContent = '';
 
-    // ตารางว่าง + ข้อความแนะนำ
     byId('adminIndGradesTable').innerHTML =
-      `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">โปรดเลือกนักศึกษา</td></tr>`;
+      '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">โปรดเลือกนักศึกษา</td></tr>';
+
     byId('adminIndEnglishTable').innerHTML =
-      `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">โปรดเลือกนักศึกษา</td></tr>`;
+      '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">โปรดเลือกนักศึกษา</td></tr>';
     return;
   }
+  // แสดงโปรไฟล์นักศึกษาที่เลือก
+  const std = appState.students.find(s => cleanId(s.id) === id);
+  byId('detailStudentId').textContent = std ? (std.id || '-') : '-';
+  byId('detailStudentName').textContent = std ? (std.name || '-') : '-';
+  byId('detailStudentYear').textContent = std ? (std.year || '-') : '-';
+  byId('detailStudentAdvisor').textContent = std ? (std.advisor || '-') : '-';
 
-  const std = appState.students.find(s=>cleanId(s.id)===id);
-
-  byId('detailStudentId').textContent = std ? (std.id||'-') : '-';
-  byId('detailStudentName').textContent = std ? (std.name||'-') : '-';
-  byId('detailStudentYear').textContent = std ? (std.year||'-') : '-';
-  byId('detailStudentAdvisor').textContent = std ? (std.advisor||'-') : '-';
-
-  // ดึงเฉพาะเกรดของนักศึกษาที่เลือกเท่านั้น
+  // เกรด: ดึงเฉพาะของนักศึกษาคนนี้
   const grades = appState.grades
-    .filter(g=>cleanId(g.studentId)===id)
-    .sort((a,b)=> termSortKey(a.term).localeCompare(termSortKey(b.term)));
-
-  const filtered = (!yearFilter) ? grades : grades.filter(g=>parseTerm(g.term).year===yearFilter);
-
+    .filter(g => cleanId(g.studentId) === id)
+    .sort((a, b) => termSortKey(a.term).localeCompare(termSortKey(b.term)));
+  const filtered = yearFilter
+    ? grades.filter(g => parseTerm(g.term).year === yearFilter)
+    : grades;
   const { gpa, credits } = computeGPA(filtered);
   byId('adminIndYearGPA').textContent = filtered.length ? gpa.toFixed(2) : '-';
   byId('adminIndYearCredits').textContent = filtered.length ? credits : '-';
-
   const overall = computeGPA(grades);
   byId('adminIndGPAX').textContent = grades.length ? overall.gpa.toFixed(2) : '-';
-
-  const tbody = byId('adminIndGradesTable');
-  tbody.innerHTML = filtered.length 
-  ? filtered.map(g => `
-      <tr>
-        <td class="px-4 py-2">${g.term||'-'}</td>
-        <td class="px-4 py-2">${g.courseCode||'-'}</td>
-        <td class="px-4 py-2">${g.courseTitle||'-'}</td>
-        <td class="px-4 py-2">${g.credits||'-'}</td>
-        <td class="px-4 py-2">${g.grade||'-'}</td>
-      </tr>
-    `).join('')
-  : `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">ยังไม่มีข้อมูลในปีที่เลือก</td></tr>`;
-
-
-  const et = appState.englishTests
-    .filter(t=>cleanId(t.studentId)===id)
-    .sort((a,b)=>{
-      const ka = `${a.academicYear}-${String(a.attempt).padStart(3,'0')}-${a.examDate||''}`;
-      const kb = `${b.academicYear}-${String(b.attempt).padStart(3,'0')}-${b.examDate||''}`;
+  const gradeTbody = byId('adminIndGradesTable');
+  gradeTbody.innerHTML = filtered.length
+    ? filtered
+        .map(g => `
+          <tr>
+            <td class="px-4 py-2">${g.term || '-'}</td>
+            <td class="px-4 py-2">${g.courseCode || '-'}</td>
+            <td class="px-4 py-2">${g.courseTitle || '-'}</td>
+            <td class="px-4 py-2">${g.credits || '-'}</td>
+            <td class="px-4 py-2">${g.grade || '-'}</td>
+          </tr>
+        `)
+        .join('')
+    : '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">ยังไม่มีข้อมูลในปีที่เลือก</td></tr>';
+  // ผลสอบภาษาอังกฤษของนักศึกษาคนนี้
+  const englishTests = appState.englishTests
+    .filter(t => cleanId(t.studentId) === id)
+    .sort((a, b) => {
+      const ka = `${a.academicYear || ''}-${String(a.attempt || 0).padStart(3, '0')}-${a.examDate || ''}`;
+      const kb = `${b.academicYear || ''}-${String(b.attempt || 0).padStart(3, '0')}-${b.examDate || ''}`;
       return ka.localeCompare(kb);
     });
-
-  const etTbody = byId('adminIndEnglishTable');
-  etTbody.innerHTML = et.length ? et.map(t=>`
-    <tr>
-      <td class="px-4 py-2">${t.academicYear||'-'}</td>
-      <td class="px-4 py-2">${t.attempt||'-'}</td>
-      <td class="px-4 py-2">${t.score||'-'}</td>
-      <td class="px-4 py-2">${t.status||'-'}</td>
-      <td class="px-4 py-2">${t.examDate ? (String(t.examDate).substring(0,10)) : '-'}</td>
-    </tr>
-  `).join('') : `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">ยังไม่มีข้อมูล</td></tr>`;
+  const engTbody = byId('adminIndEnglishTable');
+  engTbody.innerHTML = englishTests.length
+    ? englishTests
+        .map(t => `
+          <tr>
+            <td class="px-4 py-2">${t.academicYear || '-'}</td>
+            <td class="px-4 py-2">${t.attempt || '-'}</td>
+            <td class="px-4 py-2">${t.score || '-'}</td>
+            <td class="px-4 py-2">${t.status || '-'}</td>
+            <td class="px-4 py-2">${t.examDate ? String(t.examDate).substring(0, 10) : '-'}</td>
+          </tr>
+        `)
+        .join('')
+    : '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">ยังไม่มีข้อมูล</td></tr>';
 }
-
 /***********************
  * ADMIN: EDIT STUDENT
  ***********************/
@@ -779,5 +778,6 @@ function openModal(id){ byId('modalBackdrop').classList.remove('hidden'); byId(i
 function closeModal(id){ byId('modalBackdrop').classList.add('hidden'); byId(id).classList.add('hidden'); }
 window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{ initLogin(); });
+
 
 
