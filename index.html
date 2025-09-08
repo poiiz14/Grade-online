@@ -533,6 +533,42 @@
       </div>
     </div>
   </div>
+    <!-- วางบล็อกนี้ต่อท้ายโมดัล Add English -->
+    <div id="modalAdvisorEnglish" class="fixed inset-0 z-50 hidden">
+      <div class="absolute inset-0 bg-black/40" onclick="closeModal('modalAdvisorEnglish')"></div>
+      <div class="relative max-w-3xl mx-auto mt-16 bg-white rounded-xl shadow-xl overflow-hidden">
+        <div class="px-6 py-4 border-b flex items-center justify-between">
+          <h3 class="text-lg font-semibold">รายละเอียดผลสอบภาษาอังกฤษ</h3>
+          <button class="text-gray-500 hover:text-gray-700" onclick="closeModal('modalAdvisorEnglish')">✕</button>
+        </div>
+        <div class="p-6">
+          <div class="mb-3">
+            <div class="text-sm text-gray-500">รหัส/ชื่อ</div>
+            <div id="advEngDetailHeader" class="text-base font-medium">-</div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">ปีการศึกษา</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">ครั้งที่</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">คะแนน</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">สถานะ</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">สอบวันที่</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">หมายเหตุ</th>
+                </tr>
+              </thead>
+              <tbody id="advEnglishDetailTable" class="divide-y divide-gray-200">
+                <tr><td colspan="6" class="px-3 py-6 text-center text-gray-400">ยังไม่มีข้อมูล</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="px-6 py-4 border-t text-right">
+          <button class="px-4 py-2 rounded border hover:bg-gray-50" onclick="closeModal('modalAdvisorEnglish')">ปิด</button>
+        </div>
+      </div>
+    </div>
 
   <!-- Manage Grades Modal -->
   <div id="modalManageGrades" class="fixed inset-0 hidden z-50 flex items-center justify-center">
@@ -588,6 +624,7 @@
   </div>
 </body>
 </html>
+
 
 
 
