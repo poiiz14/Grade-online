@@ -278,7 +278,12 @@ function buildAdminStudents(){
   searchEl.oninput = render;
   render();
 }
-window.gotoAdminIndividual = function(id){ showAdminSection('individual'); const sel=byId('adminIndSelect'); if(sel){ sel.value=id; sel.dispatchEvent(new Event('change')); } };
+window.gotoAdminIndividual = function(id){
+  showAdminSection('admin-individual');
+  const sel = byId('adminIndSelect');
+  sel.value = id;
+  sel.dispatchEvent(new Event('change'));
+};
 
 /***********************
  * ADMIN: INDIVIDUAL
@@ -289,14 +294,18 @@ function buildAdminIndividual(){
   const yearSel = byId('adminIndYear');
 
   const allYears = unique(appState.grades.map(g=>parseTerm(g.term).year).filter(Boolean)).sort();
-  yearSel.innerHTML = `<option value="">ทุกปีการศึกษา</option>` + allYears.map(y=>`<option value="${y}">${y}</option>`).join('');
+  yearSel.innerHTML =
+  '<option value="">ทุกปีการศึกษา</option>' +
+  allYears.map(y => `<option value="${y}">${y}</option>`).join('');
 
   function fillSelect(){
     const q = search.value.trim();
     const list = appState.students
       .filter(s=>!q || String(s.id||'').includes(q) || String(s.name||'').includes(q))
       .sort(sortByStudentIdAsc);
-    sel.innerHTML = `<option value="">-- เลือกนักศึกษา --</option>` + list.map(s=>`<option value="${s.id}">${s.id} - ${s.name}</option>`).join('');
+  sel.innerHTML =
+  '<option value="">-- เลือกนักศึกษา --</option>' +
+  list.map(s => `<option value="${s.id}">${s.id} - ${s.name}</option>`).join('');
   }
   fillSelect();
   search.addEventListener('input', fillSelect);
@@ -778,6 +787,7 @@ function openModal(id){ byId('modalBackdrop').classList.remove('hidden'); byId(i
 function closeModal(id){ byId('modalBackdrop').classList.add('hidden'); byId(id).classList.add('hidden'); }
 window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{ initLogin(); });
+
 
 
 
