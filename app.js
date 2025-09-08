@@ -578,7 +578,7 @@ function buildStudentView(){
   // ปุ่มแท็บใน HTML ใช้ onclick="showSemester('1')" ฯลฯ → สร้างฟังก์ชันให้เรียกได้
   // (เผื่อผู้ใช้ไม่กด ปรับค่าเริ่มต้นเป็น '1')
   appState.ui.semesterTab = '1';
-  renderStudentGrades();
+  ;
 
   // ตารางอังกฤษรวมทุกปี
   const tbody = byId('studentEnglishTable');
@@ -641,15 +641,19 @@ function renderStudentGrades() {
   });
 
   // ── สรุปบนหัวแท็บ ──
-  // 1) GPA/เครดิตของภาคที่เลือก (ตามตัวกรองปี)
+  // 1) GPA/เครดิตของภาคที่เลือก
   const rowsThisSem = myRows.filter(g => parseTerm(g.term).sem === sem);
   const { gpa: semGPA, credits: semCredits } = computeGPA(rowsThisSem);
   byId('studentSemGPA').textContent = rowsThisSem.length ? semGPA.toFixed(2) : '-';
   byId('studentSemCredits').textContent = rowsThisSem.length ? semCredits : '-';
-
-  // 2) GPAX ตลอดหลักสูตร
-  const overall = computeGPA(allMy);
-  byId('studentSemGPAX').textContent = allMy.length ? overall.gpa.toFixed(2) : '-';
+  
+  // 2) GPA ทั้งปีที่เลือก (รวมทุกภาคในปีนั้น)
+  if (y) {
+    const yearAgg = computeGPA(myRows); // myRows ถูกกรองปีแล้ว
+    byId('studentYearGPA').textContent = myRows.length ? yearAgg.gpa.toFixed(2) : '-';
+  } else {
+    byId('studentYearGPA').textContent = '-';
+  }
 
   // 3) GPA ทั้งปีที่เลือก (รวมทุกภาคในปีนั้น)
   if (y) {
@@ -845,6 +849,7 @@ function openModal(id){ byId('modalBackdrop').classList.remove('hidden'); byId(i
 function closeModal(id){ byId('modalBackdrop').classList.add('hidden'); byId(id).classList.add('hidden'); }
 window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{ initLogin(); });
+
 
 
 
