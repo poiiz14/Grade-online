@@ -74,12 +74,21 @@
         </div>
       </form>
     </div>
-    <!-- ปุ่มช่วยเหลือ ? มุมล่างขวาหน้าล็อกอิน -->
+    <!-- FAB: Help -->
     <button type="button"
-            class="fixed bottom-4 right-4 w-10 h-10 rounded-full border bg-white/90 shadow hover:bg-gray-50"
-            onclick="openLoginHelp()"
-            aria-label="Help">?</button>
-   </div>
+      class="fixed bottom-5 right-5 w-12 h-12 flex items-center justify-center rounded-full
+             bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 hover:shadow-xl
+             transition transform duration-150 active:scale-95 focus:outline-none
+             focus-visible:ring-2 focus-visible:ring-indigo-400 animate-pop"
+      onclick="openLoginHelp()" aria-label="Help">
+      <!-- Heroicon ? -->
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none"
+           viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round"
+              d="M12 18h.01M12 14a4 4 0 10-4-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+    </button>
+  </div>
 
   <!-- APP -->
   <div id="dashboard" class="hidden min-h-screen bg-gray-50">
@@ -682,6 +691,7 @@
     </div>
 </body>
 </html>
+
 
 
 
