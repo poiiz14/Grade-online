@@ -588,37 +588,62 @@ function buildStudentView(){
     </tr>
   `).join('');
 }
-function renderStudentGrades(){
+function renderStudentGrades() {
   const meId = cleanId(appState.user.id);
   const y = byId('studentAcademicYear').value;
   const sem = appState.ui.semesterTab;
 
-  const rows = appState.grades
-    .filter(g=>cleanId(g.studentId)===meId)
-    .filter(g=>!y || parseTerm(g.term).year === y)
-    .filter(g=>parseTerm(g.term).sem === sem)
-    .sort((a,b)=> termSortKey(a.term).localeCompare(termSortKey(b.term)));
+  // ล้างข้อมูลทุกภาค
+  ['studentGradesSem1', 'studentGradesSem2', 'studentGradesSem3'].forEach(id => {
+    const el = byId(id);
+    if (el) el.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400">ยังไม่มีข้อมูล</td></tr>';
+  });
 
-  byId('studentGradesTable').innerHTML = rows.map(g=>`
-    <tr>
-      <td class="px-4 py-2">${g.term||'-'}</td>
-      <td class="px-4 py-2">${g.courseCode||'-'}</td>
-      <td class="px-4 py-2">${g.courseTitle||'-'}</td>
-      <td class="px-4 py-2">${g.credits||'-'}</td>
-      <td class="px-4 py-2">${g.grade||'-'}</td>
-    </tr>
-  `).join('');
+  const rows = appState.grades
+    .filter(g => cleanId(g.studentId) === meId)
+    .filter(g => !y || parseTerm(g.term).year === y)
+    .sort((a, b) => termSortKey(a.term).localeCompare(termSortKey(b.term)));
+
+  rows.forEach(g => {
+    const term = parseTerm(g.term);
+    if (!term.sem) return;
+    const targetId = `studentGradesSem${term.sem}`;
+    const tbody = byId(targetId);
+    if (tbody) {
+      // ถ้ามีข้อความ default → ลบออกก่อน
+      if (tbody.innerHTML.includes('ยังไม่มีข้อมูล')) tbody.innerHTML = '';
+      tbody.innerHTML += `
+        <tr>
+          <td class="px-4 py-2">${g.term || '-'}</td>
+          <td class="px-4 py-2">${g.courseCode || '-'}</td>
+          <td class="px-4 py-2">${g.courseTitle || '-'}</td>
+          <td class="px-4 py-2">${g.credits || '-'}</td>
+          <td class="px-4 py-2">${g.grade || '-'}</td>
+        </tr>
+      `;
+    }
+  });
+  // toggle แสดงเฉพาะภาคที่เลือก
+  ['1','2','3'].forEach(s => {
+    const el = byId(`studentGradesSem${s}`);
+    if (el) {
+      if (s === sem) el.classList.remove('hidden');
+      else el.classList.add('hidden');
+    }
+  });
 }
-/* ให้ปุ่มใน HTML เรียกได้โดยตรง */
-window.showSemester = function(sem){
-  appState.ui.semesterTab = String(sem||'1');
-  // toggle active เฉพาะภายใน studentDashboard
+
+window.showSemester = function(sem) {
+  appState.ui.semesterTab = String(sem || '1');
+  // toggle ปุ่ม active
   const tabs = qsa('#studentDashboard .semester-tab');
-  tabs.forEach(t=>t.classList.remove('is-active'));
-  const idx = appState.ui.semesterTab==='1'?0:appState.ui.semesterTab==='2'?1:2;
-  if(tabs[idx]) tabs[idx].classList.add('is-active');
+  tabs.forEach(t => t.classList.remove('is-active'));
+  const idx = appState.ui.semesterTab === '1' ? 0 : appState.ui.semesterTab === '2' ? 1 : 2;
+  if (tabs[idx]) tabs[idx].classList.add('is-active');
+
   renderStudentGrades();
 };
+
 /***********************
  * ADVISOR VIEW
  ***********************/
@@ -797,6 +822,7 @@ function openModal(id){ byId('modalBackdrop').classList.remove('hidden'); byId(i
 function closeModal(id){ byId('modalBackdrop').classList.add('hidden'); byId(id).classList.add('hidden'); }
 window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{ initLogin(); });
+
 
 
 
