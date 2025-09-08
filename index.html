@@ -437,30 +437,19 @@
           </div>
           <div class="divide-y divide-gray-200" id="advisorStudentsList"></div>
         </div>
-        <!-- สรุปผลอังกฤษเฉพาะนักศึกษาที่ดูแล (Pie) -->
-        <div class="bg-white rounded-xl p-6 card-shadow">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">สรุปผลสอบภาษาอังกฤษ (เฉพาะนักศึกษาที่ดูแล)</h3>
-          <div class="chart-box">
-            <canvas id="advisorEnglishPie"></canvas>
+       <!-- สรุปผลสอบภาษาอังกฤษ (ที่ปรึกษา) แบบการ์ด -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div class="bg-emerald-50 p-4 rounded">
+            <div class="text-xs text-gray-600">อังกฤษ (ผลล่าสุด): ผ่าน</div>
+            <div id="advEngPass" class="text-2xl font-bold text-emerald-700">-</div>
           </div>
-        </div>
-        <div class="bg-white rounded-xl card-shadow">
-          <div class="p-6 border-b">
-            <h3 class="text-lg font-semibold text-gray-900">สรุปผลสอบภาษาอังกฤษรายคน (ล่าสุด)</h3>
+          <div class="bg-rose-50 p-4 rounded">
+            <div class="text-xs text-gray-600">อังกฤษ (ผลล่าสุด): ไม่ผ่าน</div>
+            <div id="advEngFail" class="text-2xl font-bold text-rose-700">-</div>
           </div>
-          <div class="overflow-x-auto">
-            <table class="w-full">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">รหัส</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อ</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชั้นปี</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">สถานะล่าสุด</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">คะแนนล่าสุด</th>
-                </tr>
-              </thead>
-              <tbody id="advisorEnglishTable" class="divide-y divide-gray-200"></tbody>
-            </table>
+          <div class="bg-slate-50 p-4 rounded">
+            <div class="text-xs text-gray-600">มีผลล่าสุด (ผ่าน+ไม่ผ่าน)</div>
+            <div id="advEngTotal" class="text-2xl font-bold text-slate-800">-</div>
           </div>
         </div>
       </div>
@@ -599,6 +588,7 @@
   </div>
 </body>
 </html>
+
 
 
 
