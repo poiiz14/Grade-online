@@ -148,23 +148,12 @@ function initLogin(){
       appState.englishTests = boot.data.englishTests || [];
       appState.advisors = boot.data.advisors || [];
 
+      // แสดง Dashboard หลัก
       byId('loginScreen').classList.add('hidden');
       byId('dashboard').classList.remove('hidden');
-
-      if(appState.user.role==='admin'){
-        byId('adminDashboard').classList.remove('hidden');
-        buildAdminOverview();
-        buildAdminStudents();
-        buildAdminIndividual();
-        showAdminSection('overview');
-      }else if(appState.user.role==='student'){
-        byId('studentDashboard').classList.remove('hidden');
-        buildStudentView();
-      }else{
-        byId('advisorDashboard').classList.remove('hidden');
-        buildAdvisorView();
-      }
-
+      
+      // โหลดหน้า Dashboard ตามบทบาท ผ่าน Router กลาง (forceReload = true เพื่อดึงข้อมูลใหม่)
+      await loadRoleDashboard(appState.user.role, { forceReload: true });
       showLoading(false);
     }catch(err){
       console.error(err);
@@ -1030,13 +1019,64 @@ async function handleChangePasswordSubmit(e){
     showLoading(false);
   }
 }
+// Soft Refresh: โหลดข้อมูลใหม่โดยไม่รีโหลดหน้า/ไม่เด้งออกจาก Dashboard
+window.softRefresh = async function(silent = false){
+  try {
+    const btn = document.getElementById('btnSoftRefresh');
+    const t = document.getElementById('lastRefreshed');
+    if (btn && !silent) {
+      btn.disabled = true;
+      btn.classList.add('opacity-60', 'cursor-wait');
+    }
 
+    const role = (window.appState?.user?.role || '').toLowerCase();
+    await loadRoleDashboard(role, { forceReload: true });
 
+    const stamp = new Date().toLocaleString('th-TH', {hour12:false});
+    if (t) t.textContent = `อัปเดตล่าสุด: ${stamp}`;
+  } catch (err) {
+    console.error(err);
+    if (!silent) Swal?.fire?.('รีเฟรชไม่สำเร็จ', String(err), 'error') || alert('รีเฟรชไม่สำเร็จ: ' + err);
+  } finally {
+    const btn = document.getElementById('btnSoftRefresh');
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove('opacity-60','cursor-wait');
+    }
+  }
+};
 
-
-
-
-
+// (ทางเลือก) ช็อตคัต Ctrl+Shift+R เรียก Soft Refresh
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.shiftKey && (e.key === 'R' || e.key === 'r')) {
+    e.preventDefault();
+    softRefresh();
+  }
+});
+  // Router กลาง: โหลด Dashboard ตามบทบาท
+  window.loadRoleDashboard = async function(role, opts = {}){
+    role = String(role || '').toLowerCase();
+  
+    // ซ่อนทุก Dashboard ก่อน
+    byId('adminDashboard')?.classList.add('hidden');
+    byId('studentDashboard')?.classList.add('hidden');
+    byId('advisorDashboard')?.classList.add('hidden');
+  
+    if (role === 'admin') {
+      byId('adminDashboard')?.classList.remove('hidden');
+      // ถ้าฟังก์ชันรับพารามิเตอร์ forceReload ให้ส่งไปด้วย
+      await buildAdminOverview(opts.forceReload);
+      await buildAdminStudents(opts.forceReload);
+      await buildAdminIndividual?.(opts.forceReload);
+      showAdminSection('overview');
+    } else if (role === 'student') {
+      byId('studentDashboard')?.classList.remove('hidden');
+      await buildStudentView(opts.forceReload);
+    } else {
+      byId('advisorDashboard')?.classList.remove('hidden');
+      await buildAdvisorView(opts.forceReload);
+    }
+  };
 
 
 
