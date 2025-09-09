@@ -133,7 +133,17 @@ function initLogin(){
         return Swal.fire('ไม่สำเร็จ', res.message || 'เข้าสู่ระบบล้มเหลว', 'error');
       }
 
-      appState.user = res.data;
+      // ตั้งค่า user จากผล authenticate
+      appState.user = res.data || {};
+      
+      // ✅ Fallback: ถ้า backend ไม่ส่ง role มา ให้ใช้ role จาก userType ที่ผู้ใช้เลือกใน login form
+      if (!appState.user.role) {
+        appState.user.role = role;
+      }
+      // ให้ role เป็น lower-case เสมอเพื่อให้ router ทำงานคงที่
+      appState.user.role = String(appState.user.role || '').toLowerCase();
+      
+      // อัปเดต label ผู้ใช้ (ใช้ role ที่ normalize แล้ว)
       byId('currentUserLabel').textContent = `${appState.user.name || ''} (${appState.user.role})`;
 
       const boot = await apiBootstrap();
@@ -1019,6 +1029,13 @@ async function handleChangePasswordSubmit(e){
     showLoading(false);
   }
 }
+function getVisibleRoleFromUI(){
+  const is = (id) => !byId(id)?.classList.contains('hidden');
+  if (is('adminDashboard'))   return 'admin';
+  if (is('studentDashboard')) return 'student';
+  if (is('advisorDashboard')) return 'advisor';
+  return '';
+}
 // Soft Refresh: โหลดข้อมูลใหม่โดยไม่รีโหลดหน้า/ไม่เด้งออกจาก Dashboard
 window.softRefresh = async function(silent = false){
   try {
@@ -1029,10 +1046,14 @@ window.softRefresh = async function(silent = false){
       btn.classList.add('opacity-60', 'cursor-wait');
     }
 
-    const role = (window.appState?.user?.role || '').toLowerCase();
-    if (!role) {                                  // ✅ กัน role หาย
-      console.warn('softRefresh: no role, skip');
-      return;
+    let role = (window.appState?.user?.role || '').toLowerCase();
+    if (!role) {
+      // ✅ เดาจาก Dashboard ที่กำลังแสดงอยู่ (กันกรณี state หลุดแต่ UI ยังโชว์หน้าถูกต้อง)
+      role = getVisibleRoleFromUI();
+      if (!role) {
+        console.warn('softRefresh: no role, skip');
+        return;
+      }
     }
     await loadRoleDashboard(role, { forceReload: true });
 
@@ -1084,6 +1105,7 @@ window.loadRoleDashboard = async function(role, opts = {}){
     return;
   }
 };
+
 
 
 
