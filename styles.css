@@ -163,4 +163,22 @@ input:focus,select:focus,textarea:focus{ box-shadow:0 0 0 3px rgba(37,99,235,.2)
 @media (prefers-reduced-motion: reduce) {
   .sticker-float { animation: none; }
 }
+/* เงาสวยๆ */
+.drop-shadow { filter: drop-shadow(0 4px 6px rgba(0,0,0,0.15)); }
+
+/* sticker ลอยดึ๋งๆ */
+@keyframes floaty {
+  0%   { transform: translateY(0px); }
+  50%  { transform: translateY(-3px); }
+  100% { transform: translateY(0px); }
+}
+.sticker-float {
+  animation: floaty 3s ease-in-out infinite;
+}
+
+/* เคารพ motion settings */
+@media (prefers-reduced-motion: reduce) {
+  .sticker-float { animation: none; }
+}
+
 
