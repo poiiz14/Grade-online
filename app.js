@@ -1030,6 +1030,10 @@ window.softRefresh = async function(silent = false){
     }
 
     const role = (window.appState?.user?.role || '').toLowerCase();
+    if (!role) {                                  // ✅ กัน role หาย
+      console.warn('softRefresh: no role, skip');
+      return;
+    }
     await loadRoleDashboard(role, { forceReload: true });
 
     const stamp = new Date().toLocaleString('th-TH', {hour12:false});
@@ -1054,29 +1058,33 @@ document.addEventListener('keydown', (e) => {
   }
 });
   // Router กลาง: โหลด Dashboard ตามบทบาท
-  window.loadRoleDashboard = async function(role, opts = {}){
-    role = String(role || '').toLowerCase();
-  
-    // ซ่อนทุก Dashboard ก่อน
-    byId('adminDashboard')?.classList.add('hidden');
-    byId('studentDashboard')?.classList.add('hidden');
-    byId('advisorDashboard')?.classList.add('hidden');
-  
-    if (role === 'admin') {
-      byId('adminDashboard')?.classList.remove('hidden');
-      // ถ้าฟังก์ชันรับพารามิเตอร์ forceReload ให้ส่งไปด้วย
-      await buildAdminOverview(opts.forceReload);
-      await buildAdminStudents(opts.forceReload);
-      await buildAdminIndividual?.(opts.forceReload);
-      showAdminSection('overview');
-    } else if (role === 'student') {
-      byId('studentDashboard')?.classList.remove('hidden');
-      await buildStudentView(opts.forceReload);
-    } else {
-      byId('advisorDashboard')?.classList.remove('hidden');
-      await buildAdvisorView(opts.forceReload);
-    }
-  };
+window.loadRoleDashboard = async function(role, opts = {}){
+  role = String(role || '').toLowerCase();
+
+  // ซ่อนทุก Dashboard ก่อน
+  byId('adminDashboard')?.classList.add('hidden');
+  byId('studentDashboard')?.classList.add('hidden');
+  byId('advisorDashboard')?.classList.add('hidden');
+
+  if (role === 'admin') {
+    byId('adminDashboard')?.classList.remove('hidden');
+    await buildAdminOverview?.(opts.forceReload);
+    await buildAdminStudents?.(opts.forceReload);
+    await buildAdminIndividual?.(opts.forceReload);
+    showAdminSection?.('overview');
+  } else if (role === 'student') {
+    byId('studentDashboard')?.classList.remove('hidden');
+    await buildStudentView?.(opts.forceReload);
+  } else if (role === 'advisor') {             // ✅ เจาะจง advisor เท่านั้น
+    byId('advisorDashboard')?.classList.remove('hidden');
+    await buildAdvisorView?.(opts.forceReload);
+  } else {
+    // ✅ ไม่รู้ role: ไม่เปลี่ยนหน้า ป้องกันเด้งผิดหน้าตามค่า default
+    console.warn('loadRoleDashboard: unknown role -> keep current view');
+    return;
+  }
+};
+
 
 
 
