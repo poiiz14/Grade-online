@@ -83,8 +83,8 @@
              transition transform duration-150 active:scale-95 focus:outline-none"
       onclick="openLoginHelp()" aria-label="Help">
     
-      <!-- สติ๊กเกอร์ PNG (แทน emoji) -->
-      <img src="https://raw.githubusercontent.com/<username>/<repo>/<branch>/assets/stickers/help-bubble.png"
+      <!-- สติ๊กเกอร์ PNG (bubble ช่วยเหลือ) -->
+      <img src="https://raw.githubusercontent.com/poiiz14/LOGO/main/stickers/help-bubble.png"
            alt="Help" class="w-9 h-9 pointer-events-none select-none" />
     </button>
   </div>
@@ -671,44 +671,49 @@
         <div class="mt-3 text-sm text-gray-700">กำลังโหลดข้อมูล…กรุณารอสักครู่</div>
       </div>
     </div>
-    <!-- Modal: Login Help (เวอร์ชันสติ๊กเกอร์) -->
-    <div id="modalLoginHelp" class="fixed inset-0 z-50 hidden">
-      <div class="absolute inset-0 bg-black/40" onclick="closeModal('modalLoginHelp')"></div>
-      <div class="relative max-w-md mx-auto mt-24 bg-white rounded-3xl shadow-2xl overflow-hidden border-4 border-pink-200">
-        <!-- Header (มีสติ๊กเกอร์มุม) -->
-      <div class="px-6 py-4 bg-pink-100 flex items-center gap-3 relative">
-         <img src="https://raw.githubusercontent.com/<username>/<repo>/<branch>/assets/stickers/bear.png"
-               alt="bear" class="w-8 h-8" />
-          <h3 class="text-lg font-bold text-pink-700">ช่วยเหลือ</h3>
-          <img src="https://raw.githubusercontent.com/<username>/<repo>/<branch>/assets/stickers/flower.png"
-               alt="flower" class="w-7 h-7 ml-auto" />
-        </div>
-          <!-- Content -->
-          <div class="p-6 space-y-4 text-gray-700 text-center relative">
-            <!-- สติ๊กเกอร์ลอยเล็กน้อย -->
-            <img src="https://raw.githubusercontent.com/<username>/<repo>/<branch>/assets/stickers/chat-heart.png"
-                 alt="sticker" class="w-14 h-14 mx-auto -mt-6 mb-1 drop-shadow" />      
-            <p class="text-xl font-semibold">มีคำถามใช่ไหมเอ่ย? 💭</p>
-            <p>
-              ติดต่อได้ที่
-              <b class="text-pink-600">งานทะเบียน</b> 📝 หรือ
-              <b class="text-pink-600">งานวิชาการ</b> 📚
-            </p>
-            <p>☎️ โทร. <b>0 2354 2320</b> ต่อ <b>340</b> หรือ <b>310</b></p>
-            <p class="text-sm text-gray-500">เรายินดีช่วยเหลือเสมอ 💖</p>
-          </div>
-          <!-- Footer -->
-          <div class="px-6 py-4 bg-pink-50 text-center">
-            <button class="px-6 py-2 rounded-full bg-pink-400 text-white text-lg font-semibold
-                           hover:bg-pink-500 shadow-md"
-                    onclick="closeModal('modalLoginHelp')">
-              เข้าใจแล้ว 💕
-            </button>
-          </div>
-        </div>
-      </div>
+  <!-- Modal: Login Help (เวอร์ชันสติ๊กเกอร์) -->
+<div id="modalLoginHelp" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/40" onclick="closeModal('modalLoginHelp')"></div>
+
+  <div class="relative max-w-md mx-auto mt-24 bg-white rounded-3xl shadow-2xl overflow-hidden border-4 border-pink-200">
+
+    <!-- Header -->
+    <div class="px-6 py-4 bg-pink-100 flex items-center gap-3 relative">
+      <img src="https://raw.githubusercontent.com/poiiz14/LOGO/main/stickers/bear.png"
+           alt="bear" class="w-8 h-8" />
+      <h3 class="text-lg font-bold text-pink-700">ช่วยเหลือ</h3>
+      <img src="https://raw.githubusercontent.com/poiiz14/LOGO/main/stickers/flower.png"
+           alt="flower" class="w-7 h-7 ml-auto" />
+    </div>
+
+    <!-- Content -->
+    <div class="p-6 space-y-4 text-gray-700 text-center relative">
+      <img src="https://raw.githubusercontent.com/poiiz14/LOGO/main/stickers/chat-heart.png"
+           alt="sticker" class="w-14 h-14 mx-auto -mt-6 mb-1 drop-shadow sticker-float" />
+
+      <p class="text-xl font-semibold">มีคำถามใช่ไหมเอ่ย? 💭</p>
+      <p>
+        ติดต่อได้ที่
+        <b class="text-pink-600">งานทะเบียน</b> 📝 หรือ
+        <b class="text-pink-600">งานวิชาการ</b> 📚
+      </p>
+      <p>☎️ โทร. <b>0 2354 2320</b> ต่อ <b>340</b> หรือ <b>310</b></p>
+      <p class="text-sm text-gray-500">เรายินดีช่วยเหลือเสมอ 💖</p>
+    </div>
+
+    <!-- Footer -->
+    <div class="px-6 py-4 bg-pink-50 text-center">
+      <button class="px-6 py-2 rounded-full bg-pink-400 text-white text-lg font-semibold
+                     hover:bg-pink-500 shadow-md"
+              onclick="closeModal('modalLoginHelp')">
+        เข้าใจแล้ว 💕
+      </button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
+
 
 
 
