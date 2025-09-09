@@ -107,6 +107,20 @@
                     onclick="openChangePassword()">
               เปลี่ยนรหัสผ่าน
             </button>
+            <!-- รีเฟรชข้อมูล -->
+            <button id="btnSoftRefresh"
+                    class="px-3 py-2 rounded-lg border hover:bg-gray-50 flex items-center gap-2"
+                    onclick="softRefresh()"
+                    title="รีเฟรชข้อมูล (ไม่รีโหลดหน้า)">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 4v6h6M20 20v-6h-6M5 19A9 9 0 006 6m12 12a9 9 0 01-1-13"/>
+              </svg>
+              <span>รีเฟรช</span>
+            </button>
+            
+            <!-- แสดงเวลาล่าสุด -->
+            <span id="lastRefreshed" class="text-xs text-gray-500 ml-2"></span>
             <button id="btnLogout" class="px-4 py-2 rounded-lg border hover:bg-gray-50">
               ออกจากระบบ
             </button>
@@ -705,6 +719,7 @@
 </div>
 </body>
 </html>
+
 
 
 
