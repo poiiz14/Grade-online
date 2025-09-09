@@ -76,22 +76,19 @@
         </div>
       </form>
     </div>
-    <!-- FAB: Help -->
+    <!-- FAB: Help (น่ารัก + สติ๊กเกอร์ PNG) -->
     <button type="button"
-      class="fixed bottom-5 right-5 w-12 h-12 flex items-center justify-center rounded-full
-             bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 hover:shadow-xl
-             transition transform duration-150 active:scale-95 focus:outline-none
-             focus-visible:ring-2 focus-visible:ring-indigo-400 animate-pop"
+      class="fixed bottom-5 right-5 w-16 h-16 rounded-full shadow-xl
+             flex items-center justify-center bg-pink-400 hover:bg-pink-500
+             transition transform duration-150 active:scale-95 focus:outline-none"
       onclick="openLoginHelp()" aria-label="Help">
-      <!-- Heroicon ? -->
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none"
-           viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round"
-              d="M12 18h.01M12 14a4 4 0 10-4-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-      </svg>
+    
+      <!-- สติ๊กเกอร์ PNG (แทน emoji) -->
+      <img src="https://raw.githubusercontent.com/<username>/<repo>/<branch>/assets/stickers/help-bubble.png"
+           alt="Help" class="w-9 h-9 pointer-events-none select-none" />
     </button>
   </div>
-
+  
   <!-- APP -->
   <div id="dashboard" class="hidden min-h-screen bg-gray-50">
     <!-- Header -->
@@ -674,25 +671,45 @@
         <div class="mt-3 text-sm text-gray-700">กำลังโหลดข้อมูล…กรุณารอสักครู่</div>
       </div>
     </div>
-    <!-- Modal: Login Help -->
+    <!-- Modal: Login Help (เวอร์ชันสติ๊กเกอร์) -->
     <div id="modalLoginHelp" class="fixed inset-0 z-50 hidden">
       <div class="absolute inset-0 bg-black/40" onclick="closeModal('modalLoginHelp')"></div>
-      <div class="relative max-w-lg mx-auto mt-24 bg-white rounded-xl shadow-xl overflow-hidden">
-        <div class="px-6 py-4 border-b">
-          <h3 class="text-lg font-semibold">ติดต่อสอบถาม</h3>
+      <div class="relative max-w-md mx-auto mt-24 bg-white rounded-3xl shadow-2xl overflow-hidden border-4 border-pink-200">
+        <!-- Header (มีสติ๊กเกอร์มุม) -->
+      <div class="px-6 py-4 bg-pink-100 flex items-center gap-3 relative">
+         <img src="https://raw.githubusercontent.com/<username>/<repo>/<branch>/assets/stickers/bear.png"
+               alt="bear" class="w-8 h-8" />
+          <h3 class="text-lg font-bold text-pink-700">ช่วยเหลือ</h3>
+          <img src="https://raw.githubusercontent.com/<username>/<repo>/<branch>/assets/stickers/flower.png"
+               alt="flower" class="w-7 h-7 ml-auto" />
         </div>
-        <div class="p-6 space-y-2">
-          <p>หากมีข้อสงสัยโปรดติดต่อได้ที่ <b>งานทะเบียน</b> หรือ <b>งานวิชาการ</b></p>
-          <p>โทร. <b>0 2354 2320 ต่อ 340 หรือ 310</b></p>
-        </div>
-        <div class="px-6 py-4 border-t text-right">
-          <button class="px-4 py-2 rounded border hover:bg-gray-50"
-                  onclick="closeModal('modalLoginHelp')">เข้าใจแล้ว</button>
+          <!-- Content -->
+          <div class="p-6 space-y-4 text-gray-700 text-center relative">
+            <!-- สติ๊กเกอร์ลอยเล็กน้อย -->
+            <img src="https://raw.githubusercontent.com/<username>/<repo>/<branch>/assets/stickers/chat-heart.png"
+                 alt="sticker" class="w-14 h-14 mx-auto -mt-6 mb-1 drop-shadow" />      
+            <p class="text-xl font-semibold">มีคำถามใช่ไหมเอ่ย? 💭</p>
+            <p>
+              ติดต่อได้ที่
+              <b class="text-pink-600">งานทะเบียน</b> 📝 หรือ
+              <b class="text-pink-600">งานวิชาการ</b> 📚
+            </p>
+            <p>☎️ โทร. <b>0 2354 2320</b> ต่อ <b>340</b> หรือ <b>310</b></p>
+            <p class="text-sm text-gray-500">เรายินดีช่วยเหลือเสมอ 💖</p>
+          </div>
+          <!-- Footer -->
+          <div class="px-6 py-4 bg-pink-50 text-center">
+            <button class="px-6 py-2 rounded-full bg-pink-400 text-white text-lg font-semibold
+                           hover:bg-pink-500 shadow-md"
+                    onclick="closeModal('modalLoginHelp')">
+              เข้าใจแล้ว 💕
+            </button>
+          </div>
         </div>
       </div>
-    </div>
 </body>
 </html>
+
 
 
 
