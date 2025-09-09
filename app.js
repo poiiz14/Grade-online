@@ -81,7 +81,9 @@ function apiBootstrap(){ return callAPI({action:'bootstrap'}); }
 function apiUpdateStudent(payload){ return callAPI({action:'updateStudent', payload: JSON.stringify(payload)}); }
 function apiAddGrade(payload){ return callAPI({action:'addGrade', payload: JSON.stringify(payload)}); }
 function apiAddEnglish(payload){ return callAPI({action:'addEnglishTest', payload: JSON.stringify(payload)}); }
-
+function apiUpdateGrade(payload){
+  return callAPI({ action: 'updateGrade', payload: JSON.stringify(payload) });
+}
 /***********************
  * LOGIN FLOW
  ***********************/
@@ -644,11 +646,13 @@ function openManageGradesModal(){
       <td class="px-3 py-2">${g.credits||'-'}</td>
       <td class="px-3 py-2">${g.grade||'-'}</td>
       <td class="px-3 py-2 text-right">
-        <button class="px-2 py-1 text-sm rounded border text-gray-500 cursor-not-allowed" title="ยังไม่เปิดใช้งาน">แก้ไข</button>
+        <button class="px-2 py-1 text-sm rounded border text-blue-600 hover:bg-blue-50"
+                onclick="openEditGrade('${g.studentId}','${g.term}','${g.courseCode}')">
+          แก้ไข
+        </button>
       </td>
     </tr>
   `).join('');
-
   openModal('modalManageGrades');
 }
 
@@ -1103,6 +1107,74 @@ window.loadRoleDashboard = async function(role, opts = {}){
     // ✅ ไม่รู้ role: ไม่เปลี่ยนหน้า ป้องกันเด้งผิดหน้าตามค่า default
     console.warn('loadRoleDashboard: unknown role -> keep current view');
     return;
+  }
+};
+// เปิด modal แก้ไข พร้อมเติมค่าจากแถวที่เลือก
+window.openEditGrade = function(studentId, term, courseCode){
+  const rec = appState.grades.find(g =>
+    cleanId(g.studentId)===cleanId(studentId) &&
+    String(g.term)===String(term) &&
+    String(g.courseCode)===String(courseCode)
+  );
+  if(!rec) return Swal.fire('ผิดพลาด','ไม่พบรายการที่จะแก้ไข','error');
+
+  byId('eg-studentId').value = rec.studentId;
+  byId('eg-term-old').value  = rec.term;        // เก็บไว้ใช้อ้างอิง row เดิม
+  byId('eg-code').value      = rec.courseCode;  // ล็อค primary key (ถ้าต้องการให้แก้ code ได้ ให้ปลด readonly ใน HTML)
+  byId('eg-term').value      = rec.term;
+  byId('eg-title').value     = rec.courseTitle || '';
+  byId('eg-credits').value   = rec.credits || '';
+  byId('eg-grade').value     = rec.grade || '';
+
+  openModal('modalEditGrade');
+};
+
+// บันทึกการแก้ไข (เรียก GAS → อัปเดต state → วาดใหม่)
+window.saveEditGrade = async function(e){
+  e?.preventDefault?.();
+  const payload = {
+    studentId: byId('eg-studentId').value,
+    termOld:   byId('eg-term-old').value,
+    courseCode:byId('eg-code').value,
+    // ค่าที่จะแก้
+    term:      byId('eg-term').value,
+    courseTitle: byId('eg-title').value,
+    credits:     toNumber(byId('eg-credits').value),
+    grade:       byId('eg-grade').value
+  };
+
+  try{
+    showLoading(true);
+    const res = await apiUpdateGrade(payload);
+    if(!res?.success) return Swal.fire('ไม่สำเร็จ', res?.message || 'อัปเดตผลการเรียนไม่สำเร็จ', 'error');
+
+    // sync state ฝั่ง client
+    const idx = appState.grades.findIndex(g =>
+      cleanId(g.studentId)===cleanId(payload.studentId) &&
+      String(g.term)===String(payload.termOld) &&
+      String(g.courseCode)===String(payload.courseCode)
+    );
+    if(idx>-1){
+      appState.grades[idx] = {
+        ...appState.grades[idx],
+        term: payload.term,
+        courseTitle: payload.courseTitle,
+        credits: payload.credits,
+        grade: payload.grade,
+        recordedAt: new Date().toISOString()
+      };
+    }
+
+    closeModal('modalEditGrade');
+    Swal.fire('สำเร็จ','อัปเดตผลการเรียนเรียบร้อย','success');
+    // รีเฟรชมุมมองที่เกี่ยวข้อง
+    renderAdminIndividual();
+    openManageGradesModal(); // เปิดใหม่เพื่อให้ตารางรีเรนเดอร์
+  }catch(err){
+    console.error(err);
+    Swal.fire('ผิดพลาด', String(err), 'error');
+  }finally{
+    showLoading(false);
   }
 };
 
