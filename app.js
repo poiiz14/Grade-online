@@ -987,6 +987,139 @@ function renderAdvisorStudents(myStudents){
         if (elF) elF.textContent = fail;
         if (elT) elT.textContent = total;
       }
+/* =========================
+ * ADVISOR DASHBOARD (ใหม่)
+ * ========================= */
+
+// เก็บ state นักศึกษาที่ถูกเลือกในหน้า advisor
+window._advisorSelectedStudentId = '';
+
+function initAdvisorYearFilter() {
+  const yearSel = byId('advisorYear');
+  if (!yearSel) return;
+
+  const years = unique(appState.grades.map(g => parseTerm(g.term).year).filter(Boolean)).sort();
+  yearSel.innerHTML =
+    '<option value="">ทุกปีการศึกษา</option>' +
+    years.map(y => `<option value="${y}">${y}</option>`).join('');
+}
+
+function renderAdvisorList() {
+  const tbody = byId('advisorStudentsList');
+  const searchEl = byId('advisorSearch');
+  const yearSel  = byId('advisorYear');
+  const q = (searchEl?.value || '').trim();
+  const y = (yearSel?.value || '').trim();
+
+  // ระบุตัวที่ปรึกษา (ชื่อ หรืออีเมล) ให้รองรับ 2 เคส
+  const meName  = (appState?.user?.name  || '').trim();
+  const meEmail = (appState?.user?.email || '').trim().toLowerCase();
+
+  let rows = appState.students.filter(s => {
+    const adv = String(s.advisor || '').trim();
+    return adv === meName || adv.toLowerCase() === meEmail;
+  });
+
+  // ค้นหา
+  if (q) {
+    rows = rows.filter(s =>
+      String(s.id || '').includes(q) ||
+      String(s.name || '').includes(q)
+    );
+  }
+
+  // กรองปีการศึกษา: เอาเฉพาะนักศึกษาที่มีผลการเรียนในปีนั้น
+  if (y) {
+    const idsInYear = new Set(
+      appState.grades
+        .filter(g => parseTerm(g.term).year === y)
+        .map(g => String(g.studentId).trim())
+    );
+    rows = rows.filter(s => idsInYear.has(String(s.id).trim()));
+  }
+
+  // เรียงรหัส
+  rows.sort((a,b) => String(a.id).localeCompare(String(b.id)));
+
+  tbody.innerHTML = rows.length
+    ? rows.map(s => `
+        <tr class="cursor-pointer hover:bg-gray-50"
+            onclick="openAdvisorStudent('${s.id}')">
+          <td class="px-4 py-2">${s.id || '-'}</td>
+          <td class="px-4 py-2">${s.name || '-'}</td>
+          <td class="px-4 py-2">${s.year || '-'}</td>
+        </tr>
+      `).join('')
+    : '<tr><td colspan="3" class="px-4 py-8 text-center text-gray-400">ไม่พบนักศึกษา</td></tr>';
+}
+
+window.openAdvisorStudent = function(studentId){
+  window._advisorSelectedStudentId = String(studentId || '').trim();
+  renderAdvisorStudentDetail(window._advisorSelectedStudentId);
+};
+
+function renderAdvisorStudentDetail(studentId) {
+  const id = String(studentId || '').trim();
+  const yearSel = byId('advisorYear');
+  const y = (yearSel?.value || '').trim();
+
+  // โปรไฟล์
+  const s = appState.students.find(x => String(x.id).trim() === id);
+  byId('advisorStudentId').textContent       = s ? (s.id || '-')      : '-';
+  byId('advisorStudentName').textContent     = s ? (s.name || '-')    : '-';
+  byId('advisorStudentYear').textContent     = s ? (s.year || '-')    : '-';
+  byId('advisorStudentAdvisor').textContent  = s ? (s.advisor || '-') : '-';
+
+  // เกรดทั้งหมดของนักศึกษาคนนี้
+  const all = appState.grades
+    .filter(g => String(g.studentId).trim() === id)
+    .sort((a,b) => termSortKey(a.term).localeCompare(termSortKey(b.term)));
+
+  // กรองตามปี
+  const filtered = y ? all.filter(g => parseTerm(g.term).year === y) : all;
+
+  // KPI
+  const yearly = computeGPA(filtered);
+  const overall = computeGPA(all);
+  byId('advisorYearGPA').textContent     = filtered.length ? yearly.gpa.toFixed(2) : '-';
+  byId('advisorYearCredits').textContent = filtered.length ? yearly.credits : '-';
+  byId('advisorGPAX').textContent        = all.length ? overall.gpa.toFixed(2) : '-';
+
+  // ตารางเกรด
+  const tbody = byId('advisorGradesTable');
+  tbody.innerHTML = filtered.length
+    ? filtered.map(g => `
+        <tr>
+          <td class="px-4 py-2">${g.term || '-'}</td>
+          <td class="px-4 py-2">${g.courseCode || '-'}</td>
+          <td class="px-4 py-2">${g.courseTitle || '-'}</td>
+          <td class="px-4 py-2">${g.credits || '-'}</td>
+          <td class="px-4 py-2">${g.grade || '-'}</td>
+        </tr>
+      `).join('')
+    : '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">ยังไม่มีข้อมูลในปีที่เลือก</td></tr>';
+}
+
+async function buildAdvisorDashboard(){
+  // แสดงชื่อผู้ใช้มุมขวาในหน้า advisor
+  const lbl = byId('advisorCurrentUser');
+  if (lbl) lbl.textContent = `${appState.user?.name || ''} (${appState.user?.role || 'advisor'})`;
+
+  // เตรียม filter + รายการ
+  initAdvisorYearFilter();
+  renderAdvisorList();
+
+  // ผูก event
+  const yearSel = byId('advisorYear');
+  const searchEl = byId('advisorSearch');
+  if (yearSel)  yearSel.onchange  = () => { renderAdvisorList(); if (window._advisorSelectedStudentId) renderAdvisorStudentDetail(window._advisorSelectedStudentId); };
+  if (searchEl) searchEl.oninput  = () => { renderAdvisorList(); };
+
+  // เคลียร์ panel รายละเอียดก่อนเลือก
+  byId('advisorGradesTable').innerHTML =
+    '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">โปรดเลือกรายชื่อนักศึกษาทางซ้าย</td></tr>';
+}
+
 /***********************
  * MODALS & STARTUP
  ***********************/
@@ -1177,6 +1310,7 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
 
 
