@@ -243,6 +243,20 @@ function showAdminSection(key){
   else if(key==='students'){ byId('adminStudents').classList.remove('hidden'); qsa('.tab-btn')[1].classList.add('is-active'); }
   else { byId('adminIndividual').classList.remove('hidden'); qsa('.tab-btn')[2].classList.add('is-active'); }
 }
+function showAdminSection(name){
+  qsa('.admin-section').forEach(el => el.classList.add('hidden'));
+  qsa('.tab-btn').forEach(el => el.classList.remove('is-active'));
+
+  if(name === 'overview') byId('adminOverview').classList.remove('hidden');
+  if(name === 'students') byId('adminStudents').classList.remove('hidden');
+  if(name === 'individual') byId('adminIndividual').classList.remove('hidden');
+  if(name === 'loginlogs') {
+    byId('adminLoginLogs').classList.remove('hidden');
+    loadAdminLoginLogs(); // ✅ โหลดข้อมูล log
+  }
+
+  event?.target?.classList?.add('is-active');
+}
 
 /***********************
  * ADMIN: OVERVIEW
@@ -663,6 +677,26 @@ function openManageGradesModal(){
     </tr>
   `).join('');
   openModal('modalManageGrades');
+}
+async function loadAdminLoginLogs(){
+  try {
+    const res = await api('getloginlogs', {});
+    const rows = res.data || [];
+    const tbody = byId('adminLoginLogsTable');
+    tbody.innerHTML = rows.length ? rows.map(r => `
+      <tr>
+        <td class="px-4 py-2">${r.timestamp}</td>
+        <td class="px-4 py-2">${r.role}</td>
+        <td class="px-4 py-2">${r.id}</td>
+        <td class="px-4 py-2">${r.name}</td>
+        <td class="px-4 py-2">${r.email}</td>
+      </tr>
+    `).join('') : 
+    '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">ยังไม่มีข้อมูล</td></tr>';
+  } catch(e){
+    console.error(e);
+    Swal.fire('ผิดพลาด','ไม่สามารถโหลดข้อมูล log ได้','error');
+  }
 }
 
 /***********************
@@ -1319,6 +1353,7 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
 
 
