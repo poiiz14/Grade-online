@@ -254,10 +254,8 @@ function showAdminSection(name){
     byId('adminLoginLogs').classList.remove('hidden');
     loadAdminLoginLogs(); // ✅ โหลดข้อมูล log
   }
-
   event?.target?.classList?.add('is-active');
 }
-
 /***********************
  * ADMIN: OVERVIEW
  ***********************/
@@ -698,7 +696,6 @@ async function loadAdminLoginLogs(){
     Swal.fire('ผิดพลาด','ไม่สามารถโหลดข้อมูล log ได้','error');
   }
 }
-
 /***********************
  * STUDENT VIEW
  ***********************/
@@ -1353,6 +1350,7 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
 
 
