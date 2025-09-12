@@ -33,21 +33,30 @@ function cleanId(id){ return String(id||'').trim(); }
 function parseTerm(term){
   const raw = String(term || '').trim();
   if(!raw) return { year:'', sem:'' };
+  // ปี/ภาค เช่น 2567/1
   const m1 = raw.match(/^(\d{4})\s*[/\-]\s*(\d{1,2})$/);
   if(m1) return { year: m1[1], sem: String(parseInt(m1[2],10)) };
+  // ภาค/ปี เช่น 1/2567
   const m2 = raw.match(/^(\d{1,2})\s*[/\-]\s*(\d{4})$/);
   if(m2) return { year: m2[2], sem: String(parseInt(m2[1],10)) };
+  // ✅ ใหม่: ปีล้วน เช่น "2567"
+  const m3 = raw.match(/^(\d{4})$/);
+  if (m3) return { year: m3[1], sem: '' };
+  // เลขภาคเดี่ยว
   if(['1','2','3'].includes(raw)) return { year:'', sem:raw };
   return { year:'', sem:'' };
 }
-function termSortKey(term){ const {year,sem}=parseTerm(term); return `${year.padStart(4,'0')}-${sem.padStart(1,'0')}`; }
+function termSortKey(term){
+  const {year, sem} = parseTerm(term);
+  const s = (sem || '0');              // ถ้า sem ว่าง ให้เป็น '0'
+  return `${year.padStart(4,'0')}-${s.padStart(1,'0')}`;
+}
 function sortByStudentIdAsc(a,b){ const A=cleanId(a.id||a.value||a); const B=cleanId(b.id||b.value||b); return A<B?-1:A>B?1:0; }
 function gradeToPoint(grade){ const g=String(grade||'').toUpperCase().trim(); if(NON_GPA_GRADES.has(g)) return null; return GRADE_POINTS[g] ?? null; }
 function computeGPA(grades){ let cr=0, pt=0; grades.forEach(g=>{ const p=gradeToPoint(g.grade); const c=toNumber(g.credits); if(p!=null && c>0){ cr+=c; pt+=p*c; }}); return { gpa: cr>0? Math.round((pt/cr+Number.EPSILON)*100)/100 : 0, credits: cr }; }
 function round2(n){ return Math.round((n + Number.EPSILON) * 100) / 100; }
 function latestBy(list, keyFn){ if(!list||!list.length) return null; let best=list[0], bk=keyFn(best)||''; for(let i=1;i<list.length;i++){ const k=keyFn(list[i])||''; if(k>bk){ best=list[i]; bk=k; } } return best; }
 function unique(arr){ return Array.from(new Set(arr)); }
-
 /* Loading overlay helpers */
 function showLoading(on=true){
   const el = document.getElementById('loadingOverlay');
@@ -1310,6 +1319,7 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
 
 
