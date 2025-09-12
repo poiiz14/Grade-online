@@ -142,6 +142,7 @@
             <button onclick="showAdminSection('overview')"  class="tab-btn is-active whitespace-nowrap"><i class="fas fa-chart-pie mr-2"></i>หน้าหลัก</button>
             <button onclick="showAdminSection('students')"  class="tab-btn whitespace-nowrap"><i class="fas fa-users mr-2"></i>รายชื่อนักศึกษาทั้งหมด</button>
             <button onclick="showAdminSection('individual')" class="tab-btn whitespace-nowrap"><i class="fas fa-user-graduate mr-2"></i>ข้อมูลรายบุคคล</button>
+            <button onclick="showAdminSection('loginlogs')"  class="tab-btn whitespace-nowrap"><i class="fas fa-clock mr-2"></i>ประวัติการเข้าสู่ระบบ</button>
           </div>
         </div>
       </nav>
@@ -222,7 +223,26 @@
             </div>
           </div>
         </section>
-
+        <!-- LOGIN LOGS -->
+        <section id="adminLoginLogs" class="admin-section hidden">
+          <h2 class="text-2xl font-bold text-gray-900 mb-4">ประวัติการเข้าสู่ระบบ</h2>
+          <div class="bg-white rounded-xl card-shadow">
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">เวลา</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ชื่อ</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">อีเมล</th>
+                  </tr>
+                </thead>
+                <tbody id="adminLoginLogsTable" class="divide-y divide-gray-200"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
         <!-- STUDENTS -->
         <section id="adminStudents" class="admin-section hidden">
           <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
@@ -762,6 +782,7 @@
 </div>
 </body>
 </html>
+
 
 
 
