@@ -680,7 +680,7 @@ function openManageGradesModal(){
 }
 async function loadAdminLoginLogs(){
   try {
-    const res = await api('getloginlogs', {});
+    const res = await callAPI({ action: 'getloginlogs' }); // ✅ ใช้ callAPI
     const rows = res.data || [];
     const tbody = byId('adminLoginLogsTable');
     tbody.innerHTML = rows.length ? rows.map(r => `
@@ -1353,6 +1353,7 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
 
 
