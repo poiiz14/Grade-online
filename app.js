@@ -1259,7 +1259,22 @@ document.addEventListener('keydown', (e) => {
   // Router กลาง: โหลด Dashboard ตามบทบาท
 window.loadRoleDashboard = async function(role, opts = {}){
   role = String(role || '').toLowerCase();
-
+  // ⬇️ ดึงข้อมูลสดถ้าขอ forceReload
+  if (opts.forceReload) {
+    try{
+      const boot = await apiBootstrap();
+      if (boot?.success) {
+        appState.students     = boot.data?.students     || [];
+        appState.grades       = boot.data?.grades       || [];
+        appState.englishTests = boot.data?.englishTests || [];
+        appState.advisors     = boot.data?.advisors     || [];
+      } else {
+        console.warn('bootstrap failed:', boot?.message);
+      }
+    }catch(err){
+      console.error('bootstrap error:', err);
+    }
+  }
   // ซ่อนทุก Dashboard ก่อน
   byId('adminDashboard')?.classList.add('hidden');
   byId('studentDashboard')?.classList.add('hidden');
@@ -1267,22 +1282,22 @@ window.loadRoleDashboard = async function(role, opts = {}){
 
   if (role === 'admin') {
     byId('adminDashboard')?.classList.remove('hidden');
-    await buildAdminOverview?.(opts.forceReload);
-    await buildAdminStudents?.(opts.forceReload);
-    await buildAdminIndividual?.(opts.forceReload);
+    await buildAdminOverview?.();
+    await buildAdminStudents?.();
+    await buildAdminIndividual?.();
     showAdminSection?.('overview');
   } else if (role === 'student') {
     byId('studentDashboard')?.classList.remove('hidden');
-    await buildStudentView?.(opts.forceReload);
-  } else if (role === 'advisor') {             // ✅ เจาะจง advisor เท่านั้น
+    await buildStudentView?.();
+  } else if (role === 'advisor') {
     byId('advisorDashboard')?.classList.remove('hidden');
-    await buildAdvisorView?.(opts.forceReload);
+    await buildAdvisorView?.();
   } else {
-    // ✅ ไม่รู้ role: ไม่เปลี่ยนหน้า ป้องกันเด้งผิดหน้าตามค่า default
     console.warn('loadRoleDashboard: unknown role -> keep current view');
     return;
   }
 };
+
 // เปิด modal แก้ไข พร้อมเติมค่าจากแถวที่เลือก
 window.openEditGrade = function(studentId, term, courseCode){
   const rec = appState.grades.find(g =>
@@ -1351,6 +1366,7 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
 
 
