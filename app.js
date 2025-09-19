@@ -259,8 +259,6 @@ function showAdminSection(name){
   const idx = {overview:0, students:1, individual:2, loginlogs:3}[key];
   if (typeof idx === 'number') qsa('.tab-btn')[idx]?.classList.add('is-active');
 }
-  event?.target?.classList?.add('is-active');
-}
 /***********************
  * ADMIN: OVERVIEW
  ***********************/
@@ -1355,6 +1353,7 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
 
 
