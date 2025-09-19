@@ -244,16 +244,21 @@ function showAdminSection(key){
   else { byId('adminIndividual').classList.remove('hidden'); qsa('.tab-btn')[2].classList.add('is-active'); }
 }
 function showAdminSection(name){
+  const key = ({'admin-individual':'individual'})[name] || name; // map alias
   qsa('.admin-section').forEach(el => el.classList.add('hidden'));
   qsa('.tab-btn').forEach(el => el.classList.remove('is-active'));
 
-  if(name === 'overview') byId('adminOverview').classList.remove('hidden');
-  if(name === 'students') byId('adminStudents').classList.remove('hidden');
-  if(name === 'individual') byId('adminIndividual').classList.remove('hidden');
-  if(name === 'loginlogs') {
+  if(key === 'overview')  byId('adminOverview').classList.remove('hidden');
+  if(key === 'students')  byId('adminStudents').classList.remove('hidden');
+  if(key === 'individual')byId('adminIndividual').classList.remove('hidden');
+  if(key === 'loginlogs'){ 
     byId('adminLoginLogs').classList.remove('hidden');
-    loadAdminLoginLogs(); // ✅ โหลดข้อมูล log
+    loadAdminLoginLogs?.();
   }
+  // ไฮไลต์ปุ่มแท็บให้ตรงกับ key
+  const idx = {overview:0, students:1, individual:2, loginlogs:3}[key];
+  if (typeof idx === 'number') qsa('.tab-btn')[idx]?.classList.add('is-active');
+}
   event?.target?.classList?.add('is-active');
 }
 /***********************
@@ -408,7 +413,7 @@ function buildAdminStudents(){
   render();
 }
 window.gotoAdminIndividual = function(id){
-  showAdminSection('admin-individual');
+  showAdminSection('individual'); // <-- ใช้ key ที่มีอยู่จริง
   const sel = byId('adminIndSelect');
   sel.value = id;
   sel.dispatchEvent(new Event('change'));
@@ -1350,6 +1355,7 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
 
 
