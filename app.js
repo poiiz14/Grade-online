@@ -347,6 +347,19 @@ function renderStudentByYearBar(){
  * - neverPass: จำนวนนักศึกษาที่ "มีประวัติสอบแล้ว" แต่ไม่เคยผ่านเลย
  * (ผู้ที่ยังไม่เคยสอบ จะไม่นับทั้งสองฝั่ง)
  */
+
+/** เวอร์ชันย่อย: รับ array ของ englishTests แล้วคำนวณเฉพาะชุดนั้น */
+function computePassCountsForTests(tests){
+  const byStu = groupBy(tests||[], t=> cleanId(t.studentId));
+  let passEver = 0, neverPass = 0;
+  Object.keys(byStu).forEach(id=>{
+    const arr = byStu[id] || [];
+    if(!arr.length) return;
+    const ever = arr.some(t => String(t.status||'').trim() === 'ผ่าน');
+    if (ever) passEver++; else neverPass++;
+  });
+  return { passEver, neverPass };
+}
 function computeEnglishPassCounts(){
   const byStu = groupBy(appState.englishTests, t => cleanId(t.studentId));
   let passEver = 0, neverPass = 0;
@@ -1007,37 +1020,19 @@ function renderAdvisorStudents(myStudents){
 
       /* Summary Pie เฉพาะนักศึกษาที่ดูแล */
       function renderAdvisorEnglishSummary(myStudents){
-        // เก็บ studentIds ที่อาจารย์ดูแล
-        const myIds = new Set(myStudents.map(s => cleanId(s.id)));
-      
-        // group ข้อมูลสอบเฉพาะนักศึกษาที่ดูแล
-        const myTests = appState.englishTests.filter(t => myIds.has(cleanId(t.studentId)));
-        const byStu = groupBy(myTests, t => cleanId(t.studentId));
-      
-        let pass = 0, fail = 0;
-      
-        Object.keys(byStu).forEach(id => {
-          const latest = latestBy(
-            byStu[id],
-            t => `${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate || ''}`
-          );
-          if(!latest) return;
-      
-          const status = String(latest.status || '').trim();
-          if (status === 'ผ่าน') pass++;
-          else if (status === 'ไม่ผ่าน') fail++;
-          // อื่นๆ เช่น '' 'ยังไม่สอบ' ไม่นับ
-        });
-      
-        const total = pass + fail;
-      
-        const elP = byId('advEngPass');
-        const elF = byId('advEngFail');
-        const elT = byId('advEngTotal');
-        if (elP) elP.textContent = pass;
-        if (elF) elF.textContent = fail;
-        if (elT) elT.textContent = total;
-      }
+  // เก็บ studentIds ที่อาจารย์ดูแล
+  const myIds = new Set(myStudents.map(s => cleanId(s.id)));
+  // กรองเฉพาะผลสอบของนักศึกษาที่ตนดูแล
+  const myTests = appState.englishTests.filter(t => myIds.has(cleanId(t.studentId)));
+  const { passEver, neverPass } = computePassCountsForTests(myTests);
+
+  const elP = byId('advEngPass');
+  const elF = byId('advEngFail');
+  const elT = byId('advEngTotal');
+  if (elP) elP.textContent = passEver;
+  if (elF) elF.textContent = neverPass;
+  if (elT) elT.textContent = (passEver + neverPass);
+}
 /* =========================
  * ADVISOR DASHBOARD (ใหม่)
  * ========================= */
