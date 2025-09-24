@@ -299,28 +299,24 @@ function buildAdminOverview(){
 
   // นับ “ผ่าน/ไม่ผ่าน (จากรายการล่าสุดของแต่ละคน)”
   const byStu = groupBy(appState.englishTests, t => t.studentId);
-  let passCount = 0;
-  let failCount = 0;
   
-  Object.keys(byStu).forEach(id => {
-    const latest = latestBy(
-      byStu[id],
-      t => `${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`
-    );
-    if (!latest) return;
-  
-    const status = String(latest.status || '').trim();
-    if (status === 'ผ่าน') {
-      passCount++;
-    } else if (status === 'ไม่ผ่าน') {
-      failCount++;
-    }
-    // ถ้าเป็นค่าอื่น เช่น '' หรือ 'ยังไม่สอบ' → ไม่เอามานับ
-  });
-  
-  byId('overviewEnglishLatestPass').textContent = passCount;
+let passCount = 0;
+let failCount = 0;
+
+// 👉 นับแบบใหม่: เคยผ่านอย่างน้อย 1 ครั้ง = ผ่าน, ไม่เคยผ่านเลย (แต่มีสอบ) = ไม่ผ่าน
+Object.keys(byStu).forEach(id => {
+  const arr = byStu[id] || [];
+  if (!arr.length) return;                // ยังไม่เคยสอบ → ไม่นับทั้งสองฝั่ง
+  const ever = arr.some(t => String(t.status||'').trim() === 'ผ่าน');
+  if (ever) passCount++; else failCount++;
+});
+
+  // ใช้มาตรฐานเดียวกับกราฟ: เคยผ่าน = ผ่าน, ไม่เคยผ่านเลย = ไม่ผ่าน
+  const { passEver, neverPass } = computeEnglishPassCounts();
+  byId('overviewEnglishLatestPass').textContent = passEver;
   const elFail = byId('overviewEnglishLatestFail');
-  if (elFail) elFail.textContent = failCount;
+  if (elFail) elFail.textContent = neverPass;
+
   
   // วาดกราฟ
   renderStudentByYearBar();
@@ -345,6 +341,23 @@ function renderStudentByYearBar(){
   });
 }
 /* Pie: สรุปผลสอบอังกฤษ (เคยผ่าน vs ไม่เคยผ่านเลย) */
+
+/** นับผลสอบอังกฤษแบบมาตรฐานทั้งระบบ
+ * - passEver: จำนวนนักศึกษาที่เคย "ผ่าน" อย่างน้อย 1 ครั้ง
+ * - neverPass: จำนวนนักศึกษาที่ "มีประวัติสอบแล้ว" แต่ไม่เคยผ่านเลย
+ * (ผู้ที่ยังไม่เคยสอบ จะไม่นับทั้งสองฝั่ง)
+ */
+function computeEnglishPassCounts(){
+  const byStu = groupBy(appState.englishTests, t => cleanId(t.studentId));
+  let passEver = 0, neverPass = 0;
+  Object.keys(byStu).forEach(id => {
+    const arr = byStu[id] || [];
+    if (!arr.length) return; // ยังไม่เคยสอบ → ไม่นับ
+    const ever = arr.some(t => String(t.status||'').trim() === 'ผ่าน');
+    if (ever) passEver++; else neverPass++;
+  });
+  return { passEver, neverPass };
+}
 function renderEnglishPassPie(){
   const el = byId('englishPassPie');
   if(!el) return;
