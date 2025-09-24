@@ -381,7 +381,6 @@ function renderEnglishPassPie(){
     }
   });
 }
-          }
         }
       }
     }
@@ -1397,6 +1396,7 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
 
 
