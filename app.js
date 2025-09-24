@@ -388,7 +388,7 @@ function renderEnglishPassPie(){
   if (window._englishPie) window._englishPie.destroy();
   window._englishPie = new Chart(ctx, {
     type:'pie',
-    data:{ labels:['ผ่าน (เคยผ่าน)','ไม่ผ่าน (ไม่เคยผ่านเลย)'], datasets:[{ data: dataArr }]},
+    data:{ labels:['ผ่าน','ไม่ผ่าน'], datasets:[{ data: dataArr }]},
     options:{ responsive:true, maintainAspectRatio:false,
       plugins:{ tooltip:{ callbacks:{ label:(c)=>{
         const label=c.label||''; const v=c.parsed||0; const pct= total? ((v/total)*100).toFixed(1):0;
@@ -1383,3 +1383,4 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
