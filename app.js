@@ -108,6 +108,7 @@ function callAPI(params){
 }
 function apiAuthenticate(role, credentials){ return callAPI({action:'authenticate', payload: JSON.stringify({userType: role, credentials})}); }
 function apiBootstrap(){ return callAPI({action:'bootstrap'}); }
+function apiBootstrapFor(payload){ return callAPI({action:'bootstrapFor', payload: JSON.stringify(payload)}); }
 function apiUpdateStudent(payload){ return callAPI({action:'updateStudent', payload: JSON.stringify(payload)}); }
 function apiAddGrade(payload){ return callAPI({action:'addGrade', payload: JSON.stringify(payload)}); }
 function apiAddEnglish(payload){ return callAPI({action:'addEnglishTest', payload: JSON.stringify(payload)}); }
@@ -178,7 +179,14 @@ function initLogin(){
       // อัปเดต label ผู้ใช้ (ใช้ role ที่ normalize แล้ว)
       byId('currentUserLabel').textContent = `${appState.user.name || ''} (${appState.user.role})`;
 
-      const boot = await apiBootstrap();
+      let boot;
+if (appState.user.role === 'student'){
+  boot = await apiBootstrapFor({ role:'student', studentId: appState.user.id });
+} else if (appState.user.role === 'advisor'){
+  boot = await apiBootstrapFor({ role:'advisor', advisorName: appState.user.name });
+} else {
+  boot = await apiBootstrap(); // admin
+}
       if(!boot.success){
         showLoading(false);
         if (submitBtn){ submitBtn.disabled = false; submitBtn.classList.remove('opacity-60','cursor-not-allowed'); }
@@ -336,48 +344,33 @@ function renderStudentByYearBar(){
     options: { responsive: true, maintainAspectRatio: false }
   });
 }
-/* Pie: สรุปผลสอบอังกฤษ (ผ่าน/ไม่ผ่าน) – รวมทั้งระบบ */
+/* Pie: สรุปผลสอบอังกฤษ (เคยผ่าน vs ไม่เคยผ่านเลย) */
 function renderEnglishPassPie(){
   const el = byId('englishPassPie');
   if(!el) return;
   const ctx = el.getContext('2d');
-
-  // นับผลล่าสุด (ผ่าน/ไม่ผ่าน) ต่อคน
-  const byStu = groupBy(appState.englishTests, t=>cleanId(t.studentId));
-  let pass = 0, fail = 0;
+  const byStu = groupBy(appState.englishTests, t => cleanId(t.studentId));
+  let pass=0, never=0;
   Object.keys(byStu).forEach(id=>{
-    const latest = latestBy(byStu[id], t=>`${t.academicYear}-${String(t.attempt||0).padStart(3,'0')}-${t.examDate||''}`);
-    if(!latest) return;
-    const s = String(latest.status||'').trim();
-    if (s === 'ผ่าน') pass++;
-    else if (s === 'ไม่ผ่าน') fail++;
+    const arr = byStu[id] || [];
+    if(!arr.length) return;
+    const ever = arr.some(t => String(t.status||'').trim() === 'ผ่าน');
+    if (ever) pass++; else never++;
   });
-
-  const dataArr = [pass, fail];
-  const total = dataArr.reduce((a,b)=>a+b,0);
-
-  // ทำลายกราฟเก่า (ถ้ามี)
+  const dataArr = [pass, never];
+  const total = dataArr[0]+dataArr[1];
   if (window._englishPie) window._englishPie.destroy();
-
-  // สร้างกราฟใหม่ + tooltip แสดง จำนวน และ %
   window._englishPie = new Chart(ctx, {
-    type: 'pie',
-    data: {
-      labels: ['ผ่าน', 'ไม่ผ่าน'],
-      datasets: [{ data: dataArr }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: (context) => {
-              const label = context.label || '';
-              const val = context.parsed || 0;
-              const pct = total ? ((val / total) * 100).toFixed(1) : 0;
-              return `${label}: ${val.toLocaleString()} คน (${pct}%)`;
-            }
+    type:'pie',
+    data:{ labels:['ผ่าน (เคยผ่าน)','ไม่ผ่าน (ไม่เคยผ่านเลย)'], datasets:[{ data: dataArr }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ tooltip:{ callbacks:{ label:(c)=>{
+        const label=c.label||''; const v=c.parsed||0; const pct= total? ((v/total)*100).toFixed(1):0;
+        return `${label}: ${v.toLocaleString()} คน (${pct}%)`;
+      }}}}
+    }
+  });
+}
           }
         },
         legend: {
@@ -1249,7 +1242,14 @@ window.softRefresh = async function(silent = false){
     if (!role) { role = getVisibleRoleFromUI(); if (!role) return; }
 
     // ⬇️ ดึงข้อมูลสดจาก backend (GAS)
-    const boot = await apiBootstrap();
+    let boot;
+if (appState.user.role === 'student'){
+  boot = await apiBootstrapFor({ role:'student', studentId: appState.user.id });
+} else if (appState.user.role === 'advisor'){
+  boot = await apiBootstrapFor({ role:'advisor', advisorName: appState.user.name });
+} else {
+  boot = await apiBootstrap(); // admin
+}
     if(!boot.success) throw new Error(boot.message || 'bootstrap failed');
     appState.students     = boot.data.students     || [];
     appState.grades       = boot.data.grades       || [];
@@ -1283,7 +1283,14 @@ window.loadRoleDashboard = async function(role, opts = {}){
   // ⬇️ ดึงข้อมูลสดถ้าขอ forceReload
   if (opts.forceReload) {
     try{
-      const boot = await apiBootstrap();
+      let boot;
+if (appState.user.role === 'student'){
+  boot = await apiBootstrapFor({ role:'student', studentId: appState.user.id });
+} else if (appState.user.role === 'advisor'){
+  boot = await apiBootstrapFor({ role:'advisor', advisorName: appState.user.name });
+} else {
+  boot = await apiBootstrap(); // admin
+}
       if (boot?.success) {
         appState.students     = boot.data?.students     || [];
         appState.grades       = boot.data?.grades       || [];
