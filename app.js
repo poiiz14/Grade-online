@@ -108,7 +108,6 @@ function callAPI(params){
 }
 function apiAuthenticate(role, credentials){ return callAPI({action:'authenticate', payload: JSON.stringify({userType: role, credentials})}); }
 function apiBootstrap(){ return callAPI({action:'bootstrap'}); }
-function apiBootstrapFor(payload){ return callAPI({action:'bootstrapFor', payload: JSON.stringify(payload)}); }
 function apiUpdateStudent(payload){ return callAPI({action:'updateStudent', payload: JSON.stringify(payload)}); }
 function apiAddGrade(payload){ return callAPI({action:'addGrade', payload: JSON.stringify(payload)}); }
 function apiAddEnglish(payload){ return callAPI({action:'addEnglishTest', payload: JSON.stringify(payload)}); }
@@ -179,14 +178,7 @@ function initLogin(){
       // อัปเดต label ผู้ใช้ (ใช้ role ที่ normalize แล้ว)
       byId('currentUserLabel').textContent = `${appState.user.name || ''} (${appState.user.role})`;
 
-      let boot;
-if (appState.user.role === 'student'){
-  boot = await apiBootstrapFor({ role:'student', studentId: appState.user.id });
-} else if (appState.user.role === 'advisor'){
-  boot = await apiBootstrapFor({ role:'advisor', advisorName: appState.user.name });
-} else {
-  boot = await apiBootstrap(); // admin
-}
+      const boot = await apiBootstrap();
       if(!boot.success){
         showLoading(false);
         if (submitBtn){ submitBtn.disabled = false; submitBtn.classList.remove('opacity-60','cursor-not-allowed'); }
@@ -299,586 +291,11 @@ function buildAdminOverview(){
 
   // นับ “ผ่าน/ไม่ผ่าน (จากรายการล่าสุดของแต่ละคน)”
   const byStu = groupBy(appState.englishTests, t => t.studentId);
+  let passCount = 0;
+  let failCount = 0;
   
-let passCount = 0;
-let failCount = 0;
-
-// 👉 นับแบบใหม่: เคยผ่านอย่างน้อย 1 ครั้ง = ผ่าน, ไม่เคยผ่านเลย (แต่มีสอบ) = ไม่ผ่าน
-Object.keys(byStu).forEach(id => {
-  const arr = byStu[id] || [];
-  if (!arr.length) return;                // ยังไม่เคยสอบ → ไม่นับทั้งสองฝั่ง
-  const ever = arr.some(t => String(t.status||'').trim() === 'ผ่าน');
-  if (ever) passCount++; else failCount++;
-});
-
-  // ใช้มาตรฐานเดียวกับกราฟ: เคยผ่าน = ผ่าน, ไม่เคยผ่านเลย = ไม่ผ่าน
-  const { passEver, neverPass } = computeEnglishPassCounts();
-  byId('overviewEnglishLatestPass').textContent = passEver;
-  const elFail = byId('overviewEnglishLatestFail');
-  if (elFail) elFail.textContent = neverPass;
-
-  
-  // วาดกราฟ
-  renderStudentByYearBar();
-  renderEnglishPassPie();
-}
-function groupBy(arr, keyFn){ const m={}; arr.forEach(x=>{ const k=keyFn(x); (m[k]||(m[k]=[])).push(x); }); return m; }
-/* Bar: จำนวนนักศึกษาแต่ละชั้นปี */
-function renderStudentByYearBar(){
-  const ctx = byId('gradeDistributionChart').getContext('2d');
-  const years = ['1','2','3','4'];
-  const counts = { '1':0, '2':0, '3':0, '4':0 };
-  appState.students.forEach(s=>{ const y=String(s.year||''); if(counts[y]!=null) counts[y]++; });
-
-  const labels = years.map(y=>`ปี ${y}`);
-  const data   = years.map(y=>counts[y]);
-
-  if(window._studentYearBar) window._studentYearBar.destroy();
-  window._studentYearBar = new Chart(ctx, {
-    type: 'bar',
-    data: { labels, datasets: [{ label: 'จำนวนนักศึกษา', data }] },
-    options: { responsive: true, maintainAspectRatio: false }
-  });
-}
-/* Pie: สรุปผลสอบอังกฤษ (เคยผ่าน vs ไม่เคยผ่านเลย) */
-
-/** นับผลสอบอังกฤษแบบมาตรฐานทั้งระบบ
- * - passEver: จำนวนนักศึกษาที่เคย "ผ่าน" อย่างน้อย 1 ครั้ง
- * - neverPass: จำนวนนักศึกษาที่ "มีประวัติสอบแล้ว" แต่ไม่เคยผ่านเลย
- * (ผู้ที่ยังไม่เคยสอบ จะไม่นับทั้งสองฝั่ง)
- */
-
-/** เวอร์ชันย่อย: รับ array ของ englishTests แล้วคำนวณเฉพาะชุดนั้น */
-function computePassCountsForTests(tests){
-  const byStu = groupBy(tests||[], t=> cleanId(t.studentId));
-  let passEver = 0, neverPass = 0;
-  Object.keys(byStu).forEach(id=>{
-    const arr = byStu[id] || [];
-    if(!arr.length) return;
-    const ever = arr.some(t => String(t.status||'').trim() === 'ผ่าน');
-    if (ever) passEver++; else neverPass++;
-  });
-  return { passEver, neverPass };
-}
-function computeEnglishPassCounts(){
-  const byStu = groupBy(appState.englishTests, t => cleanId(t.studentId));
-  let passEver = 0, neverPass = 0;
   Object.keys(byStu).forEach(id => {
-    const arr = byStu[id] || [];
-    if (!arr.length) return; // ยังไม่เคยสอบ → ไม่นับ
-    const ever = arr.some(t => String(t.status||'').trim() === 'ผ่าน');
-    if (ever) passEver++; else neverPass++;
-  });
-  return { passEver, neverPass };
-}
-function renderEnglishPassPie(){
-  const el = byId('englishPassPie');
-  if(!el) return;
-  const ctx = el.getContext('2d');
-  const byStu = groupBy(appState.englishTests, t => cleanId(t.studentId));
-  let pass=0, never=0;
-  Object.keys(byStu).forEach(id=>{
-    const arr = byStu[id] || [];
-    if(!arr.length) return;
-    const ever = arr.some(t => String(t.status||'').trim() === 'ผ่าน');
-    if (ever) pass++; else never++;
-  });
-  const dataArr = [pass, never];
-  const total = dataArr[0]+dataArr[1];
-  if (window._englishPie) window._englishPie.destroy();
-  window._englishPie = new Chart(ctx, {
-    type:'pie',
-    data:{ labels:['ผ่าน','ไม่ผ่าน'], datasets:[{ data: dataArr }]},
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ tooltip:{ callbacks:{ label:(c)=>{
-        const label=c.label||''; const v=c.parsed||0; const pct= total? ((v/total)*100).toFixed(1):0;
-        return `${label}: ${v.toLocaleString()} คน (${pct}%)`;
-      }}}}
-    }
-  });
-}
-
-/***********************
- * ADMIN: STUDENTS
- ***********************/
-function buildAdminStudents(){
-  const tbody = byId('adminStudentsTable');
-  const yearFilter = byId('adminStudentYearFilter');
-  const searchEl = byId('adminStudentSearch');
-
-  function render(){
-    const yearSel = yearFilter.value;
-    const q = searchEl.value.trim();
-    const rows = appState.students
-      .filter(s=>!yearSel || String(s.year)===yearSel)
-      .filter(s=>!q || String(s.id||'').includes(q) || String(s.name||'').includes(q))
-      .sort(sortByStudentIdAsc);
-
-    tbody.innerHTML = rows.map(s=>`
-      <tr>
-        <td class="px-4 py-2">${s.id||'-'}</td>
-        <td class="px-4 py-2">${s.name||'-'}</td>
-        <td class="px-4 py-2">${s.year||'-'}</td>
-        <td class="px-4 py-2">${s.advisor||'-'}</td>
-        <td class="px-4 py-2 text-right">
-          <button class="text-blue-600 hover:underline" data-id="${s.id}" onclick="gotoAdminIndividual('${s.id}')">ดูรายบุคคล</button>
-        </td>
-      </tr>
-    `).join('');
-  }
-
-  yearFilter.onchange = render;
-  searchEl.oninput = render;
-  render();
-}
-window.gotoAdminIndividual = function(id){
-  showAdminSection('individual'); // <-- ใช้ key ที่มีอยู่จริง
-  const sel = byId('adminIndSelect');
-  sel.value = id;
-  sel.dispatchEvent(new Event('change'));
-};
-
-/***********************
- * ADMIN: INDIVIDUAL
- ***********************/
-function buildAdminIndividual(){
-  const sel = byId('adminIndSelect');
-  const search = byId('adminIndSearch');
-  const yearSel = byId('adminIndYear');
-
-  const allYears = unique(appState.grades.map(g=>parseTerm(g.term).year).filter(Boolean)).sort();
-  yearSel.innerHTML =
-    '<option value="">ทุกปีการศึกษา</option>' +
-    allYears.map(y => `<option value="${y}">${y}</option>`).join('');
-
-  function fillSelect(){
-    const q = search.value.trim();
-    const list = appState.students
-      .filter(s=>!q || String(s.id||'').includes(q) || String(s.name||'').includes(q))
-      .sort(sortByStudentIdAsc);
-
-    sel.innerHTML =
-      '<option value="">-- เลือกนักศึกษา --</option>' +
-      list.map(s => `<option value="${s.id}">${s.id} - ${s.name}</option>`).join('');
-  }
-  fillSelect();
-  search.addEventListener('input', fillSelect);
-
-  // ⬇️ เรียก render เมื่อมีการเปลี่ยนค่า
-  sel.addEventListener('change', ()=>{
-    appState.ui.adminIndSelectedId = sel.value;
-    renderAdminIndividual();
-  });
-  yearSel.addEventListener('change', ()=>{
-    appState.ui.adminIndYear = yearSel.value;
-    renderAdminIndividual();
-  });
-
-  byId('btnEditStudent').onclick = openEditStudentModal;
-  byId('btnAddGrade').onclick = ()=>openModal('modalAddGrade');
-  byId('btnAddEnglish').onclick = ()=>openModal('modalAddEnglish');
-  byId('btnManageGrades').onclick = openManageGradesModal;
-
-  // ⬇️ เรียกครั้งแรกให้ขึ้น placeholder
-  renderAdminIndividual();
-}
-
-function renderAdminIndividual() {
-  const id = cleanId(appState.ui.adminIndSelectedId);
-  const yearFilter = appState.ui.adminIndYear;
-  // ยังไม่เลือกนักศึกษา -> เคลียร์ทุกช่องและขึ้นข้อความแนะให้เลือกก่อน
-  if (!id) {
-    byId('detailStudentId').textContent = '';
-    byId('detailStudentName').textContent = '';
-    byId('detailStudentYear').textContent = '';
-    byId('detailStudentAdvisor').textContent = '';
-
-    byId('adminIndYearGPA').textContent = '';
-    byId('adminIndYearCredits').textContent = '';
-    byId('adminIndGPAX').textContent = '';
-
-    byId('adminIndGradesTable').innerHTML =
-      '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">โปรดเลือกนักศึกษา</td></tr>';
-
-    byId('adminIndEnglishTable').innerHTML =
-      '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">โปรดเลือกนักศึกษา</td></tr>';
-    return;
-  }
-  // แสดงโปรไฟล์นักศึกษาที่เลือก
-  const std = appState.students.find(s => cleanId(s.id) === id);
-  byId('detailStudentId').textContent = std ? (std.id || '-') : '-';
-  byId('detailStudentName').textContent = std ? (std.name || '-') : '-';
-  byId('detailStudentYear').textContent = std ? (std.year || '-') : '-';
-  byId('detailStudentAdvisor').textContent = std ? (std.advisor || '-') : '-';
-
-  // เกรด: ดึงเฉพาะของนักศึกษาคนนี้
-  const grades = appState.grades
-    .filter(g => cleanId(g.studentId) === id)
-    .sort((a, b) => termSortKey(a.term).localeCompare(termSortKey(b.term)));
-  const filtered = yearFilter
-    ? grades.filter(g => parseTerm(g.term).year === yearFilter)
-    : grades;
-  const { gpa, credits } = computeGPA(filtered);
-  byId('adminIndYearGPA').textContent = filtered.length ? gpa.toFixed(2) : '-';
-  byId('adminIndYearCredits').textContent = filtered.length ? credits : '-';
-  const overall = computeGPA(grades);
-  byId('adminIndGPAX').textContent = grades.length ? overall.gpa.toFixed(2) : '-';
-  const gradeTbody = byId('adminIndGradesTable');
-  gradeTbody.innerHTML = filtered.length
-    ? filtered
-        .map(g => `
-          <tr>
-            <td class="px-4 py-2">${g.term || '-'}</td>
-            <td class="px-4 py-2">${g.courseCode || '-'}</td>
-            <td class="px-4 py-2">${g.courseTitle || '-'}</td>
-            <td class="px-4 py-2">${g.credits || '-'}</td>
-            <td class="px-4 py-2">${g.grade || '-'}</td>
-          </tr>
-        `)
-        .join('')
-    : '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">ยังไม่มีข้อมูลในปีที่เลือก</td></tr>';
-  // ผลสอบภาษาอังกฤษของนักศึกษาคนนี้
-  const englishTests = appState.englishTests
-    .filter(t => cleanId(t.studentId) === id)
-    .sort((a, b) => {
-      const ka = `${a.academicYear || ''}-${String(a.attempt || 0).padStart(3, '0')}-${a.examDate || ''}`;
-      const kb = `${b.academicYear || ''}-${String(b.attempt || 0).padStart(3, '0')}-${b.examDate || ''}`;
-      return ka.localeCompare(kb);
-    });
-  const engTbody = byId('adminIndEnglishTable');
-  engTbody.innerHTML = englishTests.length
-    ? englishTests
-        .map(t => `
-          <tr>
-            <td class="px-4 py-2">${t.academicYear || '-'}</td>
-            <td class="px-4 py-2">${t.attempt || '-'}</td>
-            <td class="px-4 py-2">${t.score || '-'}</td>
-            <td class="px-4 py-2">${t.status || '-'}</td>
-            <td class="px-4 py-2">${t.examDate ? String(t.examDate).substring(0, 10) : '-'}</td>
-          </tr>
-        `)
-        .join('')
-    : '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">ยังไม่มีข้อมูล</td></tr>';
-}
-/***********************
- * ADMIN: EDIT STUDENT
- ***********************/
-function openEditStudentModal(){
-  const id = appState.ui.adminIndSelectedId;
-  if(!id) return Swal.fire('แจ้งเตือน','กรุณาเลือกนักศึกษา','info');
-  const s = appState.students.find(x=>cleanId(x.id)===cleanId(id));
-  if(!s) return Swal.fire('ผิดพลาด','ไม่พบนักศึกษา','error');
-
-  byId('editStudentId').value = s.id||'';
-  byId('editStudentNewId').value = '';
-  byId('editStudentName').value = s.name||'';
-  byId('editStudentAdvisor').value = s.advisor||'';
-  byId('editStudentYear').value = s.year||'';
-
-  openModal('modalEditStudent');
-}
-window.saveEditStudent = async function(){
-  const id = byId('editStudentId').value;
-  const payload = {
-    id,
-    newId: cleanId(byId('editStudentNewId').value) || undefined,
-    name: byId('editStudentName').value,
-    advisor: byId('editStudentAdvisor').value,
-    year: byId('editStudentYear').value
-  };
-  try{
-    const res = await apiUpdateStudent(payload);
-    if(!res.success) return Swal.fire('ไม่สำเร็จ', res.message || 'บันทึกล้มเหลว', 'error');
-
-    const s = appState.students.find(x=>cleanId(x.id)===cleanId(id));
-    const newId = payload.newId && payload.newId!==id ? payload.newId : id;
-    if(s){ s.id=newId; s.name=payload.name; s.advisor=payload.advisor; s.year=payload.year; }
-    appState.grades.forEach(g=>{ if(cleanId(g.studentId)===cleanId(id)) g.studentId = newId; });
-    appState.englishTests.forEach(t=>{ if(cleanId(t.studentId)===cleanId(id)) t.studentId = newId; });
-
-    closeModal('modalEditStudent');
-    Swal.fire('สำเร็จ','บันทึกข้อมูลเรียบร้อย','success');
-
-    buildAdminStudents();
-    buildAdminIndividual();
-    byId('adminIndSelect').value = newId;
-    byId('adminIndSelect').dispatchEvent(new Event('change'));
-  }catch(err){
-    console.error(err);
-    Swal.fire('ผิดพลาด', String(err), 'error');
-  }
-};
-
-/***********************
- * ADMIN: ADD GRADE / ENGLISH
- ***********************/
-window.submitAddGrade = async function(){
-  const id = appState.ui.adminIndSelectedId;
-  if(!id) return Swal.fire('แจ้งเตือน','กรุณาเลือกนักศึกษา','info');
-  const std = appState.students.find(s=>cleanId(s.id)===cleanId(id));
-  if(!std) return Swal.fire('ผิดพลาด','ไม่พบนักศึกษา','error');
-
-  const payload = {
-    studentId: id,
-    term: byId('addGradeTerm').value,
-    courseCode: byId('addGradeCourseCode').value,
-    courseTitle: byId('addGradeCourseTitle').value,
-    credits: toNumber(byId('addGradeCredits').value),
-    grade: byId('addGradeGrade').value,
-    yearOfStudy: std.year
-  };
-  try{
-    const res = await apiAddGrade(payload);
-    if(!res.success) return Swal.fire('ไม่สำเร็จ', res.message || 'บันทึกล้มเหลว', 'error');
-
-    appState.grades.push({ studentId: payload.studentId, term: payload.term, courseCode: payload.courseCode, courseTitle: payload.courseTitle, credits: payload.credits, grade: payload.grade, recordedAt: new Date().toISOString() });
-
-    closeModal('modalAddGrade');
-    Swal.fire('สำเร็จ','เพิ่มผลการเรียนแล้ว','success');
-    renderAdminIndividual();
-  }catch(err){
-    console.error(err);
-    Swal.fire('ผิดพลาด', String(err), 'error');
-  }
-};
-window.submitAddEnglish = async function(){
-  const id = appState.ui.adminIndSelectedId;
-  if(!id) return Swal.fire('แจ้งเตือน','กรุณาเลือกนักศึกษา','info');
-  const std = appState.students.find(s=>cleanId(s.id)===cleanId(id));
-  if(!std) return Swal.fire('ผิดพลาด','ไม่พบนักศึกษา','error');
-
-  const payload = {
-    studentId: id,
-    academicYear: byId('addEngAcademicYear').value,
-    attempt: byId('addEngAttempt').value,
-    score: byId('addEngScore').value,
-    status: byId('addEngStatus').value,
-    examDate: byId('addEngDate').value || undefined,
-    yearOfStudy: std.year
-  };
-  try{
-    const res = await apiAddEnglish(payload);
-    if(!res.success) return Swal.fire('ไม่สำเร็จ', res.message || 'บันทึกล้มเหลว', 'error');
-
-    appState.englishTests.push({ studentId: payload.studentId, academicYear: payload.academicYear, attempt: payload.attempt, score: payload.score, status: payload.status, examDate: payload.examDate || new Date().toISOString() });
-
-    closeModal('modalAddEnglish');
-    Swal.fire('สำเร็จ','เพิ่มผลสอบอังกฤษแล้ว','success');
-    renderAdminIndividual();
-  }catch(err){
-    console.error(err);
-    Swal.fire('ผิดพลาด', String(err), 'error');
-  }
-};
-
-/***********************
- * ADMIN: MANAGE GRADES
- ***********************/
-function openManageGradesModal(){
-  const id = appState.ui.adminIndSelectedId;
-  if(!id) return Swal.fire('แจ้งเตือน','กรุณาเลือกนักศึกษา','info');
-
-  const rows = appState.grades
-    .filter(g=>cleanId(g.studentId)===cleanId(id))
-    .sort((a,b)=> termSortKey(a.term).localeCompare(termSortKey(b.term)));
-
-  const tbody = byId('manageGradesTable');
-  tbody.innerHTML = rows.map(g=>`
-    <tr>
-      <td class="px-3 py-2">${formatTermForDisplay(g.term)}</td>
-      <td class="px-3 py-2">${g.courseCode||'-'}</td>
-      <td class="px-3 py-2">${g.courseTitle||'-'}</td>
-      <td class="px-3 py-2">${g.credits||'-'}</td>
-      <td class="px-3 py-2">${g.grade||'-'}</td>
-      <td class="px-3 py-2 text-right">
-        <button class="px-2 py-1 text-sm rounded border text-blue-600 hover:bg-blue-50"
-                onclick="openEditGrade('${g.studentId}','${g.term}','${g.courseCode}')">
-          แก้ไข
-        </button>
-      </td>
-    </tr>
-  `).join('');
-  openModal('modalManageGrades');
-}
-async function loadAdminLoginLogs(){
-  try {
-    const res = await callAPI({ action: 'getloginlogs' }); // ✅ ใช้ callAPI
-    const rows = res.data || [];
-    const tbody = byId('adminLoginLogsTable');
-    tbody.innerHTML = rows.length ? rows.map(r => `
-      <tr>
-        <td class="px-4 py-2">${r.timestamp}</td>
-        <td class="px-4 py-2">${r.role}</td>
-        <td class="px-4 py-2">${r.id}</td>
-        <td class="px-4 py-2">${r.name}</td>
-        <td class="px-4 py-2">${r.email}</td>
-      </tr>
-    `).join('') : 
-    '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">ยังไม่มีข้อมูล</td></tr>';
-  } catch(e){
-    console.error(e);
-    Swal.fire('ผิดพลาด','ไม่สามารถโหลดข้อมูล log ได้','error');
-  }
-}
-/***********************
- * STUDENT VIEW
- ***********************/
-function buildStudentView(){
-  const meId = cleanId(appState.user.id);
-  const myGrades = appState.grades.filter(g=>cleanId(g.studentId)===meId);
-  const myEnglish = appState.englishTests.filter(t=>cleanId(t.studentId)===meId);
-
-  const overall = computeGPA(myGrades);
-  byId('studentGPAX').textContent = myGrades.length ? overall.gpa.toFixed(2) : '-';
-  byId('studentCredits').textContent = overall.credits || 0;
-
-  const latest = latestBy(myEnglish, t=>`${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`);
-  byId('studentEnglishStatus').textContent = latest ? `${latest.status} (${latest.score})` : '-';
-
-  const yearSel = byId('studentAcademicYear');
-  const years = unique(myGrades.map(g=>parseTerm(g.term).year).filter(Boolean)).sort();
-  yearSel.innerHTML = `<option value="">ทุกปีการศึกษา</option>` + years.map(y=>`<option value="${y}">${y}</option>`).join('');
-  yearSel.onchange = renderStudentGrades;
-
-  // ปุ่มแท็บใน HTML ใช้ onclick="showSemester('1')" ฯลฯ → สร้างฟังก์ชันให้เรียกได้
-  // (เผื่อผู้ใช้ไม่กด ปรับค่าเริ่มต้นเป็น '1')
-  appState.ui.semesterTab = '1';
-  ;
-
-  // ตารางอังกฤษรวมทุกปี
-  const tbody = byId('studentEnglishTable');
-  const sorted = myEnglish.sort((a,b)=>{
-    const ka = `${a.academicYear}-${String(a.attempt).padStart(3,'0')}-${a.examDate||''}`;
-    const kb = `${b.academicYear}-${String(b.attempt).padStart(3,'0')}-${b.examDate||''}`;
-    return ka.localeCompare(kb);
-  });
-  tbody.innerHTML = sorted.map(t=>`
-    <tr>
-      <td class="px-4 py-2">${t.academicYear||'-'}</td>
-      <td class="px-4 py-2">${t.attempt||'-'}</td>
-      <td class="px-4 py-2">${t.score||'-'}</td>
-      <td class="px-4 py-2">${t.status||'-'}</td>
-      <td class="px-4 py-2">${t.examDate ? String(t.examDate).substring(0,10) : '-'}</td>
-    </tr>
-  `).join('');
-}
-function renderStudentGrades() {
-  const meId = cleanId(appState.user.id);
-  const y = byId('studentAcademicYear').value; // ปีที่กรอง (ว่าง = ทุกปี)
-  const sem = appState.ui.semesterTab; // '1' | '2' | '3'
-
-  // เคลียร์ทุกภาคด้วยข้อความเริ่มต้น
-  ['studentGradesSem1','studentGradesSem2','studentGradesSem3'].forEach(id=>{
-    const el = byId(id);
-    if (el) el.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400">ยังไม่มีข้อมูล</td></tr>';
-  });
-
-  // เกรดทั้งหมดของฉัน (ไว้คำนวณ GPAX)
-  const allMy = appState.grades.filter(g => cleanId(g.studentId) === meId);
-
-  // กรองตามปี (ถ้าเลือก) แล้วจัดเรียง
-  const myRows = allMy
-    .filter(g => !y || parseTerm(g.term).year === y)
-    .sort((a,b)=> termSortKey(a.term).localeCompare(termSortKey(b.term)));
-
-  // กระจายลง 3 ภาค
-  myRows.forEach(g=>{
-    const t = parseTerm(g.term);
-    const tb = byId(`studentGradesSem${t.sem}`);
-    if (!tb || !t.sem) return;
-    if (tb.innerHTML.includes('ยังไม่มีข้อมูล')) tb.innerHTML = '';
-    tb.innerHTML += `
-      <tr>
-        <td class="px-4 py-2">${g.term || '-'}</td>
-        <td class="px-4 py-2">${g.courseCode || '-'}</td>
-        <td class="px-4 py-2">${g.courseTitle || '-'}</td>
-        <td class="px-4 py-2">${g.credits || '-'}</td>
-        <td class="px-4 py-2">${g.grade || '-'}</td>
-      </tr>
-    `;
-  });
-
-  // โชว์เฉพาะภาคที่เลือก
-  ['1','2','3'].forEach(s=>{
-    const el = byId(`studentGradesSem${s}`);
-    if (!el) return;
-    (s === sem) ? el.classList.remove('hidden') : el.classList.add('hidden');
-  });
-
-  // ── สรุปบนหัวแท็บ ──
-  // 1) GPA/เครดิตของภาคที่เลือก
-  const rowsThisSem = myRows.filter(g => parseTerm(g.term).sem === sem);
-  const { gpa: semGPA, credits: semCredits } = computeGPA(rowsThisSem);
-  byId('studentSemGPA').textContent = rowsThisSem.length ? semGPA.toFixed(2) : '-';
-  byId('studentSemCredits').textContent = rowsThisSem.length ? semCredits : '-';
-  
-  // 2) GPA ทั้งปีที่เลือก (รวมทุกภาคในปีนั้น)
-  if (y) {
-    const yearAgg = computeGPA(myRows); // myRows ถูกกรองปีแล้ว
-    byId('studentYearGPA').textContent = myRows.length ? yearAgg.gpa.toFixed(2) : '-';
-  } else {
-    byId('studentYearGPA').textContent = '-';
-  }
-
-  // 3) GPA ทั้งปีที่เลือก (รวมทุกภาคในปีนั้น)
-  if (y) {
-    const yearAgg = computeGPA(myRows); // myRows ถูกกรองปีแล้ว
-    byId('studentYearGPA').textContent = myRows.length ? yearAgg.gpa.toFixed(2) : '-';
-  } else {
-    byId('studentYearGPA').textContent = '-';
-  }
-}
-window.showSemester = function(sem){
-  appState.ui.semesterTab = String(sem || '1');
-  const tabs = qsa('#studentDashboard .semester-tab');
-  tabs.forEach(t=>t.classList.remove('is-active'));
-  const idx = appState.ui.semesterTab==='1'?0:appState.ui.semesterTab==='2'?1:2;
-  if (tabs[idx]) tabs[idx].classList.add('is-active');
-  renderStudentGrades();
-};
-/***********************
- * ADVISOR VIEW
- ***********************/
-function buildAdvisorView(){
-  const myName = appState.user.name || '';
-  const list = appState.students.filter(s=> (String(s.advisor||'').trim() === String(myName).trim()) );
-  renderAdvisorFilters(list);
-  (list);
-  renderAdvisorEnglishSummary(list); // << สรุป Pie เฉพาะนักศึกษาที่ดูแล
-}
-function renderAdvisorFilters(myStudents){
-  const yearFilter = byId('advisorYearFilter');
-  const searchEl = byId('advisorSearch');
-  const aySel = byId('advisorAcademicYear');
-
-  const years = unique(appState.grades.map(g=>parseTerm(g.term).year).filter(Boolean)).sort();
-  aySel.innerHTML = `<option value="">ทั้งหมด</option>` + years.map(y=>`<option value="${y}">${y}</option>`).join('');
-
-  yearFilter.onchange = ()=>renderAdvisorStudents(myStudents);
-  searchEl.oninput = ()=>renderAdvisorStudents(myStudents);
-  aySel.onchange = ()=>renderAdvisorStudents(myStudents);
-}
-function renderAdvisorStudents(myStudents){
-  const wrap = byId('advisorStudentsList');
-  const yearFilter = byId('advisorYearFilter').value;
-  const q = byId('advisorSearch').value.trim();
-  const ay = byId('advisorAcademicYear').value;
-
-  const rows = myStudents
-    .filter(s=>!yearFilter || String(s.year)===yearFilter)
-    .filter(s=>!q || String(s.id||'').includes(q) || String(s.name||'').includes(q))
-    .sort(sortByStudentIdAsc);
-
-  wrap.innerHTML = rows.map(s=>{
-    const stuGrades = appState.grades.filter(g=>cleanId(g.studentId)===cleanId(s.id));
-    const filteredByAy = ay ? stuGrades.filter(g=>parseTerm(g.term).year===ay) : stuGrades;
-
-    const gpax = computeGPA(stuGrades).gpa || 0;
-    const gpaThisYear = computeGPA(filteredByAy).gpa || 0;
-
-    const myEn = appState.englishTests.filter(t=>cleanId(t.studentId)===cleanId(s.id));
-    const latest = latestBy(myEn, t=>`${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`);
-    const latestStr = latest ? `${latest.status} (${latest.score})` : '-';
+    const latestStr = englishBestDisplay(myEn);
 
     const detailId = `adv-detail-${s.id}`;
     const btnId = `adv-toggle-${s.id}`;
@@ -1020,19 +437,37 @@ function renderAdvisorStudents(myStudents){
 
       /* Summary Pie เฉพาะนักศึกษาที่ดูแล */
       function renderAdvisorEnglishSummary(myStudents){
-  // เก็บ studentIds ที่อาจารย์ดูแล
-  const myIds = new Set(myStudents.map(s => cleanId(s.id)));
-  // กรองเฉพาะผลสอบของนักศึกษาที่ตนดูแล
-  const myTests = appState.englishTests.filter(t => myIds.has(cleanId(t.studentId)));
-  const { passEver, neverPass } = computePassCountsForTests(myTests);
-
-  const elP = byId('advEngPass');
-  const elF = byId('advEngFail');
-  const elT = byId('advEngTotal');
-  if (elP) elP.textContent = passEver;
-  if (elF) elF.textContent = neverPass;
-  if (elT) elT.textContent = (passEver + neverPass);
-}
+        // เก็บ studentIds ที่อาจารย์ดูแล
+        const myIds = new Set(myStudents.map(s => cleanId(s.id)));
+      
+        // group ข้อมูลสอบเฉพาะนักศึกษาที่ดูแล
+        const myTests = appState.englishTests.filter(t => myIds.has(cleanId(t.studentId)));
+        const byStu = groupBy(myTests, t => cleanId(t.studentId));
+      
+        let pass = 0, fail = 0;
+      
+        Object.keys(byStu).forEach(id => {
+          const latest = latestBy(
+            byStu[id],
+            t => `${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate || ''}`
+          );
+          if(!latest) return;
+      
+          const status = String(latest.status || '').trim();
+          if (status === 'ผ่าน') pass++;
+          else if (status === 'ไม่ผ่าน') fail++;
+          // อื่นๆ เช่น '' 'ยังไม่สอบ' ไม่นับ
+        });
+      
+        const total = pass + fail;
+      
+        const elP = byId('advEngPass');
+        const elF = byId('advEngFail');
+        const elT = byId('advEngTotal');
+        if (elP) elP.textContent = pass;
+        if (elF) elF.textContent = fail;
+        if (elT) elT.textContent = total;
+      }
 /* =========================
  * ADVISOR DASHBOARD (ใหม่)
  * ========================= */
@@ -1231,14 +666,7 @@ window.softRefresh = async function(silent = false){
     if (!role) { role = getVisibleRoleFromUI(); if (!role) return; }
 
     // ⬇️ ดึงข้อมูลสดจาก backend (GAS)
-    let boot;
-if (appState.user.role === 'student'){
-  boot = await apiBootstrapFor({ role:'student', studentId: appState.user.id });
-} else if (appState.user.role === 'advisor'){
-  boot = await apiBootstrapFor({ role:'advisor', advisorName: appState.user.name });
-} else {
-  boot = await apiBootstrap(); // admin
-}
+    const boot = await apiBootstrap();
     if(!boot.success) throw new Error(boot.message || 'bootstrap failed');
     appState.students     = boot.data.students     || [];
     appState.grades       = boot.data.grades       || [];
@@ -1272,14 +700,7 @@ window.loadRoleDashboard = async function(role, opts = {}){
   // ⬇️ ดึงข้อมูลสดถ้าขอ forceReload
   if (opts.forceReload) {
     try{
-      let boot;
-if (appState.user.role === 'student'){
-  boot = await apiBootstrapFor({ role:'student', studentId: appState.user.id });
-} else if (appState.user.role === 'advisor'){
-  boot = await apiBootstrapFor({ role:'advisor', advisorName: appState.user.name });
-} else {
-  boot = await apiBootstrap(); // admin
-}
+      const boot = await apiBootstrap();
       if (boot?.success) {
         appState.students     = boot.data?.students     || [];
         appState.grades       = boot.data?.grades       || [];
@@ -1383,4 +804,3 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
-
