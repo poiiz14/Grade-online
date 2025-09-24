@@ -371,25 +371,6 @@ function renderEnglishPassPie(){
     }
   });
 }
-          }
-        },
-        legend: {
-          labels: { // ให้ legend คงสั้นๆ
-            generateLabels: (chart) => {
-              const {labels} = chart.data;
-              return labels.map((l, i)=>({
-                text: l,
-                fillStyle: chart.data.datasets[0].backgroundColor?.[i] || undefined,
-                strokeStyle: 'transparent',
-                index: i
-              }));
-            }
-          }
-        }
-      }
-    }
-  });
-}
 
 /***********************
  * ADMIN: STUDENTS
