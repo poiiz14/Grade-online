@@ -31,8 +31,10 @@ function qsa(sel, root=document){ return Array.from(root.querySelectorAll(sel));
 function toNumber(x, def=0){ const n = Number(x); return isNaN(n) ? def : n; }
 function cleanId(id){ return String(id||'').trim(); }
 function parseTerm(term){
-  const raw = String(term || '').trim();
+  let raw = String(term || '').trim();
   if(!raw) return { year:'', sem:'' };
+  // map คำไทย/อังกฤษ ฤดูร้อน → 3
+  raw = raw.replace(/ฤดู\s*-?\s*ร้อน|ภาค\s*ฤดู\s*-?\s*ร้อน|summer/gi, '3');
   // ปี/ภาค เช่น 2567/1
   const m1 = raw.match(/^(\d{4})\s*[/\-]\s*(\d{1,2})$/);
   if(m1) return { year: m1[1], sem: String(parseInt(m1[2],10)) };
@@ -45,6 +47,28 @@ function parseTerm(term){
   // เลขภาคเดี่ยว
   if(['1','2','3'].includes(raw)) return { year:'', sem:raw };
   return { year:'', sem:'' };
+}
+
+/** แปลงค่า term เพื่อ "แสดงผล" เท่านั้น
+ * - ถ้า sem === '3' ให้แสดง "ฤดูร้อน" แทนเลข 3
+ * - อย่างอื่นคงเดิม
+ * - ถ้า term เดิมเป็นข้อความไทยอยู่แล้วก็คืนตามเดิม
+ */
+function formatTermForDisplay(term){
+  const raw = String(term||'').trim();
+  if(!raw) return '-';
+  // ถ้าผู้ใช้กรอกเป็นคำอยู่แล้ว เช่น "ฤดูร้อน", คืนตามเดิม
+  if(/[^\d/\-]/.test(raw)) return raw;
+
+  const t = parseTerm(raw);
+  if (!t.year && !t.sem) return raw;
+
+  // sem=3 → ฤดูร้อน
+  if (t.sem === '3') {
+    return t.year ? `${t.year}/ฤดูร้อน` : 'ฤดูร้อน';
+  }
+  // sem อื่น แสดงเลขตามเดิม
+  return t.year ? `${t.year}/${t.sem||''}`.replace(/\/$/, '') : (t.sem || raw);
 }
 function termSortKey(term){
   const {year, sem} = parseTerm(term);
@@ -87,6 +111,7 @@ function callAPI(params){
 }
 function apiAuthenticate(role, credentials){ return callAPI({action:'authenticate', payload: JSON.stringify({userType: role, credentials})}); }
 function apiBootstrap(){ return callAPI({action:'bootstrap'}); }
+function apiBootstrapFor(payload){ return callAPI({action:'bootstrapfor', payload: JSON.stringify(payload)}); }
 function apiUpdateStudent(payload){ return callAPI({action:'updateStudent', payload: JSON.stringify(payload)}); }
 function apiAddGrade(payload){ return callAPI({action:'addGrade', payload: JSON.stringify(payload)}); }
 function apiAddEnglish(payload){ return callAPI({action:'addEnglishTest', payload: JSON.stringify(payload)}); }
@@ -157,7 +182,17 @@ function initLogin(){
       // อัปเดต label ผู้ใช้ (ใช้ role ที่ normalize แล้ว)
       byId('currentUserLabel').textContent = `${appState.user.name || ''} (${appState.user.role})`;
 
-      const boot = await apiBootstrap();
+      let boot;
+if (appState.user.role === 'admin') {
+  boot = await apiBootstrap();
+} else if (appState.user.role === 'student') {
+  boot = await apiBootstrapFor({ role: 'student', studentId: appState.user.id });
+} else if (appState.user.role === 'advisor') {
+  // ใช้ชื่ออาจารย์ที่ปรึกษา (field 'advisor' ในตาราง Students) เป็น key
+  boot = await apiBootstrapFor({ role: 'advisor', advisorName: appState.user.name });
+} else {
+  boot = await apiBootstrap(); // fallback
+}
       if(!boot.success){
         showLoading(false);
         if (submitBtn){ submitBtn.disabled = false; submitBtn.classList.remove('opacity-60','cursor-not-allowed'); }
@@ -268,34 +303,30 @@ function buildAdminOverview(){
   const allCourses = unique(appState.grades.map(g=>String(g.courseCode||'').trim()).filter(Boolean));
   byId('overviewTotalCourses').textContent = allCourses.length;
 
-  // นับ “ผ่าน/ไม่ผ่าน (จากรายการล่าสุดของแต่ละคน)”
-  const byStu = groupBy(appState.englishTests, t => t.studentId);
-  let passCount = 0;
-  let failCount = 0;
-  
+  // นับ “ผ่าน/ไม่ผ่าน” ตามนิยามใหม่:
+// - "ผ่าน": นักศึกษาที่เคย "ผ่าน" อย่างน้อย 1 ครั้ง (ไม่จำเป็นต้องเป็นครั้งล่าสุด)
+// - "ไม่ผ่าน": นับเฉพาะนักศึกษาที่มีประวัติสอบอย่างน้อย 1 ครั้ง และ "ไม่เคยผ่านเลย"
+{
+  const byStu = groupBy(appState.englishTests, t => cleanId(t.studentId));
+  let passEver = 0;
+  let neverPass = 0;
+
   Object.keys(byStu).forEach(id => {
-    const latest = latestBy(
-      byStu[id],
-      t => `${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`
-    );
-    if (!latest) return;
-  
-    const status = String(latest.status || '').trim();
-    if (status === 'ผ่าน') {
-      passCount++;
-    } else if (status === 'ไม่ผ่าน') {
-      failCount++;
-    }
-    // ถ้าเป็นค่าอื่น เช่น '' หรือ 'ยังไม่สอบ' → ไม่เอามานับ
+    const arr = byStu[id] || [];
+    if (!arr.length) return;
+    const ever = arr.some(t => String(t.status || '').trim() === 'ผ่าน');
+    if (ever) passEver++;
+    else      neverPass++;
   });
-  
-  byId('overviewEnglishLatestPass').textContent = passCount;
+
+  byId('overviewEnglishLatestPass').textContent = passEver;
   const elFail = byId('overviewEnglishLatestFail');
-  if (elFail) elFail.textContent = failCount;
-  
+  if (elFail) elFail.textContent = neverPass;
+
   // วาดกราฟ
   renderStudentByYearBar();
   renderEnglishPassPie();
+}
 }
 function groupBy(arr, keyFn){ const m={}; arr.forEach(x=>{ const k=keyFn(x); (m[k]||(m[k]=[])).push(x); }); return m; }
 /* Bar: จำนวนนักศึกษาแต่ละชั้นปี */
@@ -315,61 +346,41 @@ function renderStudentByYearBar(){
     options: { responsive: true, maintainAspectRatio: false }
   });
 }
-/* Pie: สรุปผลสอบอังกฤษ (ผ่าน/ไม่ผ่าน) – รวมทั้งระบบ */
+/* Pie: สรุปผลสอบอังกฤษ (ผ่าน/ไม่ผ่าน) – นับแบบ "เคยผ่าน" vs "ไม่เคยผ่านเลย (มีการสอบแล้ว)" */
 function renderEnglishPassPie(){
   const el = byId('englishPassPie');
   if(!el) return;
   const ctx = el.getContext('2d');
 
-  // นับผลล่าสุด (ผ่าน/ไม่ผ่าน) ต่อคน
   const byStu = groupBy(appState.englishTests, t=>cleanId(t.studentId));
-  let pass = 0, fail = 0;
+  let passEver = 0, neverPass = 0;
   Object.keys(byStu).forEach(id=>{
-    const latest = latestBy(byStu[id], t=>`${t.academicYear}-${String(t.attempt||0).padStart(3,'0')}-${t.examDate||''}`);
-    if(!latest) return;
-    const s = String(latest.status||'').trim();
-    if (s === 'ผ่าน') pass++;
-    else if (s === 'ไม่ผ่าน') fail++;
+    const arr = byStu[id] || [];
+    if (!arr.length) return;
+    const ever = arr.some(t => String(t.status||'').trim() === 'ผ่าน');
+    if (ever) passEver++; else neverPass++;
   });
 
-  const dataArr = [pass, fail];
+  const dataArr = [passEver, neverPass];
   const total = dataArr.reduce((a,b)=>a+b,0);
 
-  // ทำลายกราฟเก่า (ถ้ามี)
   if (window._englishPie) window._englishPie.destroy();
-
-  // สร้างกราฟใหม่ + tooltip แสดง จำนวน และ %
   window._englishPie = new Chart(ctx, {
     type: 'pie',
-    data: {
-      labels: ['ผ่าน', 'ไม่ผ่าน'],
-      datasets: [{ data: dataArr }]
-    },
+    data: { labels: ['ผ่าน (เคยผ่านอย่างน้อย 1 ครั้ง)', 'ไม่ผ่าน (ไม่เคยผ่านเลย)'], datasets: [{ data: dataArr }] },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
       plugins: {
-        tooltip: {
-          callbacks: {
-            label: (context) => {
-              const label = context.label || '';
-              const val = context.parsed || 0;
-              const pct = total ? ((val / total) * 100).toFixed(1) : 0;
-              return `${label}: ${val.toLocaleString()} คน (${pct}%)`;
-            }
-          }
-        },
-        legend: {
-          labels: { // ให้ legend คงสั้นๆ
-            generateLabels: (chart) => {
-              const {labels} = chart.data;
-              return labels.map((l, i)=>({
-                text: l,
-                fillStyle: chart.data.datasets[0].backgroundColor?.[i] || undefined,
-                strokeStyle: 'transparent',
-                index: i
-              }));
-            }
+        tooltip: { callbacks: { label: (c)=>{
+          const label = c.label || '';
+          const val   = c.parsed || 0;
+          const pct   = total ? ((val/total)*100).toFixed(1) : 0;
+          return `${label}: ${val.toLocaleString()} คน (${pct}%)`;
+        } } }
+      }
+    }
+  });
+}
           }
         }
       }
@@ -664,7 +675,7 @@ function openManageGradesModal(){
   const tbody = byId('manageGradesTable');
   tbody.innerHTML = rows.map(g=>`
     <tr>
-      <td class="px-3 py-2">${g.term||'-'}</td>
+      <td class="px-3 py-2">${formatTermForDisplay(g.term)}</td>
       <td class="px-3 py-2">${g.courseCode||'-'}</td>
       <td class="px-3 py-2">${g.courseTitle||'-'}</td>
       <td class="px-3 py-2">${g.credits||'-'}</td>
@@ -920,7 +931,7 @@ function renderAdvisorStudents(myStudents){
                     .sort((a,b)=> termSortKey(a.term).localeCompare(termSortKey(b.term)))
                     .map(g=>`
                       <tr>
-                        <td class="px-3 py-2">${g.term||'-'}</td>
+                        <td class="px-3 py-2">${formatTermForDisplay(g.term)}</td>
                         <td class="px-3 py-2">${g.courseCode||'-'}</td>
                         <td class="px-3 py-2">${g.courseTitle||'-'}</td>
                         <td class="px-3 py-2">${g.credits||'-'}</td>
@@ -1228,7 +1239,17 @@ window.softRefresh = async function(silent = false){
     if (!role) { role = getVisibleRoleFromUI(); if (!role) return; }
 
     // ⬇️ ดึงข้อมูลสดจาก backend (GAS)
-    const boot = await apiBootstrap();
+    let boot;
+if (appState.user.role === 'admin') {
+  boot = await apiBootstrap();
+} else if (appState.user.role === 'student') {
+  boot = await apiBootstrapFor({ role: 'student', studentId: appState.user.id });
+} else if (appState.user.role === 'advisor') {
+  // ใช้ชื่ออาจารย์ที่ปรึกษา (field 'advisor' ในตาราง Students) เป็น key
+  boot = await apiBootstrapFor({ role: 'advisor', advisorName: appState.user.name });
+} else {
+  boot = await apiBootstrap(); // fallback
+}
     if(!boot.success) throw new Error(boot.message || 'bootstrap failed');
     appState.students     = boot.data.students     || [];
     appState.grades       = boot.data.grades       || [];
@@ -1262,7 +1283,17 @@ window.loadRoleDashboard = async function(role, opts = {}){
   // ⬇️ ดึงข้อมูลสดถ้าขอ forceReload
   if (opts.forceReload) {
     try{
-      const boot = await apiBootstrap();
+      let boot;
+if (appState.user.role === 'admin') {
+  boot = await apiBootstrap();
+} else if (appState.user.role === 'student') {
+  boot = await apiBootstrapFor({ role: 'student', studentId: appState.user.id });
+} else if (appState.user.role === 'advisor') {
+  // ใช้ชื่ออาจารย์ที่ปรึกษา (field 'advisor' ในตาราง Students) เป็น key
+  boot = await apiBootstrapFor({ role: 'advisor', advisorName: appState.user.name });
+} else {
+  boot = await apiBootstrap(); // fallback
+}
       if (boot?.success) {
         appState.students     = boot.data?.students     || [];
         appState.grades       = boot.data?.grades       || [];
@@ -1366,7 +1397,6 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
-
 
 
 
