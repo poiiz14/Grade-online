@@ -33,7 +33,7 @@ function cleanId(id){ return String(id||'').trim(); }
 function parseTerm(term){
   let raw = String(term || '').trim();
   if(!raw) return { year:'', sem:'' };
-  // map คำไทย/อังกฤษ ฤดูร้อน → 3
+  // map ฤดูร้อน/summer → 3 (เฉพาะเพื่อประมวลผล)
   raw = raw.replace(/ฤดู\s*-?\s*ร้อน|ภาค\s*ฤดู\s*-?\s*ร้อน|summer/gi, '3');
   // ปี/ภาค เช่น 2567/1
   const m1 = raw.match(/^(\d{4})\s*[/\-]\s*(\d{1,2})$/);
@@ -49,26 +49,23 @@ function parseTerm(term){
   return { year:'', sem:'' };
 }
 
-/** แปลงค่า term เพื่อ "แสดงผล" เท่านั้น
+/** แปลงค่า term เพื่อ "แสดงผล" เท่านั้น (ไม่กระทบโครงสร้างข้อมูล)
  * - ถ้า sem === '3' ให้แสดง "ฤดูร้อน" แทนเลข 3
- * - อย่างอื่นคงเดิม
- * - ถ้า term เดิมเป็นข้อความไทยอยู่แล้วก็คืนตามเดิม
+ * - ถ้ากรอกเป็นคำอยู่แล้ว (มีอักษรที่ไม่ใช่ตัวเลขหรือ / -) ให้คงเดิม
  */
 function formatTermForDisplay(term){
-  const raw = String(term||'').trim();
-  if(!raw) return '-';
-  // ถ้าผู้ใช้กรอกเป็นคำอยู่แล้ว เช่น "ฤดูร้อน", คืนตามเดิม
-  if(/[^\d/\-]/.test(raw)) return raw;
+  const raw0 = String(term||'').trim();
+  if(!raw0) return '-';
+  // ถ้าผู้ใช้กรอกเป็นคำอยู่แล้ว เช่น "ฤดูร้อน" → คืนตามเดิม
+  if(/[^\d/\-]/.test(raw0)) return raw0;
 
-  const t = parseTerm(raw);
-  if (!t.year && !t.sem) return raw;
+  const t = parseTerm(raw0);
+  if (!t.year && !t.sem) return raw0;
 
-  // sem=3 → ฤดูร้อน
   if (t.sem === '3') {
     return t.year ? `${t.year}/ฤดูร้อน` : 'ฤดูร้อน';
   }
-  // sem อื่น แสดงเลขตามเดิม
-  return t.year ? `${t.year}/${t.sem||''}`.replace(/\/$/, '') : (t.sem || raw);
+  return t.year ? `${t.year}/${t.sem||''}`.replace(/\/$/, '') : (t.sem || raw0);
 }
 function termSortKey(term){
   const {year, sem} = parseTerm(term);
@@ -111,7 +108,6 @@ function callAPI(params){
 }
 function apiAuthenticate(role, credentials){ return callAPI({action:'authenticate', payload: JSON.stringify({userType: role, credentials})}); }
 function apiBootstrap(){ return callAPI({action:'bootstrap'}); }
-function apiBootstrapFor(payload){ return callAPI({action:'bootstrapfor', payload: JSON.stringify(payload)}); }
 function apiUpdateStudent(payload){ return callAPI({action:'updateStudent', payload: JSON.stringify(payload)}); }
 function apiAddGrade(payload){ return callAPI({action:'addGrade', payload: JSON.stringify(payload)}); }
 function apiAddEnglish(payload){ return callAPI({action:'addEnglishTest', payload: JSON.stringify(payload)}); }
@@ -182,17 +178,7 @@ function initLogin(){
       // อัปเดต label ผู้ใช้ (ใช้ role ที่ normalize แล้ว)
       byId('currentUserLabel').textContent = `${appState.user.name || ''} (${appState.user.role})`;
 
-      let boot;
-if (appState.user.role === 'admin') {
-  boot = await apiBootstrap();
-} else if (appState.user.role === 'student') {
-  boot = await apiBootstrapFor({ role: 'student', studentId: appState.user.id });
-} else if (appState.user.role === 'advisor') {
-  // ใช้ชื่ออาจารย์ที่ปรึกษา (field 'advisor' ในตาราง Students) เป็น key
-  boot = await apiBootstrapFor({ role: 'advisor', advisorName: appState.user.name });
-} else {
-  boot = await apiBootstrap(); // fallback
-}
+      const boot = await apiBootstrap();
       if(!boot.success){
         showLoading(false);
         if (submitBtn){ submitBtn.disabled = false; submitBtn.classList.remove('opacity-60','cursor-not-allowed'); }
@@ -303,30 +289,34 @@ function buildAdminOverview(){
   const allCourses = unique(appState.grades.map(g=>String(g.courseCode||'').trim()).filter(Boolean));
   byId('overviewTotalCourses').textContent = allCourses.length;
 
-  // นับ “ผ่าน/ไม่ผ่าน” ตามนิยามใหม่:
-// - "ผ่าน": นักศึกษาที่เคย "ผ่าน" อย่างน้อย 1 ครั้ง (ไม่จำเป็นต้องเป็นครั้งล่าสุด)
-// - "ไม่ผ่าน": นับเฉพาะนักศึกษาที่มีประวัติสอบอย่างน้อย 1 ครั้ง และ "ไม่เคยผ่านเลย"
-{
-  const byStu = groupBy(appState.englishTests, t => cleanId(t.studentId));
-  let passEver = 0;
-  let neverPass = 0;
-
+  // นับ “ผ่าน/ไม่ผ่าน (จากรายการล่าสุดของแต่ละคน)”
+  const byStu = groupBy(appState.englishTests, t => t.studentId);
+  let passCount = 0;
+  let failCount = 0;
+  
   Object.keys(byStu).forEach(id => {
-    const arr = byStu[id] || [];
-    if (!arr.length) return;
-    const ever = arr.some(t => String(t.status || '').trim() === 'ผ่าน');
-    if (ever) passEver++;
-    else      neverPass++;
+    const latest = latestBy(
+      byStu[id],
+      t => `${t.academicYear}-${String(t.attempt).padStart(3,'0')}-${t.examDate||''}`
+    );
+    if (!latest) return;
+  
+    const status = String(latest.status || '').trim();
+    if (status === 'ผ่าน') {
+      passCount++;
+    } else if (status === 'ไม่ผ่าน') {
+      failCount++;
+    }
+    // ถ้าเป็นค่าอื่น เช่น '' หรือ 'ยังไม่สอบ' → ไม่เอามานับ
   });
-
-  byId('overviewEnglishLatestPass').textContent = passEver;
+  
+  byId('overviewEnglishLatestPass').textContent = passCount;
   const elFail = byId('overviewEnglishLatestFail');
-  if (elFail) elFail.textContent = neverPass;
-
+  if (elFail) elFail.textContent = failCount;
+  
   // วาดกราฟ
   renderStudentByYearBar();
   renderEnglishPassPie();
-}
 }
 function groupBy(arr, keyFn){ const m={}; arr.forEach(x=>{ const k=keyFn(x); (m[k]||(m[k]=[])).push(x); }); return m; }
 /* Bar: จำนวนนักศึกษาแต่ละชั้นปี */
@@ -346,41 +336,62 @@ function renderStudentByYearBar(){
     options: { responsive: true, maintainAspectRatio: false }
   });
 }
-/* Pie: สรุปผลสอบอังกฤษ (ผ่าน/ไม่ผ่าน) – นับแบบ "เคยผ่าน" vs "ไม่เคยผ่านเลย (มีการสอบแล้ว)" */
+/* Pie: สรุปผลสอบอังกฤษ (ผ่าน/ไม่ผ่าน) – รวมทั้งระบบ */
 function renderEnglishPassPie(){
   const el = byId('englishPassPie');
   if(!el) return;
   const ctx = el.getContext('2d');
 
+  // นับผลล่าสุด (ผ่าน/ไม่ผ่าน) ต่อคน
   const byStu = groupBy(appState.englishTests, t=>cleanId(t.studentId));
-  let passEver = 0, neverPass = 0;
+  let pass = 0, fail = 0;
   Object.keys(byStu).forEach(id=>{
-    const arr = byStu[id] || [];
-    if (!arr.length) return;
-    const ever = arr.some(t => String(t.status||'').trim() === 'ผ่าน');
-    if (ever) passEver++; else neverPass++;
+    const latest = latestBy(byStu[id], t=>`${t.academicYear}-${String(t.attempt||0).padStart(3,'0')}-${t.examDate||''}`);
+    if(!latest) return;
+    const s = String(latest.status||'').trim();
+    if (s === 'ผ่าน') pass++;
+    else if (s === 'ไม่ผ่าน') fail++;
   });
 
-  const dataArr = [passEver, neverPass];
+  const dataArr = [pass, fail];
   const total = dataArr.reduce((a,b)=>a+b,0);
 
+  // ทำลายกราฟเก่า (ถ้ามี)
   if (window._englishPie) window._englishPie.destroy();
+
+  // สร้างกราฟใหม่ + tooltip แสดง จำนวน และ %
   window._englishPie = new Chart(ctx, {
     type: 'pie',
-    data: { labels: ['ผ่าน (เคยผ่านอย่างน้อย 1 ครั้ง)', 'ไม่ผ่าน (ไม่เคยผ่านเลย)'], datasets: [{ data: dataArr }] },
+    data: {
+      labels: ['ผ่าน', 'ไม่ผ่าน'],
+      datasets: [{ data: dataArr }]
+    },
     options: {
-      responsive: true, maintainAspectRatio: false,
+      responsive: true,
+      maintainAspectRatio: false,
       plugins: {
-        tooltip: { callbacks: { label: (c)=>{
-          const label = c.label || '';
-          const val   = c.parsed || 0;
-          const pct   = total ? ((val/total)*100).toFixed(1) : 0;
-          return `${label}: ${val.toLocaleString()} คน (${pct}%)`;
-        } } }
-      }
-    }
-  });
-}
+        tooltip: {
+          callbacks: {
+            label: (context) => {
+              const label = context.label || '';
+              const val = context.parsed || 0;
+              const pct = total ? ((val / total) * 100).toFixed(1) : 0;
+              return `${label}: ${val.toLocaleString()} คน (${pct}%)`;
+            }
+          }
+        },
+        legend: {
+          labels: { // ให้ legend คงสั้นๆ
+            generateLabels: (chart) => {
+              const {labels} = chart.data;
+              return labels.map((l, i)=>({
+                text: l,
+                fillStyle: chart.data.datasets[0].backgroundColor?.[i] || undefined,
+                strokeStyle: 'transparent',
+                index: i
+              }));
+            }
+          }
         }
       }
     }
@@ -1238,17 +1249,7 @@ window.softRefresh = async function(silent = false){
     if (!role) { role = getVisibleRoleFromUI(); if (!role) return; }
 
     // ⬇️ ดึงข้อมูลสดจาก backend (GAS)
-    let boot;
-if (appState.user.role === 'admin') {
-  boot = await apiBootstrap();
-} else if (appState.user.role === 'student') {
-  boot = await apiBootstrapFor({ role: 'student', studentId: appState.user.id });
-} else if (appState.user.role === 'advisor') {
-  // ใช้ชื่ออาจารย์ที่ปรึกษา (field 'advisor' ในตาราง Students) เป็น key
-  boot = await apiBootstrapFor({ role: 'advisor', advisorName: appState.user.name });
-} else {
-  boot = await apiBootstrap(); // fallback
-}
+    const boot = await apiBootstrap();
     if(!boot.success) throw new Error(boot.message || 'bootstrap failed');
     appState.students     = boot.data.students     || [];
     appState.grades       = boot.data.grades       || [];
@@ -1282,17 +1283,7 @@ window.loadRoleDashboard = async function(role, opts = {}){
   // ⬇️ ดึงข้อมูลสดถ้าขอ forceReload
   if (opts.forceReload) {
     try{
-      let boot;
-if (appState.user.role === 'admin') {
-  boot = await apiBootstrap();
-} else if (appState.user.role === 'student') {
-  boot = await apiBootstrapFor({ role: 'student', studentId: appState.user.id });
-} else if (appState.user.role === 'advisor') {
-  // ใช้ชื่ออาจารย์ที่ปรึกษา (field 'advisor' ในตาราง Students) เป็น key
-  boot = await apiBootstrapFor({ role: 'advisor', advisorName: appState.user.name });
-} else {
-  boot = await apiBootstrap(); // fallback
-}
+      const boot = await apiBootstrap();
       if (boot?.success) {
         appState.students     = boot.data?.students     || [];
         appState.grades       = boot.data?.grades       || [];
@@ -1396,25 +1387,3 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
