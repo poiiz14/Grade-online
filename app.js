@@ -2,7 +2,26 @@
 // ===== Utilities (Hotfix) =====
 if (typeof groupBy !== 'function') {
   function groupBy(arr, keyFn) {
-    const map = {};
+    const map = {}
+
+/** เลือกผลสอบเพื่อ "แสดงผล" ตามกติกา:
+ * - ถ้าเคย "ผ่าน" ให้แสดงรายการ "ผ่าน" ที่ใหม่ที่สุด
+ * - ถ้าไม่เคยผ่านเลย ให้แสดง "คะแนน" ของรายการล่าสุดแทน
+ */
+function englishBestDisplay(tests){
+  const arr = (tests||[]).slice();
+  if (!arr.length) return '-';
+  const key = t => `${t.academicYear||''}-${String(t.attempt||0).padStart(3,'0')}-${t.examDate||''}`;
+  const passes = arr.filter(t => String(t.status||'').trim() === 'ผ่าน');
+  if (passes.length){
+    const latestPass = passes.sort((a,b)=> key(a).localeCompare(key(b)) ).pop();
+    return `${latestPass.status || 'ผ่าน'} (${latestPass.score || '-'})`;
+  }
+  const latest = arr.sort((a,b)=> key(a).localeCompare(key(b)) ).pop();
+  return latest ? `${latest.status || ''} (${latest.score || '-'})` : '-';
+}
+
+;
     (arr || []).forEach(x => {
       const k = keyFn(x);
       (map[k] || (map[k] = [])).push(x);
