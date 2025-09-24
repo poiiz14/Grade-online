@@ -48,6 +48,17 @@ function parseTerm(term){
   if(['1','2','3'].includes(raw)) return { year:'', sem:raw };
   return { year:'', sem:'' };
 }
+// ===== Utilities (Hotfix) =====
+if (typeof groupBy !== 'function') {
+  function groupBy(arr, keyFn) {
+    const map = {};
+    (arr || []).forEach(x => {
+      const k = keyFn(x);
+      (map[k] || (map[k] = [])).push(x);
+    });
+    return map;
+  }
+}
 
 /** แปลงค่า term เพื่อ "แสดงผล" เท่านั้น (ไม่กระทบโครงสร้างข้อมูล)
  * - ถ้า sem === '3' ให้แสดง "ฤดูร้อน" แทนเลข 3
@@ -804,3 +815,4 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
