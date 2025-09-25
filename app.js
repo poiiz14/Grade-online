@@ -295,28 +295,21 @@ function showAdminSection(name){
 function buildAdminOverview(){
   byId('overviewTotalStudents').textContent = appState.students.length;
   byId('overviewTotalAdvisors').textContent = appState.advisors.length;
-  const allCourses = unique(appState.grades.map(g=>String(g.courseCode||'').trim()).filter(Boolean));
+
+  const allCourses = unique(
+    appState.grades.map(g => String(g.courseCode || '').trim()).filter(Boolean)
+  );
   byId('overviewTotalCourses').textContent = allCourses.length;
+
+  // มาตรฐานเดียวกัน: เคยผ่าน >=1 ครั้ง = ผ่าน / ไม่เคยสอบ = ไม่ผ่าน
   const { passEver, neverPass } = computeEnglishPassCounts();
-  const elPass = byId('overviewEnglishLatestPass'); if (elPass) elPass.textContent = passEver;
-  const elFail = byId('overviewEnglishLatestFail'); if (elFail) elFail.textContent = neverPass;
+  const elPass = byId('overviewEnglishLatestPass');  if (elPass)  elPass.textContent = passEver;
+  const elFail = byId('overviewEnglishLatestFail');  if (elFail)  elFail.textContent = neverPass;
+
+  // กราฟ
   renderStudentByYearBar();
   renderEnglishPassPie();
 }
-);
-
-  // ใช้มาตรฐานเดียวกับกราฟ: เคยผ่าน = ผ่าน, ไม่เคยผ่านเลย = ไม่ผ่าน
-  const { passEver, neverPass } = computeEnglishPassCounts();
-  byId('overviewEnglishLatestPass').textContent = passEver;
-  const elFail = byId('overviewEnglishLatestFail');
-  if (elFail) elFail.textContent = neverPass;
-
-  
-  // วาดกราฟ
-  renderStudentByYearBar();
-  renderEnglishPassPie();
-}
-
 /** English pass helpers (added) */
 function isEnglishPassStatus(statusRaw){
   const s = String(statusRaw||'').trim();
@@ -1414,3 +1407,4 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
