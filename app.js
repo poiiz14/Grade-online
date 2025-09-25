@@ -264,12 +264,7 @@ window.handleChangePasswordSubmit = async function(e){
 /***********************
  * ADMIN: NAV & SECTIONS
  ***********************/
-function showAdminSection(key){
-  appState.ui.adminSection = key;
-  qsa('.admin-section').forEach(el=>el.classList.add('hidden'));
-  qsa('.tab-btn').forEach(el=>el.classList.remove('is-active'));
-  if(key==='overview'){ byId('adminOverview').classList.remove('hidden'); qsa('.tab-btn')[0].classList.add('is-active'); }
-  else if(key==='students'){ byId('adminStudents').classList.remove('hidden'); qsa('.tab-btn')[1].classList.add('is-active'); }
+else if(key==='students'){ byId('adminStudents').classList.remove('hidden'); qsa('.tab-btn')[1].classList.add('is-active'); }
   else { byId('adminIndividual').classList.remove('hidden'); qsa('.tab-btn')[2].classList.add('is-active'); }
 }
 function showAdminSection(name){
@@ -351,15 +346,20 @@ function renderStudentByYearBar(){
  */
 
 /** เวอร์ชันย่อย: รับ array ของ englishTests แล้วคำนวณเฉพาะชุดนั้น */
-function computePassCountsForTests(tests){
+
+function computePassCountsForTests(tests, studentIds){
   const byStu = groupBy(tests||[], t=> cleanId(t.studentId));
   let passEver = 0, neverPass = 0;
-  Object.keys(byStu).forEach(id=>{
+  const ids = Array.from(new Set((studentIds||Object.keys(byStu||{})).map(id=>cleanId(id))));
+  ids.forEach(id=>{
     const arr = byStu[id] || [];
-    if(!arr.length) return;
+    if(!arr.length){ neverPass++; return; } // ไม่มีประวัติสอบ => ไม่ผ่าน
     const ever = arr.some(t => isEnglishPassStatus(t.status));
     if (ever) passEver++; else neverPass++;
   });
+  return { passEver, neverPass };
+}
+);
   return { passEver, neverPass };
 }
 
@@ -403,22 +403,8 @@ function renderEnglishPassPie(){
     }
   );
 }
-);
-  const dataArr = [pass, never];
-  const total = dataArr[0]+dataArr[1];
-  if (window._englishPie) window._englishPie.destroy();
-  window._englishPie = new Chart(ctx, {
-    type:'pie',
-    data:{ labels:['ผ่าน','ไม่ผ่าน'], datasets:[{ data: dataArr }]},
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ tooltip:{ callbacks:{ label:(c)=>{
-        const label=c.label||''; const v=c.parsed||0; const pct= total? ((v/total)*100).toFixed(1):0;
-        return `${label}: ${v.toLocaleString()} คน (${pct}%)`;
-      }}}}
-    }
-  });
-}
 
+}
 /***********************
  * ADMIN: STUDENTS
  ***********************/
@@ -764,9 +750,7 @@ function buildStudentView(){
   // ปุ่มแท็บใน HTML ใช้ onclick="showSemester('1')" ฯลฯ → สร้างฟังก์ชันให้เรียกได้
   // (เผื่อผู้ใช้ไม่กด ปรับค่าเริ่มต้นเป็น '1')
   appState.ui.semesterTab = '1';
-  ;
-
-  // ตารางอังกฤษรวมทุกปี
+// ตารางอังกฤษรวมทุกปี
   const tbody = byId('studentEnglishTable');
   const sorted = myEnglish.sort((a,b)=>{
     const ka = `${a.academicYear}-${String(a.attempt).padStart(3,'0')}-${a.examDate||''}`;
@@ -840,12 +824,7 @@ function renderStudentGrades() {
   } else {
     byId('studentYearGPA').textContent = '-';
   }
-
-  // 3) GPA ทั้งปีที่เลือก (รวมทุกภาคในปีนั้น)
-  if (y) {
-    const yearAgg = computeGPA(myRows); // myRows ถูกกรองปีแล้ว
-    byId('studentYearGPA').textContent = myRows.length ? yearAgg.gpa.toFixed(2) : '-';
-  } else {
+else {
     byId('studentYearGPA').textContent = '-';
   }
 }
@@ -863,9 +842,7 @@ window.showSemester = function(sem){
 function buildAdvisorView(){
   const myName = appState.user.name || '';
   const list = appState.students.filter(s=> (String(s.advisor||'').trim() === String(myName).trim()) );
-  renderAdvisorFilters(list);
-  (list);
-  renderAdvisorEnglishSummary(list); // << สรุป Pie เฉพาะนักศึกษาที่ดูแล
+  renderAdvisorFiltersrenderAdvisorEnglishSummary// << สรุป Pie เฉพาะนักศึกษาที่ดูแล
 }
 function renderAdvisorFilters(myStudents){
   const yearFilter = byId('advisorYearFilter');
@@ -1040,12 +1017,19 @@ function renderAdvisorStudents(myStudents){
 
 
       /* Summary Pie เฉพาะนักศึกษาที่ดูแล */
-      function renderAdvisorEnglishSummary(myStudents){
-  // เก็บ studentIds ที่อาจารย์ดูแล
+      
+function renderAdvisorEnglishSummary(myStudents){
   const myIds = new Set(myStudents.map(s => cleanId(s.id)));
-  // กรองเฉพาะผลสอบของนักศึกษาที่ตนดูแล
   const myTests = appState.englishTests.filter(t => myIds.has(cleanId(t.studentId)));
-  const { passEver, neverPass } = computePassCountsForTests(myTests);
+  const { passEver, neverPass } = computePassCountsForTests(myTests, Array.from(myIds));
+  const elP = byId('advEngPass');
+  const elF = byId('advEngFail');
+  const elT = byId('advEngTotal');
+  if (elP) elP.textContent = passEver;
+  if (elF) elF.textContent = neverPass;
+  if (elT) elT.textContent = (passEver + neverPass);
+}
+= computePassCountsForTests(myTests);
 
   const elP = byId('advEngPass');
   const elF = byId('advEngFail');
@@ -1200,10 +1184,6 @@ function closeModal(id){
   if(!el) return;
   el.classList.add('hidden');
 }
-function openChangePassword(){
-  openModal('modalChangePassword');
-}
-
 window.closeModal = closeModal;
 window.addEventListener('DOMContentLoaded', ()=>{ initLogin(); });
 
@@ -1404,5 +1384,4 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
-
 
