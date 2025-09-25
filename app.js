@@ -396,7 +396,7 @@ function renderEnglishPassPie(){
         return `${label}: ${v} คน (${pct}%)`;
       }}}}
     }
-  );
+  });
 }
 /***********************
  * ADMIN: STUDENTS
@@ -817,9 +817,6 @@ function renderStudentGrades() {
   } else {
     byId('studentYearGPA').textContent = '-';
   }
-else {
-    byId('studentYearGPA').textContent = '-';
-  }
 }
 window.showSemester = function(sem){
   appState.ui.semesterTab = String(sem || '1');
@@ -1022,15 +1019,23 @@ function renderAdvisorEnglishSummary(myStudents){
   if (elF) elF.textContent = neverPass;
   if (elT) elT.textContent = (passEver + neverPass);
 }
-= computePassCountsForTests(myTests);
+
+function renderAdvisorEnglishSummary(myStudents){
+  const myIds = new Set(myStudents.map(s => cleanId(s.id)));
+  const myTests = appState.englishTests.filter(t => myIds.has(cleanId(t.studentId)));
+
+  // ✅ ส่งทั้ง tests และ studentIds เข้าไป
+  const { passEver, neverPass } = computePassCountsForTests(myTests, Array.from(myIds));
 
   const elP = byId('advEngPass');
   const elF = byId('advEngFail');
   const elT = byId('advEngTotal');
+
   if (elP) elP.textContent = passEver;
   if (elF) elF.textContent = neverPass;
   if (elT) elT.textContent = (passEver + neverPass);
 }
+
 /* =========================
  * ADVISOR DASHBOARD (ใหม่)
  * ========================= */
