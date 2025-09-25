@@ -264,9 +264,6 @@ window.handleChangePasswordSubmit = async function(e){
 /***********************
  * ADMIN: NAV & SECTIONS
  ***********************/
-else if(key==='students'){ byId('adminStudents').classList.remove('hidden'); qsa('.tab-btn')[1].classList.add('is-active'); }
-  else { byId('adminIndividual').classList.remove('hidden'); qsa('.tab-btn')[2].classList.add('is-active'); }
-}
 function showAdminSection(name){
   const key = ({'admin-individual':'individual'})[name] || name; // map alias
   qsa('.admin-section').forEach(el => el.classList.add('hidden'));
@@ -356,9 +353,7 @@ function computePassCountsForTests(tests, studentIds){
     if(!arr.length){ neverPass++; return; } // ไม่มีประวัติสอบ => ไม่ผ่าน
     const ever = arr.some(t => isEnglishPassStatus(t.status));
     if (ever) passEver++; else neverPass++;
-  });
-  return { passEver, neverPass };
-}
+  }
 );
   return { passEver, neverPass };
 }
@@ -402,8 +397,6 @@ function renderEnglishPassPie(){
       }}}}
     }
   );
-}
-
 }
 /***********************
  * ADMIN: STUDENTS
@@ -1384,4 +1377,3 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
-
