@@ -291,25 +291,25 @@ function showAdminSection(name){
 /***********************
  * ADMIN: OVERVIEW
  ***********************/
+
 function buildAdminOverview(){
   byId('overviewTotalStudents').textContent = appState.students.length;
   byId('overviewTotalAdvisors').textContent = appState.advisors.length;
   const allCourses = unique(appState.grades.map(g=>String(g.courseCode||'').trim()).filter(Boolean));
   byId('overviewTotalCourses').textContent = allCourses.length;
 
-  // นับ “ผ่าน/ไม่ผ่าน (จากรายการล่าสุดของแต่ละคน)”
-  const byStu = groupBy(appState.englishTests, t => t.studentId);
-  
-let passCount = 0;
-let failCount = 0;
+  // ใช้มาตรฐานเดียวกัน: "เคยผ่านอย่างน้อย 1 ครั้ง = ผ่าน", "ไม่เคยสอบ -> ไม่ผ่าน"
+  const { passEver, neverPass } = computeEnglishPassCounts();
+  const elPass = byId('overviewEnglishLatestPass');
+  if (elPass) elPass.textContent = passEver;
+  const elFail = byId('overviewEnglishLatestFail');
+  if (elFail) elFail.textContent = neverPass;
 
-// 👉 นับแบบใหม่: เคยผ่านอย่างน้อย 1 ครั้ง = ผ่าน, ไม่เคยผ่านเลย (แต่มีสอบ) = ไม่ผ่าน
-Object.keys(byStu).forEach(id => {
-  const arr = byStu[id] || [];
-  if (!arr.length) return;                // ยังไม่เคยสอบ → ไม่นับทั้งสองฝั่ง
-  const ever = arr.some(t => String(t.status||'').trim() === 'ผ่าน');
-  if (ever) passCount++; else failCount++;
-});
+  // วาดกราฟ
+  renderStudentByYearBar();
+  renderEnglishPassPie();
+}
+);
 
   // ใช้มาตรฐานเดียวกับกราฟ: เคยผ่าน = ผ่าน, ไม่เคยผ่านเลย = ไม่ผ่าน
   const { passEver, neverPass } = computeEnglishPassCounts();
@@ -323,6 +323,31 @@ Object.keys(byStu).forEach(id => {
   renderEnglishPassPie();
 }
 function groupBy(arr, keyFn){ const m={}; arr.forEach(x=>{ const k=keyFn(x); (m[k]||(m[k]=[])).push(x); }); return m; }
+
+/** Determine if an English test record should be considered "pass".
+ * Rules:
+ * - Explicit status === 'ผ่าน'  => pass
+ * - Keywords (case-insensitive) indicating external exams => pass:
+ *   'TOEFL', 'TOELF' (typo-safe), 'TOEIC', 'CU-TEP', 'CU TEP', 'CUTEP'
+ */
+function isEnglishPassStatus(statusRaw){
+  const s = String(statusRaw||'').trim();
+  if (!s) return false;
+  if (s === 'ผ่าน') return true;
+  const lower = s.toLowerCase();
+  // normalize separators
+  const norm = lower.replace(/[_\-]/g,' ').replace(/\s+/g,' ').trim();
+  // keyword set
+  const passKeywords = ['toefl','toelf','toeic','cu tep','cute p','cu tep','cu  tep','cu  tep','cutep','cu-tep','cu_tep','cu–tep'];
+  if (passKeywords.some(k => norm.find ? norm.find(k) : norm.includes(k))) return true;
+  // also match patterns like "TOEFL-ITP", "CU TEP 550", etc.
+  if (/toefl\s*itp/.test(norm)) return true;
+  if (/cu\s*tep/.test(norm)) return true;
+  return false;
+}
+function isEnglishPass(test){
+  return isEnglishPassStatus(test && test.status);
+}
 /* Bar: จำนวนนักศึกษาแต่ละชั้นปี */
 function renderStudentByYearBar(){
   const ctx = byId('gradeDistributionChart').getContext('2d');
@@ -355,34 +380,69 @@ function computePassCountsForTests(tests){
   Object.keys(byStu).forEach(id=>{
     const arr = byStu[id] || [];
     if(!arr.length) return;
-    const ever = arr.some(t => String(t.status||'').trim() === 'ผ่าน');
+    const ever = arr.some(t => isEnglishPass(t));
     if (ever) passEver++; else neverPass++;
   });
   return { passEver, neverPass };
 }
+
 function computeEnglishPassCounts(){
   const byStu = groupBy(appState.englishTests, t => cleanId(t.studentId));
   let passEver = 0, neverPass = 0;
-  Object.keys(byStu).forEach(id => {
-    const arr = byStu[id] || [];
-    if (!arr.length) return; // ยังไม่เคยสอบ → ไม่นับ
-    const ever = arr.some(t => String(t.status||'').trim() === 'ผ่าน');
+  const allIds = new Set(appState.students.map(s => cleanId(s.studentId||s.id||s.ID||s.no||'')));
+
+  // Count for every student in roster:
+  allIds.forEach(id => {
+    const arr = (byStu[id] || []);
+    if (arr.length === 0){
+      // ไม่เคยสอบ => นับเป็น "ไม่ผ่าน"
+      neverPass++;
+      return;
+    }
+    const ever = arr.some(t => isEnglishPass(t));
     if (ever) passEver++; else neverPass++;
   });
   return { passEver, neverPass };
 }
+);
+  return { passEver, neverPass };
+}
+
 function renderEnglishPassPie(){
   const el = byId('englishPassPie');
   if(!el) return;
   const ctx = el.getContext('2d');
+
   const byStu = groupBy(appState.englishTests, t => cleanId(t.studentId));
-  let pass=0, never=0;
-  Object.keys(byStu).forEach(id=>{
-    const arr = byStu[id] || [];
-    if(!arr.length) return;
-    const ever = arr.some(t => String(t.status||'').trim() === 'ผ่าน');
-    if (ever) pass++; else never++;
+  const allIds = new Set(appState.students.map(s => cleanId(s.studentId||s.id||s.ID||s.no||'')));
+  let pass = 0, fail = 0;
+
+  allIds.forEach(id => {
+    const arr = (byStu[id] || []);
+    if (arr.length === 0){
+      fail++; // ไม่เคยสอบ => นับฝั่งไม่ผ่าน
+      return;
+    }
+    const ever = arr.some(t => isEnglishPass(t));
+    if (ever) pass++; else fail++;
   });
+
+  const dataArr = [pass, fail];
+  const total = dataArr[0] + dataArr[1];
+
+  if (window._englishPie) window._englishPie.destroy();
+  window._englishPie = new Chart(ctx, {
+    type:'pie',
+    data:{ labels:['ผ่าน','ไม่ผ่าน'], datasets:[{ data: dataArr }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ tooltip:{ callbacks:{ label:(c)=>{
+        const label=c.label||''; const v=c.parsed; const pct = total? ((v/total)*100).toFixed(1):'0.0';
+        return `${label}: ${v} คน (${pct}%)`;
+      }}}}
+    }
+  );
+}
+);
   const dataArr = [pass, never];
   const total = dataArr[0]+dataArr[1];
   if (window._englishPie) window._englishPie.destroy();
