@@ -375,9 +375,6 @@ function computeEnglishPassCounts(){
   });
   return { passEver, neverPass };
 }
-);
-  return { passEver, neverPass };
-}
 
 function renderEnglishPassPie(){
   const el = byId('englishPassPie');
@@ -1407,4 +1404,5 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
