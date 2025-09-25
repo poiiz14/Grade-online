@@ -832,7 +832,9 @@ window.showSemester = function(sem){
 function buildAdvisorView(){
   const myName = appState.user.name || '';
   const list = appState.students.filter(s=> (String(s.advisor||'').trim() === String(myName).trim()) );
-  renderAdvisorFiltersrenderAdvisorEnglishSummary// << สรุป Pie เฉพาะนักศึกษาที่ดูแล
+  renderAdvisorFilters(list);
+  renderAdvisorStudents(list);
+  renderAdvisorEnglishSummary(list);// << สรุป Pie เฉพาะนักศึกษาที่ดูแล
 }
 function renderAdvisorFilters(myStudents){
   const yearFilter = byId('advisorYearFilter');
@@ -1382,3 +1384,4 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
