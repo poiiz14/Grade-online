@@ -85,3 +85,18 @@ body {
 header.sticky {
   top: env(safe-area-inset-top);
 }
+
+/* Loading overlay helpers restored */
+.loading-overlay.hidden { display: none; }
+
+/* Spinner (วงกลมหมุน) */
+.spinner{
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 3px solid #e5e7eb; /* base ring */
+  border-top-color: #2563eb; /* primary color */
+  animation: spin .9s linear infinite;
+}
+
+/* Keyframe สำหรับสปินเนอร์ */
+@keyframes spin { to { transform: rotate(360deg); } }
