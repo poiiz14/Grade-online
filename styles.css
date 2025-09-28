@@ -1,184 +1,87 @@
-/* ===== Base & Typography ===== */
-html { scroll-behavior: smooth; }
-body{
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-  background-color:#f8fafc; /* fallback ถ้า Tailwind โหลดช้า */
+/* Variables for consistency */
+:root {
+  --safe-tap: 44px;
 }
 
-/* เพิ่ม tap-target ให้กดถนัดบนมือถือ */
-:root{ --safe-tap:44px; }
-button,.btn,input,select,textarea{ min-height:var(--safe-tap); }
-
-/* ===== Background ===== */
-.gradient-bg{
-  background: linear-gradient(135deg,#e0f2fe 0%,#f5f3ff 100%);
+/* Tap targets: ensure touch-friendly controls */
+button,
+.btn,
+input,
+select,
+textarea {
+  min-height: var(--safe-tap);
 }
 
-/* ===== Cards ===== */
-.card-shadow{
-  box-shadow:0 8px 24px rgba(2,6,23,.06), 0 2px 6px rgba(2,6,23,.04);
-  border:1px solid rgba(2,6,23,.06);
-  border-radius:1rem;
-}
-.hover-scale{ transition:transform .15s ease, box-shadow .15s ease; }
-.hover-scale:hover{ transform:translateY(-2px); }
-.hover-scale:active{ transform:translateY(0); }
-
-/* ===== Tabs (Admin/Student) ===== */
+/* Tabs (แก้ selector .semester-tab ให้ถูกต้อง) */
 .tab-btn,
-.semester-tab{
-  position:relative;
-  padding:.875rem .25rem;
-  color:#475569; /* slate-600 */
-  border-bottom:2px solid transparent;
-  transition:color .15s ease, border-color .15s ease, background-color .15s ease;
-}
-.tab-btn:hover,
-.semester-tab:hover{ color:#0f172a; } /* slate-900 */
-.tab-btn.is-active,
-.semester-tab.is-active{
-  color:#0f172a;
-  border-color:#2563eb; /* blue-600 */
-}
-.tab-btn.is-active::after,
-.semester-tab.is-active::after{
-  content:'';
-  position:absolute; left:0; right:0; bottom:-2px;
-  height:2px; background:#2563eb; border-radius:2px;
+.semester-tab {
+  position: relative;
+  padding: .875rem .25rem;
+  color: #475569;
+  border-bottom: 2px solid transparent;
+  transition: color .15s ease, border-color .15s ease, background-color .15s ease;
 }
 
-/* ===== Tables ===== */
-table{ border-collapse:separate; border-spacing:0; }
-thead th{ letter-spacing:.02em; font-weight:600; }
-th,td{ font-size:.95rem; }
-tbody tr:hover td{ background:#fafafa; }
+/* Card shadow (แก้ rgba ให้ถูก) */
+.card-shadow {
+  box-shadow: 0 8px 24px rgba(2,6,23,.06), 0 2px 6px rgba(2,6,23,.04);
+  border: 1px solid rgba(2,6,23,.06);
+  border-radius: 1rem;
+}
 
-/* ปุ่มเล็กในแถวตาราง */
-.row-action{ padding:.375rem .75rem; border-radius:.5rem; }
-
-/* ===== Forms ===== */
-input,select,textarea{ outline:none; }
-input:focus,select:focus,textarea:focus{ box-shadow:0 0 0 3px rgba(37,99,235,.2); }
-
-/* ===== Modals ===== */
-#modalBackdrop{ animation:fadeIn .12s ease; }
-#modalEditStudent>div,
-#modalAddGrade>div,
-#modalAddEnglish>div,
-#advisorDetailModal>div,
-#modalManageGrades>div{ animation:pop .12s ease; }
-
-/* Keyframes */
-@keyframes fadeIn{ from{opacity:0} to{opacity:1} }
-@keyframes pop{ 0%{ transform:scale(.98); opacity:0 } 100%{ transform:scale(1); opacity:1 } }
-
-/* ===== Advisor expandable row ===== */
-#advisorStudentsList .hidden{ display:none; }
-#advisorStudentsList .expander-enter{ animation:expander .16s ease; }
-@keyframes expander{ from{ transform:translateY(-2px); opacity:.0 } to{ transform:translateY(0); opacity:1 } }
-
-/* ===== Chart container helper ===== */
-.chart-box{ min-height:220px; }
-/* กรอบคุมความสูงของกราฟ + ป้องกันล้น */
-.chart-box{ height:280px; position:relative; }
-.chart-box canvas{ width:100% !important; height:100% !important; display:block; }
-
-/* ===== Utility Helpers ===== */
-.prose-max{ max-width: 70ch; }
-
-/* ===== Modal scroll control ===== */
-.modal-panel{ max-height:85vh; overflow:hidden; }
-.modal-body-scroll{ max-height:60vh; overflow-y:auto; }
-
-/* ===== Loading Overlay ===== */
-.loading-overlay{
-  position: fixed; inset: 0; z-index: 60;
-  display: flex; align-items: center; justify-content: center;
+/* Loading overlay (แก้ rgba ให้ถูก) */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: rgba(0,0,0,.35);
   animation: fadeIn .12s ease;
 }
-.loading-overlay.hidden{ display: none; }
-.loading-panel{
+
+.loading-panel {
   background: #fff;
   padding: 1.25rem 1.5rem;
   border-radius: .875rem;
   box-shadow: 0 10px 30px rgba(2,6,23,.18);
-  display: flex; flex-direction: column; align-items: center;
-  min-width: 200px; animation: pop .12s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 200px;
+  animation: pop .12s ease;
 }
-.spinner{
-  width: 28px; height: 28px;
-  border-radius: 50%;
-  border: 3px solid #e5e7eb; border-top-color: #2563eb;
-  animation: spin 0.9s linear infinite;
-}
-@keyframes spin{ to { transform: rotate(360deg);} }
 
-/* ===== Responsive ===== */
-@media (max-width:640px){
-  .card-shadow{ border-radius:.9rem; }
-  .tab-btn,.semester-tab{ padding:.75rem .25rem; }
-  th,td{ font-size:.92rem; }
+/* Charts responsive height */
+.chart-box {
+  height: 260px;
+  position: relative;
 }
-@media (min-width:641px) and (max-width:1024px){
-  .chart-box{ min-height:280px; }
+
+@media (max-width: 640px) {
+  .chart-box {
+    height: 220px;
+  }
 }
-@media (min-width:1280px){
-  .prose-max{ max-width:72ch; }
+
+/* Animation */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
-@media (prefers-reduced-motion:reduce){
-  *{ animation:none!important; transition:none!important; }
-}
-@supports (-webkit-touch-callout:none){
-  input,select,textarea{ font-size:16px; }
-}
-/* FAB enter pop */
+
 @keyframes pop {
-  0%   { transform: scale(0.8); opacity: 0; }
-  100% { transform: scale(1);   opacity: 1; }
-}
-.animate-pop {
-  animation: pop 200ms ease-out;
+  from { transform: scale(.96); opacity: .6; }
+  to { transform: scale(1); opacity: 1; }
 }
 
-/* เคารพผู้ใช้ที่ปิด motion */
-@media (prefers-reduced-motion: reduce) {
-  .animate-pop { animation: none; }
-}
-/* เด้งเบาๆ เวลาเข้าหน้า */
-.drop-shadow { filter: drop-shadow(0 4px 6px rgba(0,0,0,0.15)); }
-
-@keyframes floaty {
-  0%   { transform: translateY(0px); }
-  50%  { transform: translateY(-3px); }
-  100% { transform: translateY(0px); }
-}
-.sticker-float {
-  animation: floaty 3s ease-in-out infinite;
+/* Safe area for iPhone notch */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* เคารพผู้ใช้ที่ไม่ชอบ motion */
-@media (prefers-reduced-motion: reduce) {
-  .sticker-float { animation: none; }
+header.sticky {
+  top: env(safe-area-inset-top);
 }
-/* เงาสวยๆ */
-.drop-shadow { filter: drop-shadow(0 4px 6px rgba(0,0,0,0.15)); }
-
-/* sticker ลอยดึ๋งๆ */
-@keyframes floaty {
-  0%   { transform: translateY(0px); }
-  50%  { transform: translateY(-3px); }
-  100% { transform: translateY(0px); }
-}
-.sticker-float {
-  animation: floaty 3s ease-in-out infinite;
-}
-
-/* เคารพ motion settings */
-@media (prefers-reduced-motion: reduce) {
-  .sticker-float { animation: none; }
-}
-
-
