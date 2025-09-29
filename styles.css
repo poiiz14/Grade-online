@@ -41,6 +41,8 @@ textarea {
   animation: fadeIn .12s ease;
 }
 
+#loadingBar { width: 0%; } /* ค่าเริ่มต้น */
+
 .loading-panel {
   background: #fff;
   padding: 1.25rem 1.5rem;
@@ -156,3 +158,4 @@ header.sticky {
     width: 100%;
   }
 }
+
