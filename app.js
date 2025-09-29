@@ -78,12 +78,46 @@ function computeGPA(grades){ let cr=0, pt=0; grades.forEach(g=>{ const p=gradeTo
 function round2(n){ return Math.round((n + Number.EPSILON) * 100) / 100; }
 function latestBy(list, keyFn){ if(!list||!list.length) return null; let best=list[0], bk=keyFn(best)||''; for(let i=1;i<list.length;i++){ const k=keyFn(list[i])||''; if(k>bk){ best=list[i]; bk=k; } } return best; }
 function unique(arr){ return Array.from(new Set(arr)); }
-/* Loading overlay helpers */
-function showLoading(on=true){
+/* Loading overlay helpers (upgrade, backward compatible) */
+function showLoading(on = true, opts = {}){
   const el = document.getElementById('loadingOverlay');
   if(!el) return;
-  if(on){ el.classList.remove('hidden'); } else { el.classList.add('hidden'); }
+  // เปิด/ปิดเหมือนเดิม
+  if(on){ el.classList.remove('hidden'); }
+  else  { el.classList.add('hidden'); }
+
+  // อัปเดตข้อความ/ความคืบหน้า ถ้ามีส่งมา
+  if (opts && typeof opts === 'object'){
+    if (typeof opts.message === 'string'){
+      const msgEl = document.getElementById('loadingMessage');
+      if (msgEl) msgEl.textContent = opts.message;
+    }
+    if (typeof opts.progress === 'number'){
+      setLoadingProgress(opts.progress);
+    } else if (opts.mode === 'indeterminate'){
+      const barWrap = el.querySelector('.progress');
+      if (barWrap) barWrap.setAttribute('data-mode','indeterminate');
+    }
+  }
 }
+
+// ฟังก์ชันสาธารณะไว้เรียกเปลี่ยนข้อความระหว่างโหลด (เช่นทีละสเต็ป)
+window.setLoadingMessage = function(msg){
+  const el = document.getElementById('loadingMessage');
+  if (el && typeof msg === 'string') el.textContent = msg;
+};
+
+// ฟังก์ชันสาธารณะไว้ตั้งเปอร์เซ็นต์ความคืบหน้า (0..100)
+window.setLoadingProgress = function(pct){
+  const wrap = document.querySelector('#loadingOverlay .progress');
+  const bar  = document.getElementById('loadingBar');
+  if (!wrap || !bar) return;
+  const v = Math.max(0, Math.min(100, Number(pct)||0));
+  wrap.removeAttribute('data-mode');   // determinate
+  bar.style.width = v + '%';
+  bar.setAttribute('aria-valuenow', String(v));
+};
+
 
 /***********************
  * JSON/JSONP CALLER
@@ -1384,4 +1418,5 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
