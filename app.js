@@ -1431,6 +1431,83 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+/* ===== Smooth/Auto progress helpers ===== */
+
+/** เก็บ state ภายใน */
+const __loadingState = {
+  timer: null,
+  current: 0
+};
+
+/** ตั้งเปอร์เซ็นต์แบบลื่น ๆ ไปยังเป้าหมาย (ใช้เมื่อรู้ progress จริงเป็นช่วง ๆ) */
+window.setLoadingProgressSmooth = function(targetPct, duration = 600) {
+  const wrap = document.querySelector('#loadingOverlay .progress');
+  const bar  = document.getElementById('loadingBar');
+  if (!wrap || !bar) return;
+
+  // determinate mode
+  wrap.removeAttribute('data-mode');
+
+  const start = __loadingState.current || 0;
+  const end   = Math.max(0, Math.min(100, Number(targetPct) || 0));
+  const t0    = performance.now();
+
+  function tick(now){
+    const elapsed = now - t0;
+    const t = Math.min(1, elapsed / duration);
+    // easeInOutCubic
+    const ease = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+    const val = Math.round(start + (end - start) * ease);
+    bar.style.width = val + '%';
+    bar.setAttribute('aria-valuenow', String(val));
+    __loadingState.current = val;
+    if (t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+};
+
+/** เริ่ม “ไหลเอง” ทีละนิดจนถึง cap (เช่น 90%) ขณะรอ server */
+window.startAutoProgress = function(opts = {}) {
+  const { step = 1, interval = 120, cap = 90, startAt = 0, message } = opts;
+
+  // เปิด overlay ถ้ายังไม่เปิด
+  showLoading(true, { message: message ?? 'กำลังโหลดข้อมูล…กรุณารอสักครู่', progress: startAt });
+
+  // determinate mode
+  const wrap = document.querySelector('#loadingOverlay .progress');
+  if (wrap) wrap.removeAttribute('data-mode');
+
+  // ล้างตัวเก่า
+  if (__loadingState.timer) clearInterval(__loadingState.timer);
+  __loadingState.current = Math.max(startAt, 0);
+
+  __loadingState.timer = setInterval(() => {
+    if (__loadingState.current >= cap) return;
+    __loadingState.current = Math.min(cap, __loadingState.current + step);
+    setLoadingProgress(__loadingState.current);
+  }, interval);
+};
+
+/** หยุด auto และ “วิ่งจบ” เป็น 100% อย่างนุ่ม ๆ แล้วปิด overlay */
+window.completeProgressAndHide = function(delayCloseMs = 250) {
+  if (__loadingState.timer) {
+    clearInterval(__loadingState.timer);
+    __loadingState.timer = null;
+  }
+  window.setLoadingProgressSmooth(100, 400);
+  setTimeout(() => { showLoading(false); __loadingState.current = 0; }, delayCloseMs + 400);
+};
+
+/** ปิด/ยกเลิกโหลดทันที (ไม่วิ่งจบ) */
+window.cancelProgress = function() {
+  if (__loadingState.timer) {
+    clearInterval(__loadingState.timer);
+    __loadingState.timer = null;
+  }
+  __loadingState.current = 0;
+  showLoading(false);
+};
+
 
 
 
