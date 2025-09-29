@@ -740,20 +740,24 @@
     </div>
   </div>
   <script src="app.js"></script>
-    <!-- Loading Overlay (อยู่นอก login/dashboard) -->
+  <!-- Loading Overlay (อยู่นอก login/dashboard) -->
     <div id="loadingOverlay" class="loading-overlay hidden" role="dialog" aria-live="polite" aria-label="กำลังโหลด">
-      <div class="loading-panel">
-        <div class="loading-brand">
-        </div>
-    <div class="spinner" aria-hidden="true"></div>
-          <!-- ข้อความสถานะเปลี่ยนได้ระหว่างโหลด -->
-        <div id="loadingMessage" class="mt-3 text-sm text-gray-700">กำลังโหลดข้อมูล…กรุณารอสักครู่</div>
-           <!-- แถบความคืบหน้า (ไม่ระบุก็เป็น indeterminate ได้) -->
-        <div class="progress mt-3" aria-hidden="true">
-          <div id="loadingBar" class="progress-bar" style="width:0%"></div>
-        </div>
-      </div>
+  <div class="loading-panel">
+    <div class="loading-brand">
+      <img src="..." alt="" class="loading-logo" />
     </div>
+
+    <div class="spinner" aria-hidden="true"></div>
+
+    <div id="loadingMessage" class="mt-3 text-sm text-gray-700">
+      กำลังโหลดข้อมูล…กรุณารอสักครู่
+    </div>
+
+    <div class="progress mt-3" aria-hidden="true">
+      <div id="loadingBar" class="progress-bar" style="width:0%"></div>
+    </div>
+  </div>
+</div>
     <!-- Modal: Login Help (โทนฟ้าอ่อนพาสเทล) -->
     <div id="modalLoginHelp" class="fixed inset-0 z-50 hidden">
       <div class="absolute inset-0 bg-black/40" onclick="closeModal('modalLoginHelp')"></div>
@@ -789,6 +793,7 @@
 </div>
 </body>
 </html>
+
 
 
 
