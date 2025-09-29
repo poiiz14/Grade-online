@@ -12,7 +12,7 @@ textarea {
   min-height: var(--safe-tap);
 }
 
-/* Tabs (แก้ selector .semester-tab ให้ถูกต้อง) */
+/* Tabs */
 .tab-btn,
 .semester-tab {
   position: relative;
@@ -22,14 +22,14 @@ textarea {
   transition: color .15s ease, border-color .15s ease, background-color .15s ease;
 }
 
-/* Card shadow (แก้ rgba ให้ถูก) */
+/* Card shadow */
 .card-shadow {
   box-shadow: 0 8px 24px rgba(2,6,23,.06), 0 2px 6px rgba(2,6,23,.04);
   border: 1px solid rgba(2,6,23,.06);
   border-radius: 1rem;
 }
 
-/* Loading overlay (แก้ rgba ให้ถูก) */
+/* Loading overlay */
 .loading-overlay {
   position: fixed;
   inset: 0;
@@ -40,8 +40,6 @@ textarea {
   background: rgba(0,0,0,.35);
   animation: fadeIn .12s ease;
 }
-
-#loadingBar { width: 0%; } /* ค่าเริ่มต้น */
 
 .loading-panel {
   background: #fff;
@@ -79,19 +77,19 @@ textarea {
   border-radius: 999px;
   background: #eef2ff;
   overflow: hidden;
-  margin-top: .75rem; /* เว้นจากข้อความโหลด */
+  margin-top: .75rem;
 }
 
 .progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #60a5fa, #2563eb);
+  background: linear-gradient(90deg,#60a5fa,#2563eb);
   width: 0%;
   transition: width .25s ease;
 }
 
-/* โหมด indeterminate */
+/* Indeterminate mode */
 .progress[data-mode="indeterminate"] .progress-bar {
-  width: 40%;
+  width: 40% !important;
   animation: indet 1.2s ease-in-out infinite;
 }
 
@@ -134,22 +132,22 @@ header.sticky {
   top: env(safe-area-inset-top);
 }
 
-/* Loading overlay helpers restored */
+/* Loading overlay helpers */
 .loading-overlay.hidden { display: none; }
 
-/* Spinner (วงกลมหมุน) */
-.spinner{
-  width: 28px; height: 28px;
+/* Spinner */
+.spinner {
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  border: 3px solid #e5e7eb; /* base ring */
-  border-top-color: #2563eb; /* primary color */
+  border: 3px solid #e5e7eb;
+  border-top-color: #2563eb;
   animation: spin .9s linear infinite;
 }
 
-/* Keyframe สำหรับสปินเนอร์ */
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Optional: ลด motion สำหรับผู้ใช้ที่ตั้งค่า reduce motion */
+/* Reduce motion */
 @media (prefers-reduced-motion: reduce) {
   .loading-brand { animation: none; }
   .spinner { animation-duration: 1.4s; }
@@ -158,4 +156,3 @@ header.sticky {
     width: 100%;
   }
 }
-
