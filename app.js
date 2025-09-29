@@ -79,46 +79,51 @@ function round2(n){ return Math.round((n + Number.EPSILON) * 100) / 100; }
 function latestBy(list, keyFn){ if(!list||!list.length) return null; let best=list[0], bk=keyFn(best)||''; for(let i=1;i<list.length;i++){ const k=keyFn(list[i])||''; if(k>bk){ best=list[i]; bk=k; } } return best; }
 function unique(arr){ return Array.from(new Set(arr)); }
 /* Loading overlay helpers (upgrade, backward compatible) */
-function showLoading(on = true, opts = {}){
+function showLoading(on = true, opts = {}) {
   const el = document.getElementById('loadingOverlay');
-  if(!el) return;
-  // เปิด/ปิดเหมือนเดิม
-  if(on){ el.classList.remove('hidden'); }
-  else  { el.classList.add('hidden'); }
+  if (!el) return;
 
-  // อัปเดตข้อความ/ความคืบหน้า ถ้ามีส่งมา
-  if (opts && typeof opts === 'object'){
-    if (typeof opts.message === 'string'){
+  if (on) {
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+  }
+
+  // อัปเดตข้อความ/โหมด/เปอร์เซ็นต์ ถ้ามีส่งมา
+  if (opts && typeof opts === 'object') {
+    if (typeof opts.message === 'string') {
       const msgEl = document.getElementById('loadingMessage');
       if (msgEl) msgEl.textContent = opts.message;
     }
-    if (typeof opts.progress === 'number'){
+    if (typeof opts.progress === 'number') {
       setLoadingProgress(opts.progress);
-    } else if (opts.mode === 'indeterminate'){
+    } else if (opts.mode === 'indeterminate') {
       const barWrap = el.querySelector('.progress');
-      if (barWrap) barWrap.setAttribute('data-mode','indeterminate');
+      if (barWrap) barWrap.setAttribute('data-mode', 'indeterminate');
     }
+  } else {
+    // ค่าเริ่มต้น: indeterminate
+    const barWrap = el.querySelector('.progress');
+    if (barWrap) barWrap.setAttribute('data-mode', 'indeterminate');
   }
 }
 
-// ฟังก์ชันสาธารณะไว้เรียกเปลี่ยนข้อความระหว่างโหลด (เช่นทีละสเต็ป)
-window.setLoadingMessage = function(msg){
+// เปลี่ยนข้อความระหว่างโหลด
+window.setLoadingMessage = function (msg) {
   const el = document.getElementById('loadingMessage');
   if (el && typeof msg === 'string') el.textContent = msg;
 };
 
-// ฟังก์ชันสาธารณะไว้ตั้งเปอร์เซ็นต์ความคืบหน้า (0..100)
-window.setLoadingProgress = function(pct){
+// ตั้งเปอร์เซ็นต์ความคืบหน้า (0..100)
+window.setLoadingProgress = function (pct) {
   const wrap = document.querySelector('#loadingOverlay .progress');
   const bar  = document.getElementById('loadingBar');
   if (!wrap || !bar) return;
-  const v = Math.max(0, Math.min(100, Number(pct)||0));
-  wrap.removeAttribute('data-mode');   // determinate
+  const v = Math.max(0, Math.min(100, Number(pct) || 0));
+  wrap.removeAttribute('data-mode'); // determinate
   bar.style.width = v + '%';
   bar.setAttribute('aria-valuenow', String(v));
 };
-
-
 /***********************
  * JSON/JSONP CALLER
  ***********************/
@@ -1418,5 +1423,6 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
 
