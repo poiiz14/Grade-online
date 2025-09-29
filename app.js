@@ -79,24 +79,20 @@ function round2(n){ return Math.round((n + Number.EPSILON) * 100) / 100; }
 function latestBy(list, keyFn){ if(!list||!list.length) return null; let best=list[0], bk=keyFn(best)||''; for(let i=1;i<list.length;i++){ const k=keyFn(list[i])||''; if(k>bk){ best=list[i]; bk=k; } } return best; }
 function unique(arr){ return Array.from(new Set(arr)); }
 /* Loading overlay helpers (fixed indeterminate) */
+/* Loading overlay helpers (fixed) */
 function showLoading(on = true, opts = {}) {
   const root = document.getElementById('loadingOverlay');
   if (!root) return;
-
   const wrap = root.querySelector('.progress');
   const bar  = root.querySelector('#loadingBar');
-
   // เปิด/ปิด overlay
-  if (on) root.classList.remove('hidden');
-  else    root.classList.add('hidden');
-
-  // อัปเดตข้อความ
+  if (on) root.classList.remove('hidden'); else root.classList.add('hidden');
+  // ข้อความ
   if (opts && typeof opts.message === 'string') {
     const msgEl = document.getElementById('loadingMessage');
     if (msgEl) msgEl.textContent = opts.message;
   }
-
-  // โหมด progress
+  // โหมดแถบ
   if (opts && typeof opts.progress === 'number') {
     // determinate
     if (wrap) wrap.removeAttribute('data-mode');
@@ -104,24 +100,24 @@ function showLoading(on = true, opts = {}) {
       const v = Math.max(0, Math.min(100, Number(opts.progress) || 0));
       bar.style.width = v + '%';
       bar.setAttribute('aria-valuenow', String(v));
+      // เก็บค่าไว้ใช้ต่อ
+      window.__loadingCurrent = v;
     }
   } else {
     // indeterminate (ค่าเริ่มต้น)
     if (wrap) wrap.setAttribute('data-mode', 'indeterminate');
     if (bar) {
-      // ลบ inline style ที่ขัดกับ CSS animation
-      bar.style.removeProperty('width');
+      bar.style.removeProperty('width');   // << สำคัญ: ลบ inline ที่ค้าง
       bar.removeAttribute('aria-valuenow');
     }
   }
 }
-
-// helper เสริม (ใช้ระหว่างทำงานตามสเต็ป)
+// เปลี่ยนข้อความระหว่างโหลด
 window.setLoadingMessage = function (msg) {
   const el = document.getElementById('loadingMessage');
   if (el && typeof msg === 'string') el.textContent = msg;
 };
-
+// ตั้งเปอร์เซ็นต์แบบทันที
 window.setLoadingProgress = function (pct) {
   const wrap = document.querySelector('#loadingOverlay .progress');
   const bar  = document.getElementById('loadingBar');
@@ -130,8 +126,31 @@ window.setLoadingProgress = function (pct) {
   wrap.removeAttribute('data-mode'); // determinate
   bar.style.width = v + '%';
   bar.setAttribute('aria-valuenow', String(v));
+  window.__loadingCurrent = v;
 };
+// ตั้งเปอร์เซ็นต์แบบ “ค่อย ๆ ขยับ”
+window.setLoadingProgressSmooth = function(targetPct, duration = 600) {
+  const wrap = document.querySelector('#loadingOverlay .progress');
+  const bar  = document.getElementById('loadingBar');
+  if (!wrap || !bar) return;
+  
+  wrap.removeAttribute('data-mode'); // determinate
+  
+  const start = Number(window.__loadingCurrent || 0);
+  const end   = Math.max(0, Math.min(100, Number(targetPct) || 0));
+  const t0    = performance.now();
 
+  function tick(now){
+    const t = Math.min(1, (now - t0) / duration);
+    const ease = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; // easeInOutCubic
+    const val = Math.round(start + (end - start) * ease);
+    bar.style.width = val + '%';
+    bar.setAttribute('aria-valuenow', String(val));
+    window.__loadingCurrent = val;
+    if (t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+};
 /***********************
  * JSON/JSONP CALLER
  ***********************/
@@ -1507,6 +1526,7 @@ window.cancelProgress = function() {
   __loadingState.current = 0;
   showLoading(false);
 };
+
 
 
 
