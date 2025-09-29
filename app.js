@@ -78,43 +78,50 @@ function computeGPA(grades){ let cr=0, pt=0; grades.forEach(g=>{ const p=gradeTo
 function round2(n){ return Math.round((n + Number.EPSILON) * 100) / 100; }
 function latestBy(list, keyFn){ if(!list||!list.length) return null; let best=list[0], bk=keyFn(best)||''; for(let i=1;i<list.length;i++){ const k=keyFn(list[i])||''; if(k>bk){ best=list[i]; bk=k; } } return best; }
 function unique(arr){ return Array.from(new Set(arr)); }
-/* Loading overlay helpers (upgrade, backward compatible) */
+/* Loading overlay helpers (fixed indeterminate) */
 function showLoading(on = true, opts = {}) {
-  const el = document.getElementById('loadingOverlay');
-  if (!el) return;
+  const root = document.getElementById('loadingOverlay');
+  if (!root) return;
 
-  if (on) {
-    el.classList.remove('hidden');
-  } else {
-    el.classList.add('hidden');
+  const wrap = root.querySelector('.progress');
+  const bar  = root.querySelector('#loadingBar');
+
+  // เปิด/ปิด overlay
+  if (on) root.classList.remove('hidden');
+  else    root.classList.add('hidden');
+
+  // อัปเดตข้อความ
+  if (opts && typeof opts.message === 'string') {
+    const msgEl = document.getElementById('loadingMessage');
+    if (msgEl) msgEl.textContent = opts.message;
   }
 
-  // อัปเดตข้อความ/โหมด/เปอร์เซ็นต์ ถ้ามีส่งมา
-  if (opts && typeof opts === 'object') {
-    if (typeof opts.message === 'string') {
-      const msgEl = document.getElementById('loadingMessage');
-      if (msgEl) msgEl.textContent = opts.message;
-    }
-    if (typeof opts.progress === 'number') {
-      setLoadingProgress(opts.progress);
-    } else if (opts.mode === 'indeterminate') {
-      const barWrap = el.querySelector('.progress');
-      if (barWrap) barWrap.setAttribute('data-mode', 'indeterminate');
+  // โหมด progress
+  if (opts && typeof opts.progress === 'number') {
+    // determinate
+    if (wrap) wrap.removeAttribute('data-mode');
+    if (bar) {
+      const v = Math.max(0, Math.min(100, Number(opts.progress) || 0));
+      bar.style.width = v + '%';
+      bar.setAttribute('aria-valuenow', String(v));
     }
   } else {
-    // ค่าเริ่มต้น: indeterminate
-    const barWrap = el.querySelector('.progress');
-    if (barWrap) barWrap.setAttribute('data-mode', 'indeterminate');
+    // indeterminate (ค่าเริ่มต้น)
+    if (wrap) wrap.setAttribute('data-mode', 'indeterminate');
+    if (bar) {
+      // ลบ inline style ที่ขัดกับ CSS animation
+      bar.style.removeProperty('width');
+      bar.removeAttribute('aria-valuenow');
+    }
   }
 }
 
-// เปลี่ยนข้อความระหว่างโหลด
+// helper เสริม (ใช้ระหว่างทำงานตามสเต็ป)
 window.setLoadingMessage = function (msg) {
   const el = document.getElementById('loadingMessage');
   if (el && typeof msg === 'string') el.textContent = msg;
 };
 
-// ตั้งเปอร์เซ็นต์ความคืบหน้า (0..100)
 window.setLoadingProgress = function (pct) {
   const wrap = document.querySelector('#loadingOverlay .progress');
   const bar  = document.getElementById('loadingBar');
@@ -124,6 +131,7 @@ window.setLoadingProgress = function (pct) {
   bar.style.width = v + '%';
   bar.setAttribute('aria-valuenow', String(v));
 };
+
 /***********************
  * JSON/JSONP CALLER
  ***********************/
@@ -1423,6 +1431,7 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
 
 
