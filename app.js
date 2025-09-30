@@ -1581,4 +1581,56 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+/* ==== HOTFIX: override progress helpers (no `globals`) ==== */
+(function(){
+  // ถ้ายังไม่มี updateLoadingPercent ให้ทำตัวง่าย ๆ กัน error
+  if (typeof window.updateLoadingPercent !== 'function') {
+    window.updateLoadingPercent = function(v){
+      const el = document.getElementById('loadingPercent');
+      if (el) el.textContent = Math.max(0, Math.min(100, Math.round(Number(v)||0))) + '%';
+    };
+  }
+
+  // ทันที (deterministic)
+  window.setLoadingProgress = function (pct) {
+    const wrap = document.querySelector('#loadingOverlay .progress');
+    const bar  = document.getElementById('loadingBar');
+    if (!wrap || !bar) return;
+    const v = Math.max(0, Math.min(100, Number(pct) || 0));
+    wrap.removeAttribute('data-mode');           // determinate
+    bar.style.width = v + '%';
+    bar.setAttribute('aria-valuenow', String(v));
+    window.__loadingCurrent = v;
+    updateLoadingPercent(v);
+  };
+
+  // ลื่น ๆ ไปหาเป้าหมาย (ไม่มี `globals`)
+  window.setLoadingProgressSmooth = function(targetPct, duration = 600) {
+    const wrap = document.querySelector('#loadingOverlay .progress');
+    const bar  = document.getElementById('loadingBar');
+    if (!wrap || !bar) return;
+
+    wrap.removeAttribute('data-mode'); // determinate
+
+    const start = Number((window.__loadingCurrent ?? (typeof __loadingState !== 'undefined' ? __loadingState.current : 0)) || 0);
+    const end   = Math.max(0, Math.min(100, Number(targetPct) || 0));
+    const t0    = performance.now();
+
+    function tick(now){
+      const t = Math.min(1, (now - t0) / duration);
+      const ease = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; // easeInOutCubic
+      const val = Math.round(start + (end - start) * ease);
+
+      bar.style.width = val + '%';
+      bar.setAttribute('aria-valuenow', String(val));
+      window.__loadingCurrent = val;
+      try { __loadingState.current = val; } catch(_) {}
+      updateLoadingPercent(val);
+
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  };
+})();
+
 
