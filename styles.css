@@ -156,3 +156,10 @@ header.sticky {
     width: 100%;
   }
 }
+.loading-percent{
+  margin-top:.25rem;
+  font-size:.875rem;
+  color:#475569;
+  font-variant-numeric: tabular-nums;
+}
+
