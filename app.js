@@ -1220,7 +1220,7 @@ function renderAdvisorEnglishSummary(myStudents){
 window._advisorSelectedStudentId = '';
 
 function initAdvisorYearFilter() {
-  const yearSel = byId('advisorYear');
+  const yearSel = byId('advisorAcademicYear');
   if (!yearSel) return;
 
   const years = unique(appState.grades.map(g => parseTerm(g.term).year).filter(Boolean)).sort();
@@ -1232,7 +1232,7 @@ function initAdvisorYearFilter() {
 function renderAdvisorList() {
   const tbody = byId('advisorStudentsList');
   const searchEl = byId('advisorSearch');
-  const yearSel  = byId('advisorYear');
+  const yearSel  = byId('advisorAcademicYear');
   const q = (searchEl?.value || '').trim();
   const y = (yearSel?.value || '').trim();
 
@@ -1285,7 +1285,7 @@ window.openAdvisorStudent = function(studentId){
 
 function renderAdvisorStudentDetail(studentId) {
   const id = String(studentId || '').trim();
-  const yearSel = byId('advisorYear');
+  const yearSel = byId('advisorAcademicYear');
   const y = (yearSel?.value || '').trim();
 
   // โปรไฟล์
@@ -1335,9 +1335,11 @@ async function buildAdvisorDashboard(){
   renderAdvisorList();
 
   // ผูก event
-  const yearSel = byId('advisorYear');
+  const yearSel = byId('advisorAcademicYear');
   const searchEl = byId('advisorSearch');
-  if (yearSel)  yearSel.onchange  = () => { renderAdvisorList(); if (window._advisorSelectedStudentId) renderAdvisorStudentDetail(window._advisorSelectedStudentId); };
+  if (yearSel) yearSel.onchange = () => {renderAdvisorList();
+  if (window._advisorSelectedStudentId) renderAdvisorStudentDetail(window._advisorSelectedStudentId);
+  };
   if (searchEl) searchEl.oninput  = () => { renderAdvisorList(); };
 
   // เคลียร์ panel รายละเอียดก่อนเลือก
@@ -1568,4 +1570,5 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
