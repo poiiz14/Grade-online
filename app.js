@@ -1100,19 +1100,14 @@ function renderAdvisorStudents(myStudents){
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-200">
-                ${
-                  stuGrades
-                    .sort((a,b)=> termSortKey(a.term).localeCompare(termSortKey(b.term)))
-                    .map(g=>`
-                      <tr>
-                        <td class="px-3 py-2">${formatTermForDisplay(g.term)}</td>
-                        <td class="px-3 py-2">${g.courseCode||'-'}</td>
-                        <td class="px-3 py-2">${g.courseTitle||'-'}</td>
-                        <td class="px-3 py-2">${g.credits||'-'}</td>
-                        <td class="px-3 py-2">${g.grade||'-'}</td>
-                      </tr>
-                    `).join('')
-                }
+               ${
+                (filteredByAy.length
+                  ? filteredByAy
+                      .sort((a,b)=> termSortKey(a.term).localeCompare(termSortKey(b.term)))
+                      .map(g => ` ... `)
+                  : [`<tr><td colspan="5" class="px-3 py-6 text-center text-gray-400">ยังไม่มีข้อมูลในปีที่เลือก</td></tr>`]
+                ).join('')
+              }
               </tbody>
             </table>
           </div>
@@ -1570,5 +1565,6 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
 
