@@ -292,7 +292,7 @@ function initLogin(){
 
     const submitBtn = e.target.querySelector('button[type="submit"]');
     if (submitBtn){ submitBtn.disabled = true; submitBtn.classList.add('opacity-60','cursor-not-allowed'); }
-    showLoading(true);
+    showLoading(true, { message: 'กำลังตรวจสอบสิทธิ์…' });
 
     try{
       let res;
@@ -330,15 +330,16 @@ function initLogin(){
       
       // อัปเดต label ผู้ใช้ (ใช้ role ที่ normalize แล้ว)
       byId('currentUserLabel').textContent = `${appState.user.name || ''} (${appState.user.role})`;
-
+      setLoadingProgressSmooth(25);
+      setLoadingMessage('กำลังดึงข้อมูลจากเซิร์ฟเวอร์…');
       let boot;
-if (appState.user.role === 'student'){
-  boot = await apiBootstrapFor({ role:'student', studentId: appState.user.id });
-} else if (appState.user.role === 'advisor'){
-  boot = await apiBootstrapFor({ role:'advisor', advisorName: appState.user.name });
-} else {
-  boot = await apiBootstrap(); // admin
-}
+      if (appState.user.role === 'student'){
+        boot = await apiBootstrapFor({ role:'student', studentId: appState.user.id });
+      } else if (appState.user.role === 'advisor'){
+        boot = await apiBootstrapFor({ role:'advisor', advisorName: appState.user.name });
+      } else {
+        boot = await apiBootstrap(); // admin
+      }
       if(!boot.success){
         showLoading(false);
         if (submitBtn){ submitBtn.disabled = false; submitBtn.classList.remove('opacity-60','cursor-not-allowed'); }
@@ -349,6 +350,9 @@ if (appState.user.role === 'student'){
       appState.grades = boot.data.grades || [];
       appState.englishTests = boot.data.englishTests || [];
       appState.advisors = boot.data.advisors || [];
+      
+      setLoadingMessage('กำลังเตรียมแดชบอร์ด…');
+      setLoadingProgressSmooth(60);
 
       // แสดง Dashboard หลัก
       byId('loginScreen').classList.add('hidden');
@@ -357,6 +361,9 @@ if (appState.user.role === 'student'){
       // โหลดหน้า Dashboard ตามบทบาท ผ่าน Router กลาง (forceReload = true เพื่อดึงข้อมูลใหม่)
       await loadRoleDashboard(appState.user.role, { forceReload: true });
       showLoading(false);
+      await loadRoleDashboard(appState.user.role, { forceReload: true });
+      setLoadingProgressSmooth(100, 400);
+      setTimeout(() => showLoading(false), 500);
     }catch(err){
       console.error(err);
       showLoading(false);
@@ -395,6 +402,8 @@ window.handleChangePasswordSubmit = async function(e){
   if (!username){ Swal.fire('ผิดพลาด','ไม่พบข้อมูลผู้ใช้ในระบบ','error'); return false; }
 
   try{
+    showLoading(true, { message: 'กำลังเปลี่ยนรหัสผ่าน…' });
+    setLoadingProgressSmooth(30);
     // เรียก GAS route: changepassword (มีใน Router ของปอยแล้ว)
     const res = await callAPI({
       action: 'changePassword',
@@ -403,7 +412,13 @@ window.handleChangePasswordSubmit = async function(e){
     if (!res?.success){
       Swal.fire('ไม่สำเร็จ', res?.message || 'เปลี่ยนรหัสผ่านไม่สำเร็จ', 'error');
       return false;
+      setLoadingProgressSmooth(100, 300);
+      setTimeout(() => showLoading(false), 350);
+      return Swal.fire('ไม่สำเร็จ', res?.message || 'เปลี่ยนรหัสผ่านไม่สำเร็จ', 'error'), false;
     }
+    setLoadingMessage('กำลังบันทึกและยืนยัน…');
+    setLoadingProgressSmooth(70);
+    
     Swal.fire('สำเร็จ','เปลี่ยนรหัสผ่านเรียบร้อย','success');
     closeModal('modalChangePassword');
     return false;
@@ -411,6 +426,10 @@ window.handleChangePasswordSubmit = async function(e){
     console.error(err);
     Swal.fire('ผิดพลาด', String(err), 'error');
     return false;
+    }finally{
+   // เดิมไม่มีปิด overlay ที่นี่
+    setLoadingProgressSmooth(100, 400);
+    setTimeout(() => showLoading(false), 450);
   }
 };
 /***********************
@@ -1379,25 +1398,31 @@ window.softRefresh = async function(silent = false){
     const btn = document.getElementById('btnSoftRefresh');
     const t = document.getElementById('lastRefreshed');
     if (btn && !silent) { btn.disabled = true; btn.classList.add('opacity-60','cursor-wait'); }
-
+    if (!silent) {
+     showLoading(true, { message: 'กำลังรีเฟรชข้อมูล…' });
+    setLoadingProgressSmooth(15);
+   }
     let role = (window.appState?.user?.role || '').toLowerCase();
     if (!role) { role = getVisibleRoleFromUI(); if (!role) return; }
 
     // ⬇️ ดึงข้อมูลสดจาก backend (GAS)
     let boot;
-if (appState.user.role === 'student'){
-  boot = await apiBootstrapFor({ role:'student', studentId: appState.user.id });
-} else if (appState.user.role === 'advisor'){
-  boot = await apiBootstrapFor({ role:'advisor', advisorName: appState.user.name });
-} else {
-  boot = await apiBootstrap(); // admin
-}
+    if (appState.user.role === 'student'){
+      boot = await apiBootstrapFor({ role:'student', studentId: appState.user.id });
+    } else if (appState.user.role === 'advisor'){
+      boot = await apiBootstrapFor({ role:'advisor', advisorName: appState.user.name });
+    } else {
+      boot = await apiBootstrap(); // admin
+    }
     if(!boot.success) throw new Error(boot.message || 'bootstrap failed');
     appState.students     = boot.data.students     || [];
     appState.grades       = boot.data.grades       || [];
     appState.englishTests = boot.data.englishTests || [];
     appState.advisors     = boot.data.advisors     || [];
-
+    if (!silent) {
+     setLoadingMessage('กำลังอัปเดตแดชบอร์ด…');
+     setLoadingProgressSmooth(60);
+   }
     await loadRoleDashboard(role, { forceReload: true });
 
     const stamp = new Date().toLocaleString('th-TH',{hour12:false});
@@ -1408,6 +1433,10 @@ if (appState.user.role === 'student'){
   } finally {
     const btn = document.getElementById('btnSoftRefresh');
     if (btn) { btn.disabled = false; btn.classList.remove('opacity-60','cursor-wait'); }
+    if (!silent) {
+     setLoadingProgressSmooth(100, 400);
+     setTimeout(() => showLoading(false), 450);
+   }
   }
 };
 
@@ -1536,6 +1565,7 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
 
 
