@@ -136,11 +136,9 @@ window.setLoadingProgressSmooth = function(targetPct, duration = 600) {
   const bar  = document.getElementById('loadingBar');
   if (!wrap || !bar) return;
 
-  wrap.removeAttribute('data-mode');
+  wrap.removeAttribute('data-mode'); // determinate
 
-  const start = Number(
-    (window.__loadingCurrent ?? (typeof __loadingState !== 'undefined' ? __loadingState.current : 0)) || 0
-  );
+  const start = Number((window.__loadingCurrent ?? (typeof __loadingState !== 'undefined' ? __loadingState.current : 0)) || 0);
   const end   = Math.max(0, Math.min(100, Number(targetPct) || 0));
   const t0    = performance.now();
 
@@ -148,20 +146,14 @@ window.setLoadingProgressSmooth = function(targetPct, duration = 600) {
     const t = Math.min(1, (now - t0) / duration);
     const ease = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
     const val = Math.round(start + (end - start) * ease);
-
     bar.style.width = val + '%';
     bar.setAttribute('aria-valuenow', String(val));
-
     window.__loadingCurrent = val;
-    try { __loadingState.current = val; } catch(_) {}
-    if (typeof updateLoadingPercent === 'function') updateLoadingPercent(val);
-
+    updateLoadingPercent(val); // << เพิ่มบรรทัดนี้
     if (t < 1) requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
 };
-
-
 // อัปเดตตัวเลข % ที่จอ
 function updateLoadingPercent(val){
   const p = document.getElementById('loadingPercent');
@@ -185,8 +177,7 @@ window.setLoadingProgressSmooth = function(targetPct, duration = 600) {
   // determinate mode
   wrap.removeAttribute('data-mode');
 
-  // ใช้สถานะเริ่มจากค่าปัจจุบัน (รองรับทั้งตัวแปรเดิมและตัวแปร state)
-  const start = Number((window.__loadingCurrent ?? (globals.__loadingState && globals.__loadingState.current) ?? (typeof __loadingState !== 'undefined' ? __loadingState.current : 0)) || 0);
+  const start = Number((window.__loadingCurrent ?? (typeof __loadingState !== 'undefined' ? __loadingState.current : 0)) || 0);
   const end   = Math.max(0, Math.min(100, Number(targetPct) || 0));
   const t0    = performance.now();
 
@@ -196,15 +187,12 @@ window.setLoadingProgressSmooth = function(targetPct, duration = 600) {
     // easeInOutCubic
     const ease = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
     const val = Math.round(start + (end - start) * ease);
-
     bar.style.width = val + '%';
     bar.setAttribute('aria-valuenow', String(val));
-
-    // อัปเดต state และตัวเลข %
-    try { __loadingState.current = val } catch(_) {}
     window.__loadingCurrent = val;
+    try { __loadingState.current = val; } catch(_) {}
     if (typeof updateLoadingPercent === 'function') updateLoadingPercent(val);
-
+    __loadingState.current = val;
     if (t < 1) requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
@@ -1580,3 +1568,4 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
