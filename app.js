@@ -131,25 +131,35 @@ window.setLoadingProgress = function (pct) {
 };
 
 // แก้ setLoadingProgressSmooth ให้เซ็ตตัวเลขด้วย
+/** ตั้งเปอร์เซ็นต์แบบลื่น ๆ ไปยังเป้าหมาย (ใช้เมื่อรู้ progress จริงเป็นช่วง ๆ) — FIXED */
 window.setLoadingProgressSmooth = function(targetPct, duration = 600) {
   const wrap = document.querySelector('#loadingOverlay .progress');
   const bar  = document.getElementById('loadingBar');
   if (!wrap || !bar) return;
 
-  wrap.removeAttribute('data-mode'); // determinate
+  // determinate mode
+  wrap.removeAttribute('data-mode');
 
-  const start = Number(window.__loadingCurrent || 0);
+  // ใช้สถานะเริ่มจากค่าปัจจุบัน (รองรับทั้งตัวแปรเดิมและตัวแปร state)
+  const start = Number((window.__loadingCurrent ?? __loadingState.current) || 0);
   const end   = Math.max(0, Math.min(100, Number(targetPct) || 0));
   const t0    = performance.now();
 
   function tick(now){
-    const t = Math.min(1, (now - t0) / duration);
+    const elapsed = now - t0;
+    const t = Math.min(1, elapsed / duration);
+    // easeInOutCubic
     const ease = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
     const val = Math.round(start + (end - start) * ease);
+
     bar.style.width = val + '%';
     bar.setAttribute('aria-valuenow', String(val));
+
+    // อัปเดต state ทั้งสองตัว และอัปเดตตัวเลข %
+    __loadingState.current = val;
     window.__loadingCurrent = val;
-    updateLoadingPercent(val); // << เพิ่มบรรทัดนี้
+    updateLoadingPercent(val);
+
     if (t < 1) requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
@@ -1565,6 +1575,7 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
 
 
