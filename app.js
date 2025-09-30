@@ -127,32 +127,41 @@ window.setLoadingProgress = function (pct) {
   bar.style.width = v + '%';
   bar.setAttribute('aria-valuenow', String(v));
   window.__loadingCurrent = v;
+  updateLoadingPercent(v); // << เพิ่มบรรทัดนี้
 };
-// ตั้งเปอร์เซ็นต์แบบ “ค่อย ๆ ขยับ”
+
+// แก้ setLoadingProgressSmooth ให้เซ็ตตัวเลขด้วย
 window.setLoadingProgressSmooth = function(targetPct, duration = 600) {
   const wrap = document.querySelector('#loadingOverlay .progress');
   const bar  = document.getElementById('loadingBar');
   if (!wrap || !bar) return;
-  
+
   wrap.removeAttribute('data-mode'); // determinate
-  
+
   const start = Number(window.__loadingCurrent || 0);
   const end   = Math.max(0, Math.min(100, Number(targetPct) || 0));
   const t0    = performance.now();
 
   function tick(now){
     const t = Math.min(1, (now - t0) / duration);
-    const ease = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; // easeInOutCubic
+    const ease = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
     const val = Math.round(start + (end - start) * ease);
     bar.style.width = val + '%';
     bar.setAttribute('aria-valuenow', String(val));
     window.__loadingCurrent = val;
+    updateLoadingPercent(val); // << เพิ่มบรรทัดนี้
     if (t < 1) requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
 };
+// อัปเดตตัวเลข % ที่จอ
+function updateLoadingPercent(val){
+  const p = document.getElementById('loadingPercent');
+  if (!p) return;
+  const v = Math.max(0, Math.min(100, Math.round(Number(val) || 0)));
+  p.textContent = v + '%';
+}
 /* ===== Smooth/Auto progress helpers ===== */
-
 /** เก็บ state ภายใน */
 const __loadingState = {
   timer: null,
@@ -1527,6 +1536,7 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
 
 
