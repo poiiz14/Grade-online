@@ -239,6 +239,35 @@ window.cancelProgress = function() {
   __loadingState.current = 0;
   showLoading(false);
 };
+function getSelectedAdvisorYear() {
+  const sel = byId('advisorAcademicYear');
+  return String((sel?.value ?? '')).trim();
+}
+
+function filterGradesByYear(list, year) {
+  if (!year) return list; // ไม่เลือกปี → โชว์ทั้งหมด
+  const y = String(year).trim();
+
+  return (list || []).filter(g => {
+    const term = String(g?.term ?? '');
+    // ปีจาก parseTerm(term) ถ้ามี
+    let yearFromTerm = '';
+    try {
+      yearFromTerm = String(parseTerm(term)?.year ?? '');
+    } catch (_) {}
+
+    // ปีจากฟิลด์ในข้อมูล (กันไว้หลายชื่อ)
+    const yearFromField =
+      String(g?.academicYear ?? g?.year ?? g?.ay ?? '').trim();
+
+    // ตัดสินใจ: ถ้าฟิลด์ไหนตรง y ก็ผ่าน
+    return (
+      yearFromField === y ||
+      yearFromTerm === y ||
+      (term && term.startsWith(y + '/'))
+    );
+  });
+}
 
 /***********************
  * JSON/JSONP CALLER
@@ -1104,10 +1133,15 @@ function renderAdvisorStudents(myStudents){
                 (filteredByAy.length
                   ? filteredByAy
                       .sort((a,b)=> termSortKey(a.term).localeCompare(termSortKey(b.term)))
-                      .map(g => ` ... `)
-                  : [`<tr><td colspan="5" class="px-3 py-6 text-center text-gray-400">ยังไม่มีข้อมูลในปีที่เลือก</td></tr>`]
-                ).join('')
-              }
+                      .map(g => `
+                      <tr>
+                      <td class="px-3 py-2">${formatTermForDisplay(g.term)}</td>
+                      <td class="px-3 py-2">${g.courseCode || '-'}</td>
+                      <td class="px-3 py-2">${g.courseTitle || '-'}</td>
+                      <td class="px-3 py-2">${g.credits || '-'}</td>
+                      <td class="px-3 py-2">${g.grade || '-'}</td>
+                      </tr>
+                      `)
               </tbody>
             </table>
           </div>
@@ -1565,6 +1599,7 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
 
 
 
