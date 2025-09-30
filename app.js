@@ -136,24 +136,33 @@ window.setLoadingProgressSmooth = function(targetPct, duration = 600) {
   const bar  = document.getElementById('loadingBar');
   if (!wrap || !bar) return;
 
-  wrap.removeAttribute('data-mode'); // determinate
+  // determinate mode
+  wrap.removeAttribute('data-mode');
 
-  const start = Number(window.__loadingCurrent || 0);
+  const start = Number(
+    (window.__loadingCurrent ?? (typeof __loadingState !== 'undefined' ? __loadingState.current : 0)) || 0
+  );
   const end   = Math.max(0, Math.min(100, Number(targetPct) || 0));
   const t0    = performance.now();
 
   function tick(now){
-    const t = Math.min(1, (now - t0) / duration);
+    const elapsed = now - t0;
+    const t = Math.min(1, elapsed / duration);
     const ease = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
     const val = Math.round(start + (end - start) * ease);
+
     bar.style.width = val + '%';
     bar.setAttribute('aria-valuenow', String(val));
+
+    try { __loadingState.current = val; } catch(_) {}
     window.__loadingCurrent = val;
-    updateLoadingPercent(val); // << เพิ่มบรรทัดนี้
+    if (typeof updateLoadingPercent === 'function') updateLoadingPercent(val);
+
     if (t < 1) requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
 };
+
 // อัปเดตตัวเลข % ที่จอ
 function updateLoadingPercent(val){
   const p = document.getElementById('loadingPercent');
@@ -1572,3 +1581,4 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+
