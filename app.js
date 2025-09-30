@@ -303,17 +303,17 @@ function apiUpdateGrade(payload){
  * LOGIN FLOW
  ***********************/
 function initLogin(){
-  const userTypeEl = byId('userType');
-  const adminLogin = byId('adminLogin');
-  const studentLogin = byId('studentLogin');
-  const advisorLogin = byId('advisorLogin');
+  const userTypeEl    = byId('userType');
+  const adminLogin    = byId('adminLogin');
+  const studentLogin  = byId('studentLogin');
+  const advisorLogin  = byId('advisorLogin');
 
   userTypeEl.addEventListener('change', ()=>{
     const role = userTypeEl.value;
     adminLogin.classList.add('hidden');
     studentLogin.classList.add('hidden');
     advisorLogin.classList.add('hidden');
-    if(role==='admin') adminLogin.classList.remove('hidden');
+    if(role==='admin')   adminLogin.classList.remove('hidden');
     if(role==='student') studentLogin.classList.remove('hidden');
     if(role==='advisor') advisorLogin.classList.remove('hidden');
   });
@@ -324,9 +324,12 @@ function initLogin(){
 
     const submitBtn = e.target.querySelector('button[type="submit"]');
     if (submitBtn){ submitBtn.disabled = true; submitBtn.classList.add('opacity-60','cursor-not-allowed'); }
-    showLoading(true, { message: 'กำลังตรวจสอบสิทธิ์…' });
+
+    // เปิด overlay + ให้แถบคืบหน้าเดินเองเบาๆ ระหว่าง auth
+    startAutoProgress({ startAt: 10, cap: 85, message: 'กำลังตรวจสอบสิทธิ์…' });
 
     try{
+      // 1) AUTH
       let res;
       if(role==='admin'){
         res = await apiAuthenticate('admin', {
@@ -344,61 +347,75 @@ function initLogin(){
         });
       }
 
-      if(!res.success){
-        showLoading(false);
+      if(!res?.success){
+        cancelProgress(); // ปิด overlay
         if (submitBtn){ submitBtn.disabled = false; submitBtn.classList.remove('opacity-60','cursor-not-allowed'); }
-        return Swal.fire('ไม่สำเร็จ', res.message || 'เข้าสู่ระบบล้มเหลว', 'error');
+        return Swal.fire('ไม่สำเร็จ', res?.message || 'เข้าสู่ระบบล้มเหลว', 'error');
       }
 
-      // ตั้งค่า user จากผล authenticate
+      // 2) STATE ผู้ใช้
       appState.user = res.data || {};
-      
-      // ✅ Fallback: ถ้า backend ไม่ส่ง role มา ให้ใช้ role จาก userType ที่ผู้ใช้เลือกใน login form
-      if (!appState.user.role) {
-        appState.user.role = role;
-      }
-      // ให้ role เป็น lower-case เสมอเพื่อให้ router ทำงานคงที่
+      if (!appState.user.role) appState.user.role = role; // fallback
       appState.user.role = String(appState.user.role || '').toLowerCase();
-      
-      // อัปเดต label ผู้ใช้ (ใช้ role ที่ normalize แล้ว)
+
       byId('currentUserLabel').textContent = `${appState.user.name || ''} (${appState.user.role})`;
-      setLoadingProgressSmooth(25);
       setLoadingMessage('กำลังดึงข้อมูลจากเซิร์ฟเวอร์…');
+      setLoadingProgressSmooth(30);
+
+      // 3) BOOTSTRAP — role-based & light-first
       let boot;
       if (appState.user.role === 'student'){
         boot = await apiBootstrapFor({ role:'student', studentId: appState.user.id });
       } else if (appState.user.role === 'advisor'){
         boot = await apiBootstrapFor({ role:'advisor', advisorName: appState.user.name });
       } else {
-        boot = await apiBootstrap(); // admin
-      }
-      if(!boot.success){
-        showLoading(false);
-        if (submitBtn){ submitBtn.disabled = false; submitBtn.classList.remove('opacity-60','cursor-not-allowed'); }
-        return Swal.fire('ผิดพลาด', boot.message || 'โหลดข้อมูลล้มเหลว', 'error');
+        // admin: ใช้แบบ “lite” เพื่อขึ้นหน้าจอได้ไวก่อน
+        boot = await apiBootstrapFor({ role:'admin', lite:true });
       }
 
-      appState.students = boot.data.students || [];
-      appState.grades = boot.data.grades || [];
-      appState.englishTests = boot.data.englishTests || [];
-      appState.advisors = boot.data.advisors || [];
-      
+      if(!boot?.success){
+        cancelProgress();
+        if (submitBtn){ submitBtn.disabled = false; submitBtn.classList.remove('opacity-60','cursor-not-allowed'); }
+        return Swal.fire('ผิดพลาด', boot?.message || 'โหลดข้อมูลล้มเหลว', 'error');
+      }
+
+      appState.students     = boot.data?.students     || [];
+      appState.grades       = boot.data?.grades       || [];
+      appState.englishTests = boot.data?.englishTests || [];
+      appState.advisors     = boot.data?.advisors     || [];
+
+      // 4) แสดงแอป + โหลดหน้าตามบทบาท
+      byId('loginScreen').classList.add('hidden');
+      byId('dashboard').classList.remove('hidden');
+
       setLoadingMessage('กำลังเตรียมแดชบอร์ด…');
       setLoadingProgressSmooth(60);
 
-      // แสดง Dashboard หลัก
-      byId('loginScreen').classList.add('hidden');
-      byId('dashboard').classList.remove('hidden');
-      
-      // โหลดหน้า Dashboard ตามบทบาท ผ่าน Router กลาง (forceReload = true เพื่อดึงข้อมูลใหม่)
+      // เรียกครั้งเดียวพอ (ตัดการเรียกซ้ำ)
       await loadRoleDashboard(appState.user.role, { forceReload: true });
-      showLoading(false);
-      await loadRoleDashboard(appState.user.role, { forceReload: true });
-      setLoadingProgressSmooth(100, 400);
-      setTimeout(() => showLoading(false), 500);
+
+      // 5) ถ้าเป็น admin และเป็น lite → ดึงก้อนใหญ่ “ภายหลัง” แล้วอัปเดต UI
+      if (appState.user.role === 'admin' && boot?.meta?.lite === true){
+        setLoadingMessage('กำลังโหลดข้อมูลเพิ่มเติม…');
+        setLoadingProgressSmooth(80);
+
+        const [gradesRes, engRes] = await Promise.all([
+          callAPI({ action:'getGrades' }),
+          callAPI({ action:'getEnglish' })
+        ]);
+
+        if (gradesRes?.success)     appState.grades       = gradesRes.data || [];
+        if (engRes?.success)        appState.englishTests = engRes.data    || [];
+
+        // อัปเดตแดชบอร์ด admin หลังโหลด heavy data
+        await loadRoleDashboard(appState.user.role, { forceReload: false });
+      }
+
+      completeProgressAndHide(); // วิ่งจบและปิด overlay
+
     }catch(err){
       console.error(err);
-      showLoading(false);
+      cancelProgress();
       Swal.fire('ผิดพลาด', String(err), 'error');
     }finally{
       if (submitBtn){ submitBtn.disabled = false; submitBtn.classList.remove('opacity-60','cursor-not-allowed'); }
@@ -407,6 +424,7 @@ function initLogin(){
 
   byId('btnLogout').addEventListener('click', ()=>{ location.reload(); });
 }
+
 // เปิดโมดัลช่วยเหลือหน้า Login
 window.openLoginHelp = function(){
   openModal('modalLoginHelp');
@@ -430,13 +448,13 @@ window.handleChangePasswordSubmit = async function(e){
   if (newPw.length < 6){ Swal.fire('แจ้งเตือน','รหัสผ่านใหม่อย่างน้อย 6 ตัวอักษร','info'); return false; }
   if (newPw !== cfPw){ Swal.fire('แจ้งเตือน','รหัสผ่านใหม่และยืนยันไม่ตรงกัน','info'); return false; }
 
-  const username = (appState?.user?.email || appState?.user?.id || '').trim();
+  const user = appState.user || {};
+  const username = String(user?.email || user?.id || '').trim();
   if (!username){ Swal.fire('ผิดพลาด','ไม่พบข้อมูลผู้ใช้ในระบบ','error'); return false; }
 
   try{
-    showLoading(true, { message: 'กำลังเปลี่ยนรหัสผ่าน…' });
-    setLoadingProgressSmooth(30);
-    // เรียก GAS route: changepassword (มีใน Router ของปอยแล้ว)
+    showLoading(true, { message: 'กำลังเปลี่ยนรหัสผ่าน…', progress: 20 });
+    setLoadingProgressSmooth(40);
     const res = await callAPI({
       action: 'changePassword',
       payload: JSON.stringify({ username, old: oldPw, 'new': newPw })
@@ -444,13 +462,9 @@ window.handleChangePasswordSubmit = async function(e){
     if (!res?.success){
       Swal.fire('ไม่สำเร็จ', res?.message || 'เปลี่ยนรหัสผ่านไม่สำเร็จ', 'error');
       return false;
-      setLoadingProgressSmooth(100, 300);
-      setTimeout(() => showLoading(false), 350);
-      return Swal.fire('ไม่สำเร็จ', res?.message || 'เปลี่ยนรหัสผ่านไม่สำเร็จ', 'error'), false;
     }
     setLoadingMessage('กำลังบันทึกและยืนยัน…');
     setLoadingProgressSmooth(70);
-    
     Swal.fire('สำเร็จ','เปลี่ยนรหัสผ่านเรียบร้อย','success');
     closeModal('modalChangePassword');
     return false;
@@ -458,12 +472,11 @@ window.handleChangePasswordSubmit = async function(e){
     console.error(err);
     Swal.fire('ผิดพลาด', String(err), 'error');
     return false;
-    }finally{
-   // เดิมไม่มีปิด overlay ที่นี่
-    setLoadingProgressSmooth(100, 400);
-    setTimeout(() => showLoading(false), 450);
+  }finally{
+    completeProgressAndHide(); // วิ่งจบ + ปิด overlay เสมอ
   }
 };
+
 /***********************
  * ADMIN: NAV & SECTIONS
  ***********************/
@@ -1609,8 +1622,53 @@ window.saveEditGrade = async function(e){
     showLoading(false);
   }
 };
+async function saveEditGrade(e){
+  e.preventDefault();
+  const studentId = byId('eg-studentId')?.value || '';
+  const termOld   = byId('eg-term-old')?.value || '';
+  const code      = byId('eg-code')?.value || '';
+  const term      = byId('eg-term')?.value || '';
+  const title     = byId('eg-title')?.value || '';
+  const credits   = Number(byId('eg-credits')?.value || 0);
+  const grade     = byId('eg-grade')?.value || '';
 
+  if (!studentId || !code || !term) { Swal.fire('แจ้งเตือน','กรอกข้อมูลให้ครบถ้วน','info'); return false; }
 
+  try{
+    showLoading(true, { message: 'กำลังบันทึกการแก้ไข…', progress: 15 });
+    const res = await apiUpdateGrade({
+      studentId, termOld, courseCode: code,
+      term, courseTitle: title, credits, grade
+    });
+    if(!res?.success){ Swal.fire('ไม่สำเร็จ', res?.message || 'บันทึกไม่สำเร็จ','error'); return false; }
 
+    // อัปเดตในหน่วยความจำ (แก้จุด syntax error เดิม: ต้องใช้ ...obj)
+    const idx = (appState.grades || []).findIndex(g =>
+      String(g.studentId) === String(studentId) &&
+      String(g.courseCode) === String(code) &&
+      String(g.term)      === String(termOld)
+    );
+    if (idx >= 0) {
+      appState.grades[idx] = {
+        ...appState.grades[idx],
+        term: term,
+        courseTitle: title,
+        credits: credits,
+        grade: grade,
+        recordedAt: new Date().toISOString()
+      };
+    }
 
-
+    Swal.fire('สำเร็จ','บันทึกการแก้ไขเรียบร้อย','success');
+    closeModal('modalEditGrade');
+    // รีเฟรชเฉพาะตารางส่วนที่ต้องใช้ข้อมูลล่าสุดแทนการโหลดทั้งหน้า
+    if (typeof refreshManageGradesTable === 'function') refreshManageGradesTable(studentId);
+    return false;
+  }catch(err){
+    console.error(err);
+    Swal.fire('ผิดพลาด', String(err), 'error');
+    return false;
+  }finally{
+    completeProgressAndHide();
+  }
+}
